@@ -1,0 +1,23 @@
+1/system/resource
+
+architecture-name: SystemArchitecture
+board-name
+cpu
+cpu-frequency:u64
+factory-software
+free-memory:u64
+total-hdd-space: u64
+uptime: Duration
+write-sect-since-reboot: u64
+bad-blocks: f64
+build-time
+cpu-count: u16
+cpu-load: u8
+free-hdd-space: u64
+platform
+total-memory: u64
+version
+write-sect-total: u64
+
+1/system/identity
+name

@@ -1,0 +1,65 @@
+/ip/address
+*.id
+address: IpNet
+network
+interface
+actual-interface
+invalid: bool
+dynamic: bool
+comment
+disabled: bool
+
+/ip/dhcp-client
+!*.id
+interface
+add-default-route: bool
+comment
+default-route-distance: u8
+dhcp-options: [clientid,clientid_duid,hostname]
+disabled: bool
+script
+use-peer-dns: bool
+use-peer-ntp: bool
+
+!status: bound, error, rebinding..., requesting..., searching..., stopped
+!address: IpNet
+!gateway: IpAddr
+!primary-dns: IpAddr
+!caps-managers: IpAddr
+!expires-after: Duration
+!dynamic: bool
+!dhcp-server: IpAddr
+!invalid: bool
+
+/ip/route
+*.id
+active: bool
+bgp: bool
+blackhole:bool
+check-gateway:arp,ping
+comment
+connect:bool
+copy
+dhcp: bool
+disabled: bool
+distance:u8
+dst-address:IpNet
+dynamic:bool
+ecmp:bool
+gateway: IpOrInterface
+gateway-status
+hw-offloaded:bool
+immediate-gw:IpOrInterface
+inactive:bool
+local-address:IpOrInterface
+modem:bool
+ospf:bool
+pref-src:IpAddr
+rip:bool
+routing-table
+scope:u8
+static:bool
+suppress-hw-offload:bool
+target-scope:u8
+vpn:bool
+vrf-interface

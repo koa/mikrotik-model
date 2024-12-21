@@ -1,0 +1,96 @@
+/interface/bridge/port
+
+.id: id
+.nextid
+broadcast-flood: bool
+edge:auto,no,no-discover,yes,yes-discover
+interface
+bridge
+multicast-router: enum=disabled,permanent,temporary-query
+priority:u8
+restricted-tcn:bool
+unknown-multicast-flood:bool
+comment
+fast-leave: bool
+internal-path-cost: u32
+path-cost:u32
+tag-stacking:bool
+unknown-unicast-flood:bool
+frame-types: VlanFrameTypes
+ingress-filtering:bool
+learn:auto,no,yes
+horizon:Option<u32>
+point-to-point: Auto<bool>
+restricted-role:bool
+trusted:bool
+hw: bool
+disable: bool
+port-number: u16
+bpdu-guard: bool
+auto-isolate: bool
+role: enum=designated-port,root-port,alternate,backup,disabled-port
+pvid: u16
+status: in-bridge, inactive
+edge-port: bool
+edge-port-discovery: bool
+external-fdb: bool
+external-fdb-status: bool
+forwarding: bool
+hw-offload-group
+hw-offload: bool
+learning: bool
+point-to-point-port: bool
+sending-rstp: bool
+debug-info
+inactive: bool
+dynamic: bool
+disabled: bool
+designated-bridge
+designated-port-number: u16
+root-path-cost: u32
+designated-cost: u32
+
+/interface/bridge
+*.id
+mtu: Auto<u16>
+actual-mtu: u16
+l2mtu: u16
+*name
+add-dhcp-option82: bool
+admin-mac
+auto-mac: bool
+priority: u16
+ageing-time
+arp:enum=enabled,disabled,local-proxy-arp,proxy-arp,reply-only
+arp-timeout: Auto<u32>
+mac-address
+protocol-mode: enum=rstp,none,stp,mstp
+igmp-snooping: bool
+comment
+disabled:bool
+ether-type:0x9100,0x8100,0x88a8
+fast-forward:bool
+frame-types:VlanFrameTypes
+max-message-age: Duration
+forward-delay: Duration
+transmit-hold-count: u8
+vlan-filtering: bool
+dhcp-snooping: bool
+running: bool
+region-name
+region-revision:u8
+max-hops: u8
+pvid: u16
+ingress-filtering: bool
+
+/interface/bridge/vlan
+*.id
+bridge
+comment
+current-tagged: HashSet<String>
+current-untagged: HashSet<String>
+disabled: bool
+dynamic: bool
+tagged: HashSet<String>
+untagged: HashSet<String>
+vlan-ids: HashSet<u16>

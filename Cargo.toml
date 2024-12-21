@@ -1,0 +1,20 @@
+[package]
+name = "mikrotik-model"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+mikrotik-rs = "0.3.3"
+config = "0.14.1"
+lazy_static = "1.5.0"
+serde = { version = "1.0.216", features = ["derive"] }
+thiserror = "2.0.8"
+log = "0.4.22"
+tokio-stream = "0.1.17"
+[dev-dependencies]
+tokio = { version = "1.42.0" , features = ["macros","rt-multi-thread"]}
+[build-dependencies]
+mikrotik-model-generator={version = "0.1.0", path = "mikrotik-model-generator"}
+quote = "1.0.37"
+prettyplease = "0.2.19"
+
