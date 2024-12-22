@@ -34,6 +34,7 @@ pub fn generator() -> syn::File {
     for content in [
         include_str!("../ros_model/system.txt"),
         include_str!("../ros_model/interface.txt"),
+        include_str!("../ros_model/bridge.txt"),
     ] {
         let entries = parse_lines(content.lines());
 
@@ -62,7 +63,7 @@ pub fn generator() -> syn::File {
 
 fn generate_enums(
     enums: &HashMap<Box<str>, Box<[Box<str>]>>,
-) -> impl Iterator<Item = Item> + use<'_> {
+) -> impl Iterator<Item=Item> + use < '_ > {
     enums.iter().flat_map(|(name, values)| {
         let name = Ident::new(&derive_ident(name), Span::call_site());
         let mut enum_variants: Punctuated<Variant, Comma> = Punctuated::new();

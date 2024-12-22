@@ -22,7 +22,7 @@ pub struct Entity {
 }
 
 impl Entity {
-    pub fn generate_code(&self) -> impl Iterator<Item = Item> + '_ {
+    pub fn generate_code(&self) -> impl Iterator<Item=Item> + '_ {
         let struct_name: Box<str> = self
             .path
             .iter()
@@ -44,7 +44,7 @@ impl Entity {
         };
         for field in self.fields.iter() {
             let enum_type = if let Some(enum_values) = field.inline_enum.as_ref() {
-                let enum_name = format!("{struct_name}{}", field.name);
+                let enum_name = format!("{struct_name}_{}", field.name);
                 let enum_type = Ident::new(&derive_ident(&enum_name), Span::call_site());
                 inline_enums.insert(enum_name.into_boxed_str(), enum_values.clone());
                 Some(parse_quote!(#enum_type))
@@ -94,7 +94,9 @@ pub struct Field {
     pub is_optional: bool,
     pub is_read_only: bool,
     pub is_multiple: bool,
+    pub is_hex: bool,
     pub reference: Reference,
+    pub has_none: bool,
 }
 
 impl Field {
@@ -121,8 +123,19 @@ impl Field {
             })
             .or(enum_field_type)
             .unwrap_or(parse_quote!(Box<str>));
+        let field_type = if self.is_hex {
+            parse_quote!(value::Hex<#field_type>)
+        } else {
+            field_type
+        };
+
         let field_type = if self.has_auto {
             parse_quote!(value::Auto<#field_type>)
+        } else {
+            field_type
+        };
+        let field_type = if self.has_none {
+            parse_quote!(value::HasNone<#field_type>)
         } else {
             field_type
         };
@@ -176,7 +189,7 @@ pub enum Reference {
     RefereesTo(Box<str>),
 }
 
-pub fn parse_lines<'a>(lines: impl Iterator<Item = &'a str>) -> Vec<Entity> {
+pub fn parse_lines<'a>(lines: impl Iterator<Item=&'a str>) -> Vec<Entity> {
     let mut collected_entities = Vec::new();
     let mut current_entity = None;
     for line in lines {
@@ -250,6 +263,8 @@ fn parse_field_line(line: &str) -> Option<Field> {
                     "mu" => field.is_multiple = true,
                     "range" => field.is_range = true,
                     "o" => field.is_optional = true,
+                    "hex" => field.is_hex = true,
+                    "none" => field.has_none = true,
                     name => field.field_type = Some(name.into()),
                 }
             }
@@ -268,58 +283,6 @@ fn parse_field_line(line: &str) -> Option<Field> {
 mod test {
     use super::*;
 
-    #[test]
-    fn test_alias() {
-        let ethernet = Entity {
-            path: Box::new(["interface".into(), "ethernet".into()]),
-            fields: vec![
-                Field {
-                    name: "default-name".into(),
-                    field_type: None,
-                    inline_enum: None,
-                    is_key: true,
-                    has_auto: false,
-                    is_set: false,
-                    is_range: false,
-                    is_optional: false,
-                    is_read_only: false,
-                    is_multiple: false,
-                    reference: Reference::None,
-                },
-                Field {
-                    name: "name".into(),
-                    field_type: None,
-                    inline_enum: None,
-                    is_key: true,
-                    has_auto: false,
-                    is_set: false,
-                    is_range: false,
-                    is_optional: false,
-                    is_read_only: false,
-                    is_multiple: false,
-                    reference: Reference::IsReference("interface".into()),
-                },
-                Field {
-                    name: "advertise".into(),
-                    field_type: Some("EthernetSpeed".into()),
-                    inline_enum: None,
-                    is_key: false,
-                    has_auto: false,
-                    is_set: true,
-                    is_range: false,
-                    is_optional: false,
-                    is_read_only: false,
-                    is_multiple: false,
-                    reference: Default::default(),
-                },
-            ],
-            is_single: false,
-        };
-        let model = Model {
-            entities: vec![ethernet],
-        };
-        println!("{}", serde_yaml::to_string(&model).unwrap());
-    }
 
     #[test]
     fn test_entity_parser() {

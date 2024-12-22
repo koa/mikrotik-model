@@ -103,6 +103,35 @@ macro_rules! parameter_value_impl {
     }
 parameter_value_impl! { isize i8 i16 i32 i64 i128 usize u8 u16 u32 u64 u128 f32 f64 bool}
 
+#[derive(Debug, Clone, Copy,Eq, PartialEq,Hash)]
+pub struct Hex<V: Copy + Eq+Hash> (V);
+
+macro_rules! hex_value_impl {
+        ($($t:ty)*) => {$(
+            impl RosValue for  Hex<$t>  {
+                fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
+                    if value.is_empty() {
+                        ParseRosValueResult::None
+                    } else {
+                        match if let Some(hex_value) = value.strip_prefix("0x") {
+                            <$t>::from_str_radix(hex_value, 16)
+                        } else {
+                            value.parse::<$t>()
+                        } {
+                            Ok(v) => ParseRosValueResult::Value(Hex(v)),
+                            Err(_) => ParseRosValueResult::Invalid,
+                        }
+                    }
+                }
+
+                fn encode_ros(&self) -> Cow<str> {
+                    format!("0x{:X}", self.0).into()
+                }
+            }
+        )*}
+    }
+hex_value_impl! { isize i8 i16 i32 i64 i128 usize u8 u16 u32 u64 u128}
+
 impl RosValue for Duration {
     fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
         let mut ret = Duration::default();
@@ -234,6 +263,31 @@ impl<V: RosValue> RosValue for Auto<V> {
         }
     }
 }
+#[derive(Debug, Clone, PartialEq)]
+pub enum HasNone<V: RosValue> {
+    NoneValue,
+    Value(V),
+}
+impl<V: RosValue> RosValue for HasNone<V> {
+    fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
+        if value == "none" {
+            ParseRosValueResult::Value(HasNone::NoneValue)
+        } else {
+            match RosValue::parse_ros(value) {
+                ParseRosValueResult::Value(v) => ParseRosValueResult::Value(HasNone::Value(v)),
+                ParseRosValueResult::None => ParseRosValueResult::None,
+                ParseRosValueResult::Invalid => ParseRosValueResult::Invalid,
+            }
+        }
+    }
+
+    fn encode_ros(&self) -> Cow<str> {
+        match self {
+            HasNone::NoneValue => {"none".into()}
+            HasNone::Value(v) => v.encode_ros(),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -242,5 +296,12 @@ mod tests {
     fn test_option_parse() {
         let x: ParseRosValueResult<Option<Box<str>>> = RosValue::parse_ros("");
         println!("x: {x:?}");
+    }
+    #[test]
+    fn test_hex_parse(){
+        let parsed: ParseRosValueResult<Hex<u16>> = RosValue::parse_ros("0x8000");
+        assert_eq!(parsed, ParseRosValueResult::Value(Hex(0x8000)));
+        let encoded = Hex(0x8000).encode_ros();
+        assert_eq!(encoded, "0x8000");
     }
 }

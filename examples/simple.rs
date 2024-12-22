@@ -1,3 +1,6 @@
+use mikrotik_model::model::InterfaceBridgeVlan;
+use mikrotik_model::model::InterfaceBridge;
+use mikrotik_model::model::InterfaceBridgePort;
 use config::{Config, Environment, File};
 use env_logger::Env;
 use env_logger::TimestampPrecision;
@@ -157,6 +160,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         while let Some(r) = stream.next().await {
             //println!("Vlan: \n{r:#?}");
         }
+        println!("{}", InterfaceBridge::path());
+        let mut stream = get_resource::<InterfaceBridge>(&device).await;
+        while let Some(r) = stream.next().await {
+            //println!("Vlan: \n{r:#?}");
+        }
+        println!("{}", InterfaceBridgePort::path());
+        let mut stream = get_resource::<InterfaceBridgePort>(&device).await;
+        while let Some(r) = stream.next().await {
+            //println!("Vlan: \n{r:#?}");
+        }
+        println!("{}", InterfaceBridgeVlan::path());
+        let mut stream = get_resource::<InterfaceBridgeVlan>(&device).await;
+        while let Some(r) = stream.next().await {
+            //println!("Vlan: \n{r:#?}");
+        }
+
     }
     Ok(())
 }

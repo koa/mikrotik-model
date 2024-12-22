@@ -1,96 +1,102 @@
 /interface/bridge/port
 
-.id: id
-.nextid
+.id: id;ro
+.nextid: id;ro
 broadcast-flood: bool
-edge:auto,no,no-discover,yes,yes-discover
-interface
-bridge
+edge: enum=auto,no,no-discover,yes,yes-discover
+interface: ref=>interface
+bridge: ref=>interface
 multicast-router: enum=disabled,permanent,temporary-query
-priority:u8
+priority: hex;u8
 restricted-tcn:bool
 unknown-multicast-flood:bool
-comment
+comment: o
 fast-leave: bool
-internal-path-cost: u32
-path-cost:u32
+internal-path-cost: ro;o;u32
+path-cost: ro;o;u32
 tag-stacking:bool
 unknown-unicast-flood:bool
 frame-types: VlanFrameTypes
 ingress-filtering:bool
-learn:auto,no,yes
-horizon:Option<u32>
-point-to-point: Auto<bool>
+learn:auto;YesNo
+horizon:o;none;u32
+point-to-point: auto;bool
 restricted-role:bool
 trusted:bool
-hw: bool
-disable: bool
-port-number: u16
+hw: ro;bool
+disabled: bool
+port-number: ro;o;u16
 bpdu-guard: bool
 auto-isolate: bool
-role: enum=designated-port,root-port,alternate,backup,disabled-port
+role: o;enum=designated-port,root-port,alternate,backup,disabled-port
 pvid: u16
-status: in-bridge, inactive
-edge-port: bool
-edge-port-discovery: bool
-external-fdb: bool
-external-fdb-status: bool
-forwarding: bool
-hw-offload-group
-hw-offload: bool
-learning: bool
-point-to-point-port: bool
-sending-rstp: bool
-debug-info
-inactive: bool
-dynamic: bool
-disabled: bool
-designated-bridge
-designated-port-number: u16
-root-path-cost: u32
-designated-cost: u32
+status: enum=in-bridge, inactive
+edge-port: ro;o;bool
+edge-port-discovery: ro;o;bool
+external-fdb: ro;o;bool
+external-fdb-status: ro;o;bool
+forwarding: ro;o;bool
+hw-offload-group:ro;o
+hw-offload: o;bool
+learning: ro;o;bool
+point-to-point-port: ro;o;bool
+sending-rstp: ro;o;bool
+debug-info: ro;o
+inactive: ro;bool
+dynamic: ro;bool
+#actual-path-cost: ro;u32
+designated-bridge: ro;o;ref=>interface
+designated-port-number: ro;o;u16
+root-path-cost: ro;o;u32
+designated-cost: ro;o;u32
+mvrp-registrar-state: enum=normal,fixed
+mvrp-applicant-state: enum=normal-participant,non-participant
 
 /interface/bridge
-*.id
-mtu: Auto<u16>
+.id:id
+mtu: auto;u16
 actual-mtu: u16
 l2mtu: u16
-*name
-add-dhcp-option82: bool
-admin-mac
+name:id,ref=interface
+add-dhcp-option82: o;bool
+admin-mac: o;MacAddress
 auto-mac: bool
-priority: u16
+priority: hex;u16
 ageing-time
 arp:enum=enabled,disabled,local-proxy-arp,proxy-arp,reply-only
-arp-timeout: Auto<u32>
-mac-address
+arp-timeout: auto;u32
+mac-address: MacAddress
 protocol-mode: enum=rstp,none,stp,mstp
 igmp-snooping: bool
-comment
+comment: o
 disabled:bool
-ether-type:0x9100,0x8100,0x88a8
+ether-type:o;enum=0x9100,0x8100,0x88a8
 fast-forward:bool
-frame-types:VlanFrameTypes
+frame-types:o;VlanFrameTypes
 max-message-age: Duration
 forward-delay: Duration
 transmit-hold-count: u8
 vlan-filtering: bool
 dhcp-snooping: bool
 running: bool
-region-name
-region-revision:u8
-max-hops: u8
-pvid: u16
-ingress-filtering: bool
+region-name:o
+region-revision:o;u8
+max-hops: o;u8
+pvid: o;u16
+ingress-filtering: o;bool
+max-learned-entries: auto;u32
+port-cost-mode: enum=long,short
+mvrp: bool
 
 /interface/bridge/vlan
-*.id
+.id: id
 bridge
-comment
-current-tagged: HashSet<String>
-current-untagged: HashSet<String>
+comment: o
+current-tagged: mu
+current-untagged: mu
 disabled: bool
 dynamic: bool
-tagged: HashSet<String>
-untagged: HashSet<String>
-vlan-ids: HashSet<u16>
+tagged: mu
+untagged: mu
+vlan-ids: mu;u16
+mvrp-forbidden: mu;ref=>interface
