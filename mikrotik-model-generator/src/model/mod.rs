@@ -29,19 +29,23 @@ impl Entity {
             .map(|c| c.as_ref().to_case(Case::UpperCamel))
             .collect();
         let path = self.path.join("/");
-        let mut fields_named = FieldsNamed {
+        let mut fields_named_status = FieldsNamed {
             brace_token: Default::default(),
             named: Default::default(),
         };
-        let mut punctuated_fields: Punctuated<FieldValue, Token![,]> = Punctuated::new();
-        let mut inline_enums = HashMap::new();
+        let mut fields_named_cfg = FieldsNamed {
+            brace_token: Default::default(),
+            named: Default::default(),
+        };
+        let mut punctuated_fields_status: Punctuated<FieldValue, Token![,]> = Punctuated::new();
+        let mut punctuated_fields_cfg: Punctuated<FieldValue, Token![,]> = Punctuated::new();
 
-        let struct_ident = Ident::new(&struct_name, Span::call_site());
         let mut known_fields: ExprArray = ExprArray {
             attrs: vec![],
             bracket_token: Default::default(),
             elems: Default::default(),
         };
+        let mut inline_enums = HashMap::new();
         for field in self.fields.iter() {
             let enum_type = if let Some(enum_values) = field.inline_enum.as_ref() {
                 let enum_name = format!("{struct_name}_{}", field.name);
@@ -55,17 +59,66 @@ impl Entity {
                 attrs: vec![],
                 lit: Lit::Str(LitStr::new(&field.name, Span::call_site())),
             }));
-            let (field, parser) = field.generate_code(enum_type);
-            fields_named.named.push(field);
-            punctuated_fields.push(parser);
+            let (field_def, parser) = field.generate_code(enum_type);
+            if field.is_read_only {
+                fields_named_status.named.push(field_def);
+                punctuated_fields_status.push(parser);
+            } else {
+                fields_named_cfg.named.push(field_def);
+                punctuated_fields_cfg.push(parser);
+            }
         }
-        generate_enums(&inline_enums).collect::<Vec<_>>().into_iter().chain(
-            [
-                parse_quote! {
+        let struct_ident = Ident::new(&struct_name, Span::call_site());
+        let struct_ident_status = Ident::new(&format!("{struct_name}State"), Span::call_site());
+        let struct_ident_cfg = Ident::new(&format!("{struct_name}Cfg"), Span::call_site());
+        let mut items = Vec::with_capacity(5);
+        let mut fields_named = FieldsNamed {
+            brace_token: Default::default(),
+            named: Default::default(),
+        };
+        let mut punctuated_fields: Punctuated<FieldValue, Token![,]> = Punctuated::new();
+        if !fields_named_cfg.named.is_empty() {
+            items.push(parse_quote! {
                 #[derive(Debug, Clone, PartialEq)]
-                pub struct #struct_ident #fields_named
-            },
-                parse_quote! {
+                pub struct #struct_ident_cfg #fields_named_cfg
+            });
+            fields_named.named.push(parse_quote! {
+                pub cfg: #struct_ident_cfg
+            });
+            punctuated_fields.push(parse_quote! {
+                cfg: #struct_ident_cfg::parse(values)?
+            });
+            items.push(parse_quote! {
+                impl resource::RosResource for #struct_ident_cfg {
+                     fn parse(values: &std::collections::HashMap<String, Option<String>>) -> Result<Self, resource::ResourceAccessError> {
+                        Ok(#struct_ident_cfg {#punctuated_fields_cfg})
+                    }
+                    fn path()->&'static str{
+                        #path
+                    }
+                    fn known_fields()->&'static[&'static str]{
+                        &#known_fields
+                    }
+                }
+            });
+        };
+        if !fields_named_status.named.is_empty() {
+            items.push(parse_quote! {
+                #[derive(Debug, Clone, PartialEq)]
+                pub struct #struct_ident_status #fields_named_status
+            });
+            fields_named.named.push(parse_quote! {
+                pub status: #struct_ident_status
+            });
+            punctuated_fields.push(parse_quote! {
+                status: #struct_ident_status{#punctuated_fields_status}
+            });
+        }
+        items.push(parse_quote! {
+            #[derive(Debug, Clone, PartialEq)]
+            pub struct #struct_ident #fields_named
+        });
+        items.push(parse_quote! {
                 impl resource::RosResource for #struct_ident {
                      fn parse(values: &std::collections::HashMap<String, Option<String>>) -> Result<Self, resource::ResourceAccessError> {
                         Ok(#struct_ident {#punctuated_fields})
@@ -77,8 +130,12 @@ impl Entity {
                         &#known_fields
                     }
                 }
-            },
-            ])
+            });
+
+        generate_enums(&inline_enums)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .chain(items.into_iter())
     }
 }
 
@@ -157,7 +214,7 @@ impl Field {
         };
         (
             parse_quote!(
-                #field_name: #field_type
+                pub #field_name: #field_type
             ),
             parse_quote! {
                 #field_name: values
