@@ -1,21 +1,19 @@
-use mikrotik_model::model::InterfaceBridgeVlan;
-use mikrotik_model::model::InterfaceBridge;
-use mikrotik_model::model::InterfaceBridgePort;
 use config::{Config, Environment, File};
 use env_logger::Env;
 use env_logger::TimestampPrecision;
 use log::{error, info};
+use mikrotik_model::model::{InterfaceBridge, IpAddress, IpDhcpClient, IpRoute};
+use mikrotik_model::model::InterfaceBridgePort;
+use mikrotik_model::model::InterfaceBridgeVlan;
 use mikrotik_model::model::SystemIdentity;
 use mikrotik_model::model::{
-    InterfaceEthernet, InterfaceEthernetSwitchEgressVlanTag, InterfaceVlan, SystemResource,
+    InterfaceEthernet,  InterfaceVlan, SystemResource,
 };
 use mikrotik_model::resource::RosResource;
-use mikrotik_model::value::RosValue;
 use mikrotik_rs::command::response::CommandResponse;
 use mikrotik_rs::command::CommandBuilder;
 use mikrotik_rs::MikrotikDevice;
 use serde::Deserialize;
-use std::collections::HashMap;
 use std::net::IpAddr;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::{Stream, StreamExt};
@@ -175,7 +173,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         while let Some(r) = stream.next().await {
             //println!("Vlan: \n{r:#?}");
         }
-
+        println!("{}", IpAddress::path());
+        let mut stream = get_resource::<IpAddress>(&device).await;
+        while let Some(r) = stream.next().await {
+            //println!("Vlan: \n{r:#?}");
+        }
+        println!("{}", IpDhcpClient::path());
+        let mut stream = get_resource::<IpDhcpClient>(&device).await;
+        while let Some(r) = stream.next().await {
+            println!("DHCP Client: \n{r:#?}");
+        }
+        println!("{}", IpRoute::path());
+        let mut stream = get_resource::<IpRoute>(&device).await;
+        while let Some(r) = stream.next().await {
+            //println!("Vlan: \n{r:#?}");
+        }
     }
     Ok(())
 }

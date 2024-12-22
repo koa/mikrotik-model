@@ -1,5 +1,5 @@
-use crate::generate_enums;
 use crate::{cleanup_field_name, derive_ident};
+use crate::{generate_enums, KEYWORDS};
 use convert_case::{Case, Casing};
 use proc_macro2::{Ident, Literal, Span};
 use serde::{Deserialize, Serialize};
@@ -101,10 +101,13 @@ pub struct Field {
 
 impl Field {
     fn generate_code(&self, enum_field_type: Option<Type>) -> (syn::Field, FieldValue) {
-        let field_name = Ident::new(
-            &cleanup_field_name(self.name.as_ref()).to_case(Case::Snake),
-            Span::mixed_site(),
-        );
+        let field_name = cleanup_field_name(self.name.as_ref()).to_case(Case::Snake);
+        let field_name = if KEYWORDS.contains(field_name.as_str()) {
+            format!("_{field_name}")
+        } else {
+            field_name
+        };
+        let field_name = Ident::new(&field_name, Span::mixed_site());
         let attribute_name = Literal::string(self.name.as_ref());
         let field_type = self
             .field_type
@@ -282,7 +285,6 @@ fn parse_field_line(line: &str) -> Option<Field> {
 #[cfg(test)]
 mod test {
     use super::*;
-
 
     #[test]
     fn test_entity_parser() {

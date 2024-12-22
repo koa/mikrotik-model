@@ -1,65 +1,65 @@
 /ip/address
-*.id
+.id: id
 address: IpNet
 network
-interface
-actual-interface
-invalid: bool
-dynamic: bool
-comment
-disabled: bool
+interface: ref=>interface
+actual-interface: ro;ref=>interface
+disabled: ro;bool
+invalid: ro;bool
+dynamic: ro;bool
+slave: ro;bool
+comment: o
 
 /ip/dhcp-client
-!*.id
-interface
-add-default-route: bool
-comment
-default-route-distance: u8
-dhcp-options: [clientid,clientid_duid,hostname]
-disabled: bool
-script
+.id: id
+interface: ref=>interface
+add-default-route: YesNo
+comment:o
+default-route-distance: o;u8
+dhcp-options: mu;enum=clientid,clientid_duid,hostname
+disabled: ro;bool
+script: o
 use-peer-dns: bool
 use-peer-ntp: bool
 
-!status: bound, error, rebinding..., requesting..., searching..., stopped
-!address: IpNet
-!gateway: IpAddr
-!primary-dns: IpAddr
-!caps-managers: IpAddr
-!expires-after: Duration
-!dynamic: bool
-!dhcp-server: IpAddr
-!invalid: bool
+status: ro;enum=bound, error, rebinding..., requesting..., searching..., stopped
+address: o;ro;IpNet
+gateway: o;ro;IpAddr
+primary-dns: o;ro;IpAddr
+expires-after: o;ro;Duration
+dynamic: ro;bool
+dhcp-server: o;ro;IpAddr
+invalid: ro;bool
 
 /ip/route
-*.id
-active: bool
-bgp: bool
-blackhole:bool
-check-gateway:arp,ping
-comment
-connect:bool
-copy
-dhcp: bool
-disabled: bool
-distance:u8
+.id: id
+active: o;ro;bool
+bgp: o;ro;bool
+blackhole:o;ro;bool
+check-gateway: o;enum=arp,ping,none
+comment:o
+connect:ro;o;bool
+#copy
+dhcp: ro;o;bool
+disabled: o;ro;bool
+distance:ro;u8
 dst-address:IpNet
-dynamic:bool
-ecmp:bool
+dynamic:ro;bool
+ecmp:o;ro;bool
 gateway: IpOrInterface
-gateway-status
-hw-offloaded:bool
-immediate-gw:IpOrInterface
-inactive:bool
-local-address:IpOrInterface
-modem:bool
-ospf:bool
-pref-src:IpAddr
-rip:bool
-routing-table
+gateway-status: o;ro;IpOrInterface
+hw-offloaded:ro;bool
+immediate-gw:o;ro;IpOrInterface
+inactive:ro;bool
+local-address:o;IpOrInterface
+modem:o;ro;bool
+ospf:o;ro;bool
+pref-src:o;ro;IpAddr
+rip:o;ro;bool
+routing-table:o
 scope:u8
-static:bool
-suppress-hw-offload:bool
+static:o;ro;bool
+suppress-hw-offload:o;bool
 target-scope:u8
-vpn:bool
-vrf-interface
+vpn:o;ro;bool
+vrf-interface:o;ref=>interface

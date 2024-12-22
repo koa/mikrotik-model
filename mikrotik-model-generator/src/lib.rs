@@ -1,7 +1,8 @@
 use crate::model::{parse_lines, EnumDescriptions};
 use convert_case::{Case, Casing};
+use lazy_static::lazy_static;
 use proc_macro2::{Ident, Literal, Span};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::vec;
 use syn::__private::quote::format_ident;
 use syn::punctuated::Punctuated;
@@ -9,20 +10,32 @@ use syn::token::Comma;
 use syn::{parse_quote, ExprMatch, Item, ItemMod, Variant, Visibility};
 
 mod model;
+lazy_static! {
+    static ref KEYWORDS: HashSet<&'static str> = HashSet::from([
+        "as", "async", "await", "break", "const", "continue", "crate", "dyn", "else", "enum",
+        "extern", "false", "fn", "for", "if", "impl", "in", "let", "loop", "match", "mod", "move",
+        "mut", "pub", "ref", "return", "Self", "self", "static", "struct", "super", "trait",
+        "true", "type", "union", "unsafe", "use", "where", "while", "abstract", "become", "box",
+        "do", "final", "macro", "override", "priv", "try", "typeof", "unsized", "virtual", "yield",
+    ]);
+}
 
 pub fn generator() -> syn::File {
     let mut items = vec![
         parse_quote!(
-            use crate::resource;
+            use crate::{
+                resource,
+                value::{self, IpOrInterface},
+            };
         ),
         parse_quote!(
-            use crate::value;
-        ),
-        parse_quote!(
-            use std::time::Duration;
+            use std::{time::Duration, net::IpAddr};
         ),
         parse_quote!(
             use mac_address::MacAddress;
+        ),
+        parse_quote!(
+            use ipnet::{IpNet};
         ),
     ];
     let enums: EnumDescriptions =
@@ -35,6 +48,7 @@ pub fn generator() -> syn::File {
         include_str!("../ros_model/system.txt"),
         include_str!("../ros_model/interface.txt"),
         include_str!("../ros_model/bridge.txt"),
+        include_str!("../ros_model/ip.txt"),
     ] {
         let entries = parse_lines(content.lines());
 
@@ -63,7 +77,7 @@ pub fn generator() -> syn::File {
 
 fn generate_enums(
     enums: &HashMap<Box<str>, Box<[Box<str>]>>,
-) -> impl Iterator<Item=Item> + use < '_ > {
+) -> impl Iterator<Item = Item> + use<'_> {
     enums.iter().flat_map(|(name, values)| {
         let name = Ident::new(&derive_ident(name), Span::call_site());
         let mut enum_variants: Punctuated<Variant, Comma> = Punctuated::new();
@@ -131,8 +145,8 @@ fn derive_ident(value: &str) -> String {
 }
 #[cfg(test)]
 mod test {
-    use crate::generate_enums;
     use crate::model::{parse_lines, EnumDescriptions};
+    use crate::{generate_enums, generator};
     use std::fs::File;
     use std::io::read_to_string;
     use syn::__private::ToTokens;
@@ -157,5 +171,9 @@ mod test {
             items,
         };
         println!("File: \n{}", f.to_token_stream());
+    }
+    #[test]
+    fn test_call_generate() {
+        generator();
     }
 }

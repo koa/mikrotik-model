@@ -90,13 +90,13 @@ mvrp: bool
 
 /interface/bridge/vlan
 .id: id
-bridge
+bridge: ref=>interface
 comment: o
-current-tagged: mu
-current-untagged: mu
+current-tagged: ro;mu;ref=>interface
+current-untagged: ro;mu;ref=>interface
 disabled: bool
-dynamic: bool
-tagged: mu
-untagged: mu
+dynamic: ro;bool
+tagged: mu;ref=>interface
+untagged: mu;ref=>interface
 vlan-ids: mu;u16
 mvrp-forbidden: mu;ref=>interface
