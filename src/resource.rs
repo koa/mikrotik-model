@@ -15,4 +15,5 @@ pub enum ResourceAccessError {
 pub trait RosResource: Sized {
     fn parse(values: &HashMap<String, Option<String>>) -> Result<Self, ResourceAccessError>;
     fn path() -> &'static str;
+    fn known_fields() -> &'static [&'static str];
 }

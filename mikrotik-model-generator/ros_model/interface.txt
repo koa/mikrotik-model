@@ -1,181 +1,184 @@
 /interface/ethernet
-*.id
-*default-name
-loop-protect-status:on, off
-advertise
+.id:id
+default-name: ro;id
+loop-protect-status:OnOff
+advertise: mu;EthernetSpeed
 auto-negotiation: bool
-comment
-full-duplex: bool
+comment:o
+full-duplex: o;bool
 loop-protect-disable-time:Duration
-mdix-enable:bool
-sfp-rate-select: high,low
-arp: enabled, disabled, local-proxy-arp, proxy-arp, reply-only
+mdix-enable:o;bool
+sfp-rate-select: o;enum=high,low
+arp: enum=enabled, disabled, local-proxy-arp, proxy-arp, reply-only
 bandwidth
 disabled: bool
 l2mtu:u16
 loop-protect-send-interval:Duration
 mtu:u16
 orig-mac-address: MacAddress
-sfp-shutdown-temperature
-arp-timeout: Auto<Duration>
-combo-mode: auto, copper, sfp
-fec-mode: auto, fec74, fec91, off
-loop-protect: default, on, off
+sfp-shutdown-temperature:o
+sfp-ignore-rx-los:o;bool
+arp-timeout: o;auto;Duration
+combo-mode: o;enum=auto, copper, sfp
+fec-mode: o;enum=auto, fec74, fec91, off
+loop-protect: enum=default, on, off
 mac-address: MacAddress
-name
-tx-flow-control: off, auto, on
-rx-flow-control: off, auto, on
-speed: 10M-baseT-half,10M-baseT-full,100M-baseT-half,100M-baseT-full,100M-baseFX-half,100M-baseFX-full,1G-baseT-half,1G-baseT-full,1G-baseX,2.5G-baseT,2.5G-baseX,5G-baseT,10G-baseT,10G-baseCR,10G-baseSR-LR,25G-baseCR,25G-baseSR-LR,40G-baseCR4,40G-baseSR4-LR4,50G-baseCR,50G-baseCR2,50G-baseSR-LR,50G-baseSR2-LR2,100G-baseCR2,100G-baseSR2-LR2,100G-baseCR4,100G-baseSR4-LR4,200G-baseCR4,200G-baseSR4-LR4,400G-baseCR8,400G-baseSR8-LR8
-switch
-!running: bool
-slave: bool
+name: id;ref=interface
+tx-flow-control: o;auto;OnOff
+rx-flow-control: o;auto;OnOff
+speed: o;EthernetSpeed
+switch: o
+running: ro;bool
+slave: o;bool
 
 
-!driver-rx-byte: u64
-!driver-tx-byte: u64
-!driver-rx-packet: u64
-!driver-tx-packet: u64
-!rx-bytes: u64
-!tx-bytes: u64
-!rx-too-short: u64
-!rx-64:u64
-!rx-65-127:u64
-!rx-128-255:u64
-!rx-256-511:u64
-!rx-512-1023:u64
-!rx-1024-1518:u64
-!rx-1519-max:u64
-!rx-too-long:u64
-!rx-broadcast:u64
-!rx-pause:u64
-!rx-multicast:u64
-!rx-fcs-error:u64
-!rx-align-error:u64
-!rx-fragment:u64
-!rx-overflow:u64
-!rx-jabber: u64
-!rx-unicast: u64
-!rx-error-events:u64
-!tx-64:u64
-!tx-65-127:u64
-!tx-128-255:u64
-!tx-256-511:u64
-!tx-512-1023:u64
-!tx-1024-1518:u64
-!tx-1519-max:u64
-!tx-too-long:u64
-!tx-broadcast:u64
-!tx-pause:u64
-!tx-multicast:u64
-!tx-unicast: u64
-!tx-underrun:u64
-!tx-collision:u64
-!tx-excessive-collision:u64
-!tx-multiple-collision:u64
-!tx-single-collision:u64
-!tx-excessive-deferred:u64
-!tx-deferred:u64
-!tx-late-collision:u64
-!tx-drop: u64
-!tx-queue0-packet:u64
-!tx-queue0-byte:u64
-!tx-queue1-packet:u64
-!tx-queue1-byte:u64
-!tx-queue2-packet:u64
-!tx-queue2-byte:u64
-!tx-queue3-packet:u64
-!tx-queue3-byte:u64
-!tx-queue4-packet:u64
-!tx-queue4-byte:u64
-!tx-queue5-packet:u64
-!tx-queue5-byte:u64
-!tx-queue6-packet:u64
-!tx-queue6-byte:u64
-!tx-queue7-packet:u64
-!tx-queue7-byte:u64
-!tx-all-queue-drop-packet:u64
-!tx-all-queue-drop-byte:u64
-!tx-queue-custom0-drop-packet:u64
-!tx-queue-custom0-drop-byte:u64
-!tx-queue-custom1-drop-packet:u64
-!tx-queue-custom1-drop-byte:u64
-!tx-rx-64:u64
-!tx-rx-65-127:u64
-!tx-rx-128-255:u64
-!tx-rx-256-511:u64
-!tx-rx-512-1023:u64
-!tx-rx-1024-max:u64
+driver-rx-byte: o;ro;u64
+driver-tx-byte: o;ro;u64
+driver-rx-packet: o;ro;u64
+driver-tx-packet: o;ro;u64
+rx-bytes: o;ro;u64
+tx-bytes: o;ro;u64
+rx-too-short: o;ro;u64
+rx-64:o;ro;u64
+rx-65-127:o;ro;u64
+rx-128-255:o;ro;u64
+rx-256-511:o;ro;u64
+rx-512-1023:o;ro;u64
+rx-1024-1518:o;ro;u64
+rx-1519-max:o;ro;u64
+rx-too-long:o;ro;u64
+rx-broadcast:o;ro;u64
+rx-pause:o;ro;u64
+rx-multicast:o;ro;u64
+rx-fcs-error:o;ro;u64
+rx-align-error:o;ro;u64
+rx-fragment:o;ro;u64
+rx-overflow:o;ro;u64
+rx-jabber: o;ro;u64
+rx-unicast: o;ro;u64
+rx-error-events:o;ro;u64
+rx-drop:o;ro;u64
+rx-packet:o;ro;u64
+tx-64:o;ro;u64
+tx-65-127:o;ro;u64
+tx-128-255:o;ro;u64
+tx-256-511:o;ro;u64
+tx-512-1023:o;ro;u64
+tx-1024-1518:o;ro;u64
+tx-1519-max:o;ro;u64
+tx-too-long:o;ro;u64
+tx-broadcast:o;ro;u64
+tx-pause:o;ro;u64
+tx-multicast:o;ro;u64
+tx-unicast: o;ro;u64
+tx-underrun:o;ro;u64
+tx-collision:o;ro;u64
+tx-excessive-collision:o;ro;u64
+tx-multiple-collision:o;ro;u64
+tx-single-collision:o;ro;u64
+tx-excessive-deferred:o;ro;u64
+tx-deferred:o;ro;u64
+tx-late-collision:o;ro;u64
+tx-drop: o;ro;u64
+tx-queue0-packet:o;ro;u64
+tx-queue0-byte:o;ro;u64
+tx-queue1-packet:o;ro;u64
+tx-queue1-byte:o;ro;u64
+tx-queue2-packet:o;ro;u64
+tx-queue2-byte:o;ro;u64
+tx-queue3-packet:o;ro;u64
+tx-queue3-byte:o;ro;u64
+tx-queue4-packet:o;ro;u64
+tx-queue4-byte:o;ro;u64
+tx-queue5-packet:o;ro;u64
+tx-queue5-byte:o;ro;u64
+tx-queue6-packet:o;ro;u64
+tx-queue6-byte:o;ro;u64
+tx-queue7-packet:o;ro;u64
+tx-queue7-byte:o;ro;u64
+tx-all-queue-drop-packet:o;ro;u64
+tx-all-queue-drop-byte:o;ro;u64
+tx-queue-custom0-drop-packet:o;ro;u64
+tx-queue-custom0-drop-byte:o;ro;u64
+tx-queue-custom1-drop-packet:o;ro;u64
+tx-queue-custom1-drop-byte:o;ro;u64
+tx-rx-64:o;ro;u64
+tx-rx-65-127:o;ro;u64
+tx-rx-128-255:o;ro;u64
+tx-rx-256-511:o;ro;u64
+tx-rx-512-1023:o;ro;u64
+tx-rx-1024-max:o;ro;u64
+tx-fcs-error:o;ro;u64
+tx-packet:o;ro;u64
 
-!policy-drop-packet:u64
-!custom-drop-packet:u64
-!current-learned:u64
-!not-learned:u64
-!
+
+policy-drop-packet:o;ro;u64
+custom-drop-packet:o;ro;u64
+current-learned:o;ro;u64
+not-learned:o;ro;u64
+
 /interface/ethernet/switch/egress-vlan-tag
-*.id
 vlan-id:u16
-tagged-ports: HashSet<String>
+tagged-ports: mu;ref=>interface
 comment
 disabled: bool
 dynamic: bool
 
 /interface/ethernet/switch/ingress-vlan-translation
-*.id
 .nextid
 comment
 customer-pcp
-customer-vlan-format: any, priority-tagged-or-tagged, tagged, untagged-or-tagged
+customer-vlan-format: enum=any, priority-tagged-or-tagged, tagged, untagged-or-tagged
 new-customer-vid: u16
-ports: HashSet<String>
+ports: mu;ref=>interface
 sa-learning: bool
 service-pcp
-service-vlan-format: any, priority-tagged-or-tagged, tagged, untagged-or-tagged
+service-vlan-format: enum=any, priority-tagged-or-tagged, tagged, untagged-or-tagged
 customer-dei
 customer-vid:u16
 disabled:bool
 new-service-vid:u16
 pcp-propagation: bool
-protocol: 802.2,arp,homeplug-av,ip,ipv6,ipx,length,llc-bpdu,lldp,loop-protect,mpls-multicast,mpls-unicast,packing-compr,packing-simple,pppoe,pppoe-discovery,rarp,service-vlan,vlan
+protocol: enum=802.2,arp,homeplug-av,ip,ipv6,ipx,length,llc-bpdu,lldp,loop-protect,mpls-multicast,mpls-unicast,packing-compr,packing-simple,pppoe,pppoe-discovery,rarp,service-vlan,vlan
 service-dei
 service-vid:u16
-swap-vids: assign-cvid-to-svid,no
+swap-vids: enum=assign-cvid-to-svid,no
 message
 
 dynamic:bool
 
 
 /interface/ethernet/switch/vlan
-*.id
 comment
 disabled:bool
 flood:bool
 ingress-mirror:bool
 learn:bool
-ports:HashSet<String>
+ports:mu;ref=>interface
 qos-group
 svl:bool
-*vlan-id:u16
+vlan-id:id;u16
 message
 dynamic:bool
 
+
 /interface/wireless
-*.id
-adaptive-noise-immunity: none, ap-and-client-mode, client-mode
+adaptive-noise-immunity: enum=none, ap-and-client-mode, client-mode
 allow-sharedkey: bool
 ampdu-priorities: u8
 amsdu-limit: u16
 amsdu-threshold:u16
 antenna-gain:u32
-antenna-mode: ant-a, ant-b, rxa-txb,txa-rxb
+antenna-mode: enum=ant-a, ant-b, rxa-txb,txa-rxb
 area
-arp: enabled, disabled, local-proxy-arp, proxy-arp, reply-only
-arp-timeout: Auto<Duration>
-band: 2ghz-b,2ghz-b/g,2ghz-b/g/n,2ghz-g/n,2ghz-onlyg,2ghz-onlyn,5ghz-a,5ghz-a/n,5ghz-a/n/ac,5ghz-n/ac,5ghz-onlyac,5ghz-onlyn
-basic-rates-a/g: 6Mbps,9Mbps,12Mbps,18Mbps,24Mbps,36Mbps,48Mbps,54Mbps
-basic-rates-b: 1Mbps,2Mbps,5.5Mbps,11Mbps
-bridge-mode: enabled, disabled
+arp: enum=enabled, disabled, local-proxy-arp, proxy-arp, reply-only
+arp-timeout: auto;Duration
+band: enum=2ghz-b,2ghz-b/g,2ghz-b/g/n,2ghz-g/n,2ghz-onlyg,2ghz-onlyn,5ghz-a,5ghz-a/n,5ghz-a/n/ac,5ghz-n/ac,5ghz-onlyac,5ghz-onlyn
+basic-rates-a/g: enum=6Mbps,9Mbps,12Mbps,18Mbps,24Mbps,36Mbps,48Mbps,54Mbps
+basic-rates-b: enum=1Mbps,2Mbps,5.5Mbps,11Mbps
+bridge-mode: EnabledDisabled
 burst-time:u32
-channel-width: 20mhz,20/40/80/160mhz-Ceeeeeee,20/40/80/160mhz-XXXXXXXX,20/40/80/160mhz-eCeeeeee,20/40/80/160mhz-eeCeeeee,20/40/80/160mhz-eeeCeeee,20/40/80/160mhz-eeeeCeee,20/40/80/160mhz-eeeeeCee,20/40/80/160mhz-eeeeeeCe,20/40/80/160mhz-eeeeeeeC,20/40/80mhz-Ceee,20/40/80mhz-eCee,20/40/80mhz-eeCe,20/40/80mhz-eeeC,20/40/80mhz-XXXX,20/40mhz-Ce,20/40mhz-eC,20/40mhz-XX,40mhz-turbo,10mhz,5mhz
+channel-width: enum=20mhz,20/40/80/160mhz-Ceeeeeee,20/40/80/160mhz-XXXXXXXX,20/40/80/160mhz-eCeeeeee,20/40/80/160mhz-eeCeeeee,20/40/80/160mhz-eeeCeeee,20/40/80/160mhz-eeeeCeee,20/40/80/160mhz-eeeeeCee,20/40/80/160mhz-eeeeeeCe,20/40/80/160mhz-eeeeeeeC,20/40/80mhz-Ceee,20/40/80mhz-eCee,20/40/80mhz-eeCe,20/40/80mhz-eeeC,20/40/80mhz-XXXX,20/40mhz-Ce,20/40mhz-eC,20/40mhz-XX,40mhz-turbo,10mhz,5mhz
 comment
 compression: bool
 country
@@ -188,92 +191,93 @@ disabled:bool
 disconnect-timeout:Duration
 distance
 frame-lifetime:u32
-frequency: Auto<u32>
-frequency-mode: manual-txpower,regulatory-domain,superchannel
+frequency: auto;u32
+frequency-mode: enum=manual-txpower,regulatory-domain,superchannel
 frequency-offset:u32
-guard-interval:any,long
+guard-interval:enum=any,long
 hide-ssid:bool
-ht-basic-mcs: HashSet<String>
-ht-supported-mcs: HashSet<String>
+ht-basic-mcs: mu
+ht-supported-mcs: mu
 hw-fragmentation-threshold
-hw-protection-mode: none, cts-to-self, rts-cts
+hw-protection-mode: enum=none, cts-to-self, rts-cts
 hw-protection-threshold: u16
 hw-retries: u8
-installation: any, indoor, outdoor
-interworking-profile: disabled, enabled
-keepalive-frames: enabled, disabled
+installation: enum=any, indoor, outdoor
+interworking-profile: EnabledDisabled
+keepalive-frames: EnabledDisabled
 l2mtu: u16
 mac-address: MacAddress
 master-interface
 max-station-count: u16
-mode: station,station-wds,ap-bridge,bridge,alignment-only,nstreme-dual-slave,wds-slave,station-pseudobridge,station-pseudobridge-clone,station-bridge
+mode: enum=station,station-wds,ap-bridge,bridge,alignment-only,nstreme-dual-slave,wds-slave,station-pseudobridge,station-pseudobridge-clone,station-bridge
 mtu: u16
-multicast-buffering: enabled, disabled
-multicast-helper: default, disabled, full
-name
+multicast-buffering: EnabledDisabled
+multicast-helper: enum=default, disabled, full
+name:ref=interface
 noise-floor-threshold
 nv2-cell-radius: u8
 nv2-downlink-ratio
-nv2-mode: dynamic-downlink,fixed-downlink,sync-master,sync-slave
+nv2-mode: enum=dynamic-downlink,fixed-downlink,sync-master,sync-slave
 nv2-noise-floor-offset
 nv2-preshared-key
-nv2-qos: default, frame-priority
+nv2-qos: enum=default, frame-priority
 nv2-queue-count: u8
-nv2-security: disabled, enabled
+nv2-security: EnabledDisabled
 nv2-sync-secret
 on-fail-retry-time: Duration
-preamble-mode: both, long, short
-prism-cardtype: 100mW, 200mW, 300mW
+preamble-mode: enum=both, long, short
+prism-cardtype: enum=100mW, 200mW, 300mW
 radio-name
-rate-selection: advanced, legacy
-rate-set: default, configured
-rx-chains: HashSet<u8>
+rate-selection: enum=advanced, legacy
+rate-set: enum=default, configured
+rx-chains: mu;u8
 scan-list
 secondary-frequency: u32
 security-profile
 skip-dfs-channels
 ssid
 station-bridge-clone-mac: MacAddress
-station-roaming: disabled, enabled
-supported-rates-a/g: HashSet<BasicRatesAG>
-supported-rates-b: HashSet<BasicRatesB>
+station-roaming: EnabledDisabled
+supported-rates-a/g: mu;enum=6Mbps,9Mbps,12Mbps,18Mbps,24Mbps,36Mbps,48Mbps,54Mbps
+supported-rates-b: mu;enum=1Mbps,2Mbps,5.5Mbps,11Mbps
 tdma-period-size:u8
-tx-chains: HashSet<u8>
+tx-chains: mu;u8
 tx-power:i8
-tx-power-mode: default, card-rates, all-rates-fixed, manual-table
+tx-power-mode: enum=default, card-rates, all-rates-fixed, manual-table
 update-stats-interval
-vht-basic-mcs: MCS 0-7,none,MCS 0-8,MCS 0-9
-vht-supported-mcs: MCS 0-9,MCS 0-7,none,MCS 0-8
+vht-basic-mcs: enum=MCS 0-7,none,MCS 0-8,MCS 0-9
+vht-supported-mcs: enum=MCS 0-9,MCS 0-7,none,MCS 0-8
 vlan-id: u16
-vlan-mode: no-tag, use-service-tag, use-tag
-wds-cost-range: RangeInclusive<u32>
+vlan-mode: enum=no-tag, use-service-tag, use-tag
+wds-cost-range: range;u32
 wds-default-bridge
 wds-default-cost
 wds-ignore-ssid
-wds-mode: disabled,dynamic,dynamic-mesh,static,static-mesh
-wireless-protocol: 802.11,any,nstreme,nv2,nv2-nstreme,nv2-nstreme-802.11,unspecified
-wmm-support: disabled, enabled
-wps-mode: disabled,push-button,push-button-5s,push-button-virtual-only
+wds-mode: enum=disabled,dynamic,dynamic-mesh,static,static-mesh
+wireless-protocol: enum=802.11,any,nstreme,nv2,nv2-nstreme,nv2-nstreme-802.11,unspecified
+wmm-support: EnabledDisabled
+wps-mode: enum=disabled,push-button,push-button-5s,push-button-virtual-only
 
-*default-name
-interface-type: Atheros AR9300,none
+default-name: id
+interface-type: enum=Atheros AR9300,none
 running: bool
 
 /interface/vlan
-.id
-arp: disabled,enabled,local-proxy-arp, proxy-arp, reply-only
-arp-timeout: Auto<u16>
-comment
+.id:id
+arp: enum=disabled,enabled,local-proxy-arp, proxy-arp, reply-only
+arp-timeout: auto;u16
+comment: o
 disabled: bool
-interface
+interface: ref=>interface
 l2mtu: u16
-loop-protect: default, off, on
+loop-protect: enum=default, off, on
 loop-protect-disable-time: Duration
 loop-protect-send-interval: Duration
-loop-protect-status: on, off, disable
+loop-protect-status: enum=on, off, disable
 mac-address: MacAddress
 mtu: u16
-*name
+name:id
 running: bool
 use-service-tag: bool
 vlan-id: u16
+mvrp: o;bool

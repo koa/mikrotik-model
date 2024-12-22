@@ -1,5 +1,4 @@
 use mikrotik_model_generator::generator;
-use quote::ToTokens;
 use std::path::Path;
 use std::{env, fs};
 

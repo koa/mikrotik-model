@@ -1,20 +1,17 @@
-use crate::model::{parse_lines, EnumDescriptions, Model};
+use crate::model::{parse_lines, EnumDescriptions};
 use convert_case::{Case, Casing};
 use proc_macro2::{Ident, Literal, Span};
 use std::collections::HashMap;
+use std::vec;
+use syn::__private::quote::format_ident;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{parse_quote, ExprMatch, Item, Variant};
+use syn::{parse_quote, ExprMatch, Item, ItemMod, Variant, Visibility};
 
 mod model;
 
 pub fn generator() -> syn::File {
-    let enums: EnumDescriptions =
-        serde_yaml::from_str(include_str!("../ros_model/enums.yaml")).unwrap();
-    let content = include_str!("../ros_model/system.txt");
-    let entries = parse_lines(content.lines());
-
-    let imports: [Item; 3] = [
+    let mut items = vec![
         parse_quote!(
             use crate::resource;
         ),
@@ -24,29 +21,50 @@ pub fn generator() -> syn::File {
         parse_quote!(
             use std::time::Duration;
         ),
+        parse_quote!(
+            use mac_address::MacAddress;
+        ),
     ];
+    let enums: EnumDescriptions =
+        serde_yaml::from_str(include_str!("../ros_model/enums.yaml")).unwrap();
+    for item in generate_enums(&enums.0) {
+        items.push(item);
+    }
+
+    for content in [
+        include_str!("../ros_model/system.txt"),
+        include_str!("../ros_model/interface.txt"),
+    ] {
+        let entries = parse_lines(content.lines());
+
+        for entity in entries.iter() {
+            for item in entity.generate_code() {
+                items.push(item);
+            }
+        }
+    }
+    let module = vec![Item::Mod(ItemMod {
+        attrs: vec![],
+        vis: Visibility::Public(Default::default()),
+        unsafety: None,
+        mod_token: Default::default(),
+        ident: format_ident!("model"),
+        content: Some((Default::default(), items)),
+        semi: None,
+    })];
 
     syn::File {
         shebang: None,
         attrs: vec![],
-        items: imports
-            .into_iter()
-            .chain(generate_enums(&enums.0))
-            .chain(entries.iter().flat_map(|e| e.generate_code()))
-            .collect(),
+        items: module,
     }
 }
-fn generate_structs(model: &Model) -> impl Iterator<Item=Item> + use < '_ > {
-    model
-        .entities
-        .iter()
-        .flat_map(|entity| entity.generate_code())
-}
+
 fn generate_enums(
     enums: &HashMap<Box<str>, Box<[Box<str>]>>,
-) -> impl Iterator<Item=Item> + use < '_ > {
+) -> impl Iterator<Item = Item> + use<'_> {
     enums.iter().flat_map(|(name, values)| {
-        let name = Ident::new(&derive_ident(&name), Span::call_site());
+        let name = Ident::new(&derive_ident(name), Span::call_site());
         let mut enum_variants: Punctuated<Variant, Comma> = Punctuated::new();
         let mut parse_match: ExprMatch = parse_quote!(match value {});
         let mut encode_match: ExprMatch = parse_quote!(match self {});
@@ -76,7 +94,7 @@ fn generate_enums(
         parse_match.arms.push(default_arm);
         [
             parse_quote! {
-                #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+                #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
                 pub enum #name {
                     #enum_variants
                 }
@@ -94,8 +112,12 @@ fn generate_enums(
     }
     )
 }
+fn cleanup_field_name(name: &str) -> String {
+    name.replace(['.', '/'], "_")
+}
+
 fn derive_ident(value: &str) -> String {
-    let base = value.to_case(Case::UpperCamel).replace(['.', ','], "_");
+    let base = cleanup_field_name(value).to_case(Case::UpperCamel);
     if let Some(first_char) = base.chars().next() {
         if first_char.is_numeric() {
             format!("_{base}")
@@ -111,7 +133,7 @@ mod test {
     use crate::generate_enums;
     use crate::model::{parse_lines, EnumDescriptions};
     use std::fs::File;
-    use std::io::{read_to_string, Read};
+    use std::io::read_to_string;
     use syn::__private::ToTokens;
 
     #[test]
@@ -124,7 +146,7 @@ mod test {
     }
     #[test]
     fn test_read_structs() {
-        let file = File::open("ros_model/system.txt").unwrap();
+        let file = File::open("ros_model/interface.txt").unwrap();
         let content = read_to_string(file).unwrap();
         let entiries = parse_lines(content.lines());
         let items = entiries.iter().flat_map(|e| e.generate_code()).collect();

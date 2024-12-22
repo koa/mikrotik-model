@@ -1,9 +1,13 @@
 use config::{Config, Environment, File};
+use env_logger::Env;
+use env_logger::TimestampPrecision;
 use log::{error, info};
-use mikrotik_model::model::{SystemArchitecture, SystemIdentity};
-use mikrotik_model::model::SystemResource;
-use mikrotik_model::resource::{ResourceAccessError, RosResource};
-use mikrotik_model::value::{ParseRosValueResult, RosValue};
+use mikrotik_model::model::SystemIdentity;
+use mikrotik_model::model::{
+    InterfaceEthernet, InterfaceEthernetSwitchEgressVlanTag, InterfaceVlan, SystemResource,
+};
+use mikrotik_model::resource::RosResource;
+use mikrotik_model::value::RosValue;
 use mikrotik_rs::command::response::CommandResponse;
 use mikrotik_rs::command::CommandBuilder;
 use mikrotik_rs::MikrotikDevice;
@@ -111,6 +115,11 @@ pub struct Credentials {
 }
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::builder()
+        .parse_env(Env::default().filter_or("LOG_LEVEL", "info"))
+        .format_timestamp(Some(TimestampPrecision::Millis))
+        .init();
+
     let cfg = Config::builder()
         .add_source(File::with_name("routers.yaml"))
         .add_source(
@@ -127,38 +136,57 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             credentials.user.as_ref(),
             Some(credentials.password.as_ref()),
         )
-            .await?;
+        .await?;
+        println!("{}", SystemResource::path());
         let mut stream = get_resource::<SystemResource>(&device).await;
-        while let Some(r)= stream.next().await {
-            println!("Res: \n{r:#?}");
+        while let Some(r) = stream.next().await {
+            //println!("Res: \n{r:#?}");
         }
+        println!("{}", SystemIdentity::path());
         let mut stream = get_resource::<SystemIdentity>(&device).await;
-        while let Some(r)= stream.next().await {
-            println!("Id: \n{r:#?}");
+        while let Some(r) = stream.next().await {
+            //println!("Id: \n{r:#?}");
+        }
+        println!("{}", InterfaceEthernet::path());
+        let mut stream = get_resource::<InterfaceEthernet>(&device).await;
+        while let Some(r) = stream.next().await {
+            //println!("Eth: \n{r:#?}");
+        }
+        println!("{}", InterfaceVlan::path());
+        let mut stream = get_resource::<InterfaceVlan>(&device).await;
+        while let Some(r) = stream.next().await {
+            //println!("Vlan: \n{r:#?}");
         }
     }
     Ok(())
 }
-async fn get_resource<R: RosResource>(device: &MikrotikDevice) -> impl Stream<Item=R> {
+async fn get_resource<R: RosResource>(device: &MikrotikDevice) -> impl Stream<Item = R> {
     let cmd = CommandBuilder::new()
         .command(&format!("/{}/print", R::path()))
         .build();
     ReceiverStream::new(device.send_command(cmd).await).filter_map(|res| {
-        println!(">> Get System Res Response {:?}", res);
+        //println!(">> Get System Res Response {:?}", res);
         match res {
             Ok(CommandResponse::Reply(r)) => {
+                for (field_name, value) in r
+                    .attributes
+                    .iter()
+                    .filter(|(name, _)| !R::known_fields().contains(&name.as_str()))
+                {
+                    error!("new field found: {field_name}: {value:?}",);
+                }
                 match R::parse(&r.attributes) {
-                    Ok(resource) => { Some(resource) }
+                    Ok(resource) => Some(resource),
                     Err(e) => {
                         error!("Cannot parse ROS resource: {e}");
                         None
                     }
                 }
             }
-            Ok(reply) =>  {
+            Ok(reply) => {
                 info!("response: {reply:?}");
                 None
-            },
+            }
             Err(e) => {
                 error!("Cannot fetch ROS resource: {e}");
                 None

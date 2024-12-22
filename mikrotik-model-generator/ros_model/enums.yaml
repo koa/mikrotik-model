@@ -34,19 +34,15 @@ DhcpOption:
   - clientid
   - clientid_duid
   - hostname
-EthernetArp:
-  - disabled
-  - enabled
-  - local-proxy-arp
-  - proxy-arp
-  - reply-only
 YesNo:
   - yes
   - no
 OnOff:
   - on
   - off
-
+EnabledDisabled:
+  - enabled
+  - disabled
 BridgeProtocolMode:
   - mstp
   - none

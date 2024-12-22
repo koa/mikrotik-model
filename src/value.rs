@@ -1,10 +1,12 @@
+use itertools::Itertools;
 use log::warn;
+use mac_address::MacAddress;
 use std::borrow::Cow;
+use std::collections::HashSet;
 use std::fmt::{Debug, Formatter};
-use std::num::ParseIntError;
+use std::hash::Hash;
 use std::str::FromStr;
 use std::time::Duration;
-use crate::model::YesNo::No;
 
 pub enum ParseRosValueResult<V> {
     None,
@@ -131,9 +133,9 @@ impl RosValue for Duration {
                 None => {
                     return ParseRosValueResult::Value(ret);
                 }
-                Some('s') => Duration::from_secs( count),
-                Some('m') => Duration::from_secs( 60 * count),
-                Some('h') => Duration::from_secs( 3600 * count),
+                Some('s') => Duration::from_secs(count),
+                Some('m') => Duration::from_secs(60 * count),
+                Some('h') => Duration::from_secs(3600 * count),
                 Some('d') => Duration::from_secs(24 * 3600 * count),
                 Some('w') => Duration::from_secs(7 * 24 * 3600 * count),
                 Some(u) => {
@@ -142,12 +144,103 @@ impl RosValue for Duration {
                 }
             };
             number.clear();
-            unit=None;
+            unit = None;
             ret += duration;
         }
     }
 
     fn encode_ros(&self) -> Cow<str> {
         format!("{}s", self.as_secs()).into()
+    }
+}
+impl RosValue for MacAddress {
+    fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
+        match MacAddress::from_str(value) {
+            Ok(v) => ParseRosValueResult::Value(v),
+            Err(e) => ParseRosValueResult::Invalid,
+        }
+    }
+
+    fn encode_ros(&self) -> Cow<str> {
+        self.to_string().into()
+    }
+}
+impl<V: RosValue> RosValue for Option<V> {
+    fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
+        if value.is_empty() {
+            ParseRosValueResult::None
+        } else {
+            match V::parse_ros(value) {
+                ParseRosValueResult::None => ParseRosValueResult::None,
+                ParseRosValueResult::Value(v) => ParseRosValueResult::Value(Some(v)),
+                ParseRosValueResult::Invalid => ParseRosValueResult::Invalid,
+            }
+        }
+    }
+
+    fn encode_ros(&self) -> Cow<str> {
+        match self {
+            None => "".into(),
+            Some(v) => v.encode_ros(),
+        }
+    }
+}
+impl<V: RosValue + Hash + Eq> RosValue for HashSet<V> {
+    fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
+        if value.is_empty() {
+            ParseRosValueResult::Value(HashSet::new())
+        } else {
+            let mut result = HashSet::new();
+            for value in value.split(',').map(V::parse_ros) {
+                match value {
+                    ParseRosValueResult::None => {}
+                    ParseRosValueResult::Value(v) => {
+                        result.insert(v);
+                    }
+                    ParseRosValueResult::Invalid => return ParseRosValueResult::Invalid,
+                }
+            }
+            ParseRosValueResult::Value(result)
+        }
+    }
+
+    fn encode_ros(&self) -> Cow<str> {
+        let string = self.iter().map(|v| v.encode_ros()).join(",");
+        string.into()
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
+pub enum Auto<V: RosValue> {
+    Auto,
+    Value(V),
+}
+impl<V: RosValue> RosValue for Auto<V> {
+    fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
+        if value == "auto" {
+            ParseRosValueResult::Value(Auto::Auto)
+        } else {
+            match RosValue::parse_ros(value) {
+                ParseRosValueResult::Value(v) => ParseRosValueResult::Value(Auto::Value(v)),
+                ParseRosValueResult::None => ParseRosValueResult::None,
+                ParseRosValueResult::Invalid => ParseRosValueResult::Invalid,
+            }
+        }
+    }
+
+    fn encode_ros(&self) -> Cow<str> {
+        match self {
+            Auto::Auto => "auto".into(),
+            Auto::Value(v) => v.encode_ros(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_option_parse() {
+        let x: ParseRosValueResult<Option<Box<str>>> = RosValue::parse_ros("");
+        println!("x: {x:?}");
     }
 }

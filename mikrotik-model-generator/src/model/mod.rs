@@ -1,10 +1,14 @@
+use crate::generate_enums;
+use crate::{cleanup_field_name, derive_ident};
 use convert_case::{Case, Casing};
 use proc_macro2::{Ident, Literal, Span};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use syn::__private::ToTokens;
 use syn::punctuated::Punctuated;
-use syn::{parse_quote, FieldValue, FieldsNamed, Item, Path, PathSegment, Token, Type, TypePath};
+use syn::{
+    parse_quote, Expr, ExprArray, ExprLit, FieldValue, FieldsNamed, Item, Lit, LitStr, Path,
+    PathSegment, Token, Type, TypePath,
+};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct Model {
@@ -18,7 +22,7 @@ pub struct Entity {
 }
 
 impl Entity {
-    pub fn generate_code(&self) -> impl Iterator<Item=Item> + '_ {
+    pub fn generate_code(&self) -> impl Iterator<Item = Item> + '_ {
         let struct_name: Box<str> = self
             .path
             .iter()
@@ -30,18 +34,38 @@ impl Entity {
             named: Default::default(),
         };
         let mut punctuated_fields: Punctuated<FieldValue, Token![,]> = Punctuated::new();
+        let mut inline_enums = HashMap::new();
 
         let struct_ident = Ident::new(&struct_name, Span::call_site());
-        for (field, parser) in self.fields.iter().map(|field| field.generate_code()) {
+        let mut known_fields: ExprArray = ExprArray {
+            attrs: vec![],
+            bracket_token: Default::default(),
+            elems: Default::default(),
+        };
+        for field in self.fields.iter() {
+            let enum_type = if let Some(enum_values) = field.inline_enum.as_ref() {
+                let enum_name = format!("{struct_name}{}", field.name);
+                let enum_type = Ident::new(&derive_ident(&enum_name), Span::call_site());
+                inline_enums.insert(enum_name.into_boxed_str(), enum_values.clone());
+                Some(parse_quote!(#enum_type))
+            } else {
+                None
+            };
+            known_fields.elems.push(Expr::Lit(ExprLit {
+                attrs: vec![],
+                lit: Lit::Str(LitStr::new(&field.name, Span::call_site())),
+            }));
+            let (field, parser) = field.generate_code(enum_type);
             fields_named.named.push(field);
             punctuated_fields.push(parser);
         }
-        [
-            parse_quote! {
+        generate_enums(&inline_enums).collect::<Vec<_>>().into_iter().chain(
+            [
+                parse_quote! {
                 #[derive(Debug, Clone, PartialEq)]
                 pub struct #struct_ident #fields_named
             },
-            parse_quote! {
+                parse_quote! {
                 impl resource::RosResource for #struct_ident {
                      fn parse(values: &std::collections::HashMap<String, Option<String>>) -> Result<Self, resource::ResourceAccessError> {
                         Ok(#struct_ident {#punctuated_fields})
@@ -49,9 +73,12 @@ impl Entity {
                     fn path()->&'static str{
                         #path
                     }
+                    fn known_fields()->&'static[&'static str]{
+                        &#known_fields
+                    }
                 }
             },
-        ].into_iter()
+            ])
     }
 }
 
@@ -66,27 +93,52 @@ pub struct Field {
     pub is_range: bool,
     pub is_optional: bool,
     pub is_read_only: bool,
+    pub is_multiple: bool,
     pub reference: Reference,
 }
 
 impl Field {
-    pub fn generate_code(&self) -> (syn::Field, FieldValue) {
-        let field_name = Ident::new(&self.name.as_ref().to_case(Case::Snake), Span::mixed_site());
+    fn generate_code(&self, enum_field_type: Option<Type>) -> (syn::Field, FieldValue) {
+        let field_name = Ident::new(
+            &cleanup_field_name(self.name.as_ref()).to_case(Case::Snake),
+            Span::mixed_site(),
+        );
         let attribute_name = Literal::string(self.name.as_ref());
-        let parsed_field_type = self.field_type.as_ref().map(|field_type| {
-            let ident = Ident::new(&field_type, Span::mixed_site());
-            let mut segments: Punctuated<PathSegment, Token![::]> = Default::default();
-            segments.push(PathSegment::from(ident));
-            Type::Path(TypePath {
-                qself: None,
-                path: Path {
-                    leading_colon: None,
-                    segments,
-                },
+        let field_type = self
+            .field_type
+            .as_ref()
+            .map(|field_type| {
+                let ident = Ident::new(field_type, Span::mixed_site());
+                let mut segments: Punctuated<PathSegment, Token![::]> = Default::default();
+                segments.push(PathSegment::from(ident));
+                Type::Path(TypePath {
+                    qself: None,
+                    path: Path {
+                        leading_colon: None,
+                        segments,
+                    },
+                })
             })
-        });
-        let field_type = parsed_field_type.unwrap_or(parse_quote!(Box<str>));
-        //let parse_type = parsed_field_type.unwrap_or(parse_quote!(Box));
+            .or(enum_field_type)
+            .unwrap_or(parse_quote!(Box<str>));
+        let field_type = if self.has_auto {
+            parse_quote!(value::Auto<#field_type>)
+        } else {
+            field_type
+        };
+        let (field_type, default): (Type, Expr) = if self.is_multiple {
+            (
+                parse_quote!(std::collections::HashSet<#field_type>),
+                parse_quote!(Ok(std::collections::HashSet::new())),
+            )
+        } else if self.is_optional {
+            (parse_quote!(Option<#field_type>), parse_quote!(Ok(None)))
+        } else {
+            (
+                field_type,
+                parse_quote!(Err(resource::ResourceAccessError::MissingFieldError {field_name: #attribute_name,})),
+            )
+        };
         (
             parse_quote!(
                 #field_name: #field_type
@@ -97,9 +149,7 @@ impl Field {
                     .and_then(|v| v.as_ref())
                     .map(
                         |value| match value::RosValue::parse_ros(value.as_str()) {
-                            value::ParseRosValueResult::None => Err(resource::ResourceAccessError::MissingFieldError {
-                                field_name: #attribute_name,
-                            }),
+                            value::ParseRosValueResult::None => #default,
                             value::ParseRosValueResult::Value(v) => Ok(v),
                             value::ParseRosValueResult::Invalid => {
                                 Err(resource::ResourceAccessError::InvalidValueError {
@@ -109,9 +159,7 @@ impl Field {
                             }
                         },
                     )
-                    .unwrap_or(Err(resource::ResourceAccessError::MissingFieldError {
-                        field_name: #attribute_name,
-                    }))?
+                    .unwrap_or(#default)?
             },
         )
     }
@@ -128,7 +176,7 @@ pub enum Reference {
     RefereesTo(Box<str>),
 }
 
-pub fn parse_lines<'a>(lines: impl Iterator<Item=&'a str>) -> Vec<Entity> {
+pub fn parse_lines<'a>(lines: impl Iterator<Item = &'a str>) -> Vec<Entity> {
     let mut collected_entities = Vec::new();
     let mut current_entity = None;
     for line in lines {
@@ -179,17 +227,29 @@ fn parse_field_line(line: &str) -> Option<Field> {
         };
         for comp in definition.split(';').map(str::trim) {
             if let Some((key, value)) = comp.split_once('=') {
-                match key {
+                let value = value.trim();
+                match key.trim() {
                     "enum" => {
                         field.inline_enum =
                             Some(value.split(',').map(|s| s.trim().into()).collect());
                     }
-                    "ref" => {}
+                    "ref" => {
+                        if let Some(name) = value.strip_prefix(">") {
+                            field.reference = Reference::RefereesTo(name.trim().into());
+                        } else {
+                            field.reference = Reference::IsReference(value.into());
+                        }
+                    }
                     _ => {}
                 }
             } else {
                 match comp {
                     "id" => field.is_key = true,
+                    "ro" => field.is_read_only = true,
+                    "auto" => field.has_auto = true,
+                    "mu" => field.is_multiple = true,
+                    "range" => field.is_range = true,
+                    "o" => field.is_optional = true,
                     name => field.field_type = Some(name.into()),
                 }
             }
@@ -223,6 +283,7 @@ mod test {
                     is_range: false,
                     is_optional: false,
                     is_read_only: false,
+                    is_multiple: false,
                     reference: Reference::None,
                 },
                 Field {
@@ -235,6 +296,7 @@ mod test {
                     is_range: false,
                     is_optional: false,
                     is_read_only: false,
+                    is_multiple: false,
                     reference: Reference::IsReference("interface".into()),
                 },
                 Field {
@@ -247,6 +309,7 @@ mod test {
                     is_range: false,
                     is_optional: false,
                     is_read_only: false,
+                    is_multiple: false,
                     reference: Default::default(),
                 },
             ],
