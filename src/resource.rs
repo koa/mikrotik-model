@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use thiserror::Error;
+use crate::model::{SystemIdentity, SystemIdentityCfg};
 
 #[derive(Debug, Error)]
 pub enum ResourceAccessError {
@@ -16,4 +17,8 @@ pub trait RosResource: Sized {
     fn parse(values: &HashMap<String, Option<String>>) -> Result<Self, ResourceAccessError>;
     fn path() -> &'static str;
     fn known_fields() -> &'static [&'static str];
+}
+#[derive(Debug,Clone,PartialEq)]
+pub enum CfgResource{
+    SystemIdentity(SystemIdentityCfg),
 }

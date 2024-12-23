@@ -6,7 +6,7 @@ use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fmt::{Debug, Formatter};
 use std::hash::Hash;
-use std::net::{ IpAddr};
+use std::net::IpAddr;
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -106,7 +106,7 @@ macro_rules! parameter_value_impl {
     }
 parameter_value_impl! { isize i8 i16 i32 i64 i128 usize u8 u16 u32 u64 u128 f32 f64 bool}
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Eq, PartialEq, Hash)]
 pub struct Hex<V: Copy + Eq + Hash>(V);
 
 macro_rules! hex_value_impl {
@@ -129,6 +129,11 @@ macro_rules! hex_value_impl {
 
                 fn encode_ros(&self) -> Cow<str> {
                     format!("0x{:X}", self.0).into()
+                }
+            }
+            impl Debug for Hex<$t>{
+                fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+                    write!(f, "0x{:X}", self.0)
                 }
             }
         )*}
@@ -267,6 +272,37 @@ impl<V: RosValue> RosValue for Auto<V> {
     }
 }
 #[derive(Debug, Clone, PartialEq)]
+pub struct RxTxPair<V: RosValue> {
+    pub rx: V,
+    pub tx: V,
+}
+impl<V: RosValue> RosValue for RxTxPair<V> {
+    fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
+        if value.is_empty() {
+            ParseRosValueResult::None
+        } else if let Some((rx_value, tx_value)) = value.split_once('/') {
+            match (
+                <V as RosValue>::parse_ros(rx_value),
+                <V as RosValue>::parse_ros(tx_value),
+            ) {
+                (ParseRosValueResult::Value(rx), ParseRosValueResult::Value(tx)) => {
+                    ParseRosValueResult::Value(RxTxPair { rx, tx })
+                }
+                (ParseRosValueResult::Invalid, _) | (_, ParseRosValueResult::Invalid) => {
+                    ParseRosValueResult::Invalid
+                }
+                _ => ParseRosValueResult::None,
+            }
+        } else {
+            ParseRosValueResult::Invalid
+        }
+    }
+
+    fn encode_ros(&self) -> Cow<str> {
+        format!("{}/{}", self.tx.encode_ros(), self.rx.encode_ros()).into()
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
 pub enum HasNone<V: RosValue> {
     NoneValue,
     Value(V),
@@ -288,6 +324,31 @@ impl<V: RosValue> RosValue for HasNone<V> {
         match self {
             HasNone::NoneValue => "none".into(),
             HasNone::Value(v) => v.encode_ros(),
+        }
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
+pub enum HasUnlimited<V: RosValue> {
+    Unlimited,
+    Value(V),
+}
+impl<V: RosValue> RosValue for HasUnlimited<V> {
+    fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
+        if value == "unlimited" {
+            ParseRosValueResult::Value(HasUnlimited::Unlimited)
+        } else {
+            match RosValue::parse_ros(value) {
+                ParseRosValueResult::Value(v) => ParseRosValueResult::Value(HasUnlimited::Value(v)),
+                ParseRosValueResult::None => ParseRosValueResult::None,
+                ParseRosValueResult::Invalid => ParseRosValueResult::Invalid,
+            }
+        }
+    }
+
+    fn encode_ros(&self) -> Cow<str> {
+        match self {
+            HasUnlimited::Unlimited => "unlimited".into(),
+            HasUnlimited::Value(v) => v.encode_ros(),
         }
     }
 }
@@ -322,7 +383,7 @@ impl RosValue for IpNet {
     }
 
     fn encode_ros(&self) -> Cow<str> {
-        format!("{}",self).into()
+        format!("{}", self).into()
     }
 }
 
@@ -370,9 +431,9 @@ impl From<IpWithInterface> for IpOrInterface {
 impl RosValue for IpOrInterface {
     fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
         if value.contains('%') {
-            IpWithInterface::parse_ros(value).map(|ip| IpOrInterface::IpWithInterface(ip))
+            IpWithInterface::parse_ros(value).map(IpOrInterface::IpWithInterface)
         } else {
-            match IpAddr::parse_ros(value).map(|ip| IpOrInterface::Ip(ip)) {
+            match IpAddr::parse_ros(value).map(IpOrInterface::Ip) {
                 ParseRosValueResult::None => ParseRosValueResult::None,
                 ParseRosValueResult::Value(v) => ParseRosValueResult::Value(v),
                 ParseRosValueResult::Invalid => Box::parse_ros(value).map(IpOrInterface::Interface),

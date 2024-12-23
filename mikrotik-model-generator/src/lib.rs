@@ -44,6 +44,8 @@ pub fn generator() -> syn::File {
         items.push(item);
     }
 
+    let mut cfg_enum_variants: Punctuated<Variant, Comma> = Punctuated::new();
+
     for content in [
         include_str!("../ros_model/system.txt"),
         include_str!("../ros_model/interface.txt"),
@@ -53,11 +55,18 @@ pub fn generator() -> syn::File {
         let entries = parse_lines(content.lines());
 
         for entity in entries.iter() {
-            for item in entity.generate_code() {
+            for (item, field) in entity.generate_code() {
                 items.push(item);
+                if let Some(field) = field {
+                    cfg_enum_variants.push(field);
+                }
             }
         }
     }
+    items.push(parse_quote!(
+        #[derive(Debug,Clone,PartialEq)]
+        pub enum CfgResource {#cfg_enum_variants}
+    ));
     let module = vec![Item::Mod(ItemMod {
         attrs: vec![],
         vis: Visibility::Public(Default::default()),
@@ -77,7 +86,7 @@ pub fn generator() -> syn::File {
 
 fn generate_enums(
     enums: &HashMap<Box<str>, Box<[Box<str>]>>,
-) -> impl Iterator<Item = Item> + use<'_> {
+) -> impl Iterator<Item=Item> + use < '_ > {
     enums.iter().flat_map(|(name, values)| {
         let name = Ident::new(&derive_ident(name), Span::call_site());
         let mut enum_variants: Punctuated<Variant, Comma> = Punctuated::new();
@@ -164,7 +173,11 @@ mod test {
         let file = File::open("ros_model/interface.txt").unwrap();
         let content = read_to_string(file).unwrap();
         let entiries = parse_lines(content.lines());
-        let items = entiries.iter().flat_map(|e| e.generate_code()).collect();
+        let items = entiries
+            .iter()
+            .flat_map(|e| e.generate_code())
+            .map(|(item, _)| item)
+            .collect();
         let f = syn::File {
             shebang: None,
             attrs: vec![],

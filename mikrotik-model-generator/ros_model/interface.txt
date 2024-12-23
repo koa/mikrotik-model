@@ -1,35 +1,42 @@
 /interface/ethernet
-.id:id
+.id:ro;id
 default-name: ro;id
-loop-protect-status:OnOff
 advertise: mu;EthernetSpeed
-auto-negotiation: bool
-comment:o
-full-duplex: o;bool
-loop-protect-disable-time:Duration
-mdix-enable:o;bool
-sfp-rate-select: o;enum=high,low
 arp: enum=enabled, disabled, local-proxy-arp, proxy-arp, reply-only
-bandwidth
-disabled: bool
-l2mtu:u16
-loop-protect-send-interval:Duration
-mtu:u16
-orig-mac-address: MacAddress
-sfp-shutdown-temperature:o
-sfp-ignore-rx-los:o;bool
 arp-timeout: o;auto;Duration
+auto-negotiation: bool
+bandwidth: unlimited;rxtxpair;u32
+cable-setting: o;enum=default , short , standard
 combo-mode: o;enum=auto, copper, sfp
+comment:o
+disable-running-check: o;bool
 fec-mode: o;enum=auto, fec74, fec91, off
-loop-protect: enum=default, on, off
-mac-address: MacAddress
-name: id;ref=interface
 tx-flow-control: o;auto;OnOff
 rx-flow-control: o;auto;OnOff
+full-duplex: o;bool
+l2mtu:u16
+mac-address: MacAddress
+mdix-enable:o;bool
+mtu:u16
+name: id;ref=interface
+orig-mac-address: ro;MacAddress
+passthrough-interface: o
+poe-out: o;enum=off, auto-on, forced-on
+poe-priority: o;u8
+sfp-shutdown-temperature:o;u8
+sfp-rate-select: o;enum=high,low
 speed: o;EthernetSpeed
-switch: o
+
+disabled: bool
+switch: ro;o;u8
 running: ro;bool
-slave: o;bool
+slave: o;ro;bool
+
+loop-protect-status:ro;OnOff
+loop-protect-disable-time:Duration
+loop-protect-send-interval:Duration
+#sfp-ignore-rx-los:o;bool
+loop-protect: enum=default, on, off
 
 
 driver-rx-byte: o;ro;u64

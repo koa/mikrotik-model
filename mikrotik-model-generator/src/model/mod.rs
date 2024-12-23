@@ -5,10 +5,7 @@ use proc_macro2::{Ident, Literal, Span};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use syn::punctuated::Punctuated;
-use syn::{
-    parse_quote, Expr, ExprArray, ExprLit, FieldValue, FieldsNamed, Item, Lit, LitStr, Path,
-    PathSegment, Token, Type, TypePath,
-};
+use syn::{parse_quote, Expr, ExprArray, ExprLit, FieldValue, FieldsNamed, Item, Lit, LitStr, Path, PathSegment, Token, Type, TypePath, Variant};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct Model {
@@ -22,7 +19,7 @@ pub struct Entity {
 }
 
 impl Entity {
-    pub fn generate_code(&self) -> impl Iterator<Item=Item> + '_ {
+    pub fn generate_code(&self) -> impl Iterator<Item=(Item, Option<Variant>)> + '_ {
         let struct_name: Box<str> = self
             .path
             .iter()
@@ -78,17 +75,20 @@ impl Entity {
         };
         let mut punctuated_fields: Punctuated<FieldValue, Token![,]> = Punctuated::new();
         if !fields_named_cfg.named.is_empty() {
-            items.push(parse_quote! {
-                #[derive(Debug, Clone, PartialEq)]
-                pub struct #struct_ident_cfg #fields_named_cfg
-            });
+            items.push((
+                parse_quote! {
+                    #[derive(Debug, Clone, PartialEq)]
+                    pub struct #struct_ident_cfg #fields_named_cfg
+                },
+                Some(parse_quote!(#struct_ident(#struct_ident_cfg))),
+            ));
             fields_named.named.push(parse_quote! {
                 pub cfg: #struct_ident_cfg
             });
             punctuated_fields.push(parse_quote! {
                 cfg: #struct_ident_cfg::parse(values)?
             });
-            items.push(parse_quote! {
+            items.push((parse_quote! {
                 impl resource::RosResource for #struct_ident_cfg {
                      fn parse(values: &std::collections::HashMap<String, Option<String>>) -> Result<Self, resource::ResourceAccessError> {
                         Ok(#struct_ident_cfg {#punctuated_fields_cfg})
@@ -100,13 +100,16 @@ impl Entity {
                         &#known_fields
                     }
                 }
-            });
+            }, None));
         };
         if !fields_named_status.named.is_empty() {
-            items.push(parse_quote! {
-                #[derive(Debug, Clone, PartialEq)]
-                pub struct #struct_ident_status #fields_named_status
-            });
+            items.push((
+                parse_quote! {
+                    #[derive(Debug, Clone, PartialEq)]
+                    pub struct #struct_ident_status #fields_named_status
+                },
+                None,
+            ));
             fields_named.named.push(parse_quote! {
                 pub status: #struct_ident_status
             });
@@ -114,11 +117,14 @@ impl Entity {
                 status: #struct_ident_status{#punctuated_fields_status}
             });
         }
-        items.push(parse_quote! {
-            #[derive(Debug, Clone, PartialEq)]
-            pub struct #struct_ident #fields_named
-        });
-        items.push(parse_quote! {
+        items.push((
+            parse_quote! {
+                #[derive(Debug, Clone, PartialEq)]
+                pub struct #struct_ident #fields_named
+            },
+            None,
+        ));
+        items.push((parse_quote! {
                 impl resource::RosResource for #struct_ident {
                      fn parse(values: &std::collections::HashMap<String, Option<String>>) -> Result<Self, resource::ResourceAccessError> {
                         Ok(#struct_ident {#punctuated_fields})
@@ -130,12 +136,13 @@ impl Entity {
                         &#known_fields
                     }
                 }
-            });
+            }, None));
 
         generate_enums(&inline_enums)
+            .map(|item| (item, None))
             .collect::<Vec<_>>()
             .into_iter()
-            .chain(items.into_iter())
+            .chain(items)
     }
 }
 
@@ -154,6 +161,8 @@ pub struct Field {
     pub is_hex: bool,
     pub reference: Reference,
     pub has_none: bool,
+    pub has_unlimited: bool,
+    pub is_rxtx_pair: bool,
 }
 
 impl Field {
@@ -194,8 +203,18 @@ impl Field {
         } else {
             field_type
         };
+        let field_type = if self.has_unlimited {
+            parse_quote!(value::HasUnlimited<#field_type>)
+        } else {
+            field_type
+        };
         let field_type = if self.has_none {
             parse_quote!(value::HasNone<#field_type>)
+        } else {
+            field_type
+        };
+        let field_type = if self.is_rxtx_pair {
+            parse_quote!(value::RxTxPair<#field_type>)
         } else {
             field_type
         };
@@ -325,6 +344,8 @@ fn parse_field_line(line: &str) -> Option<Field> {
                     "o" => field.is_optional = true,
                     "hex" => field.is_hex = true,
                     "none" => field.has_none = true,
+                    "unlimited" => field.has_unlimited = true,
+                    "rxtxpair" => field.is_rxtx_pair = true,
                     name => field.field_type = Some(name.into()),
                 }
             }

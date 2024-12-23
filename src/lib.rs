@@ -1,3 +1,4 @@
+pub mod hwconfig;
 pub mod resource;
 pub mod value;
 

@@ -2,13 +2,11 @@ use config::{Config, Environment, File};
 use env_logger::Env;
 use env_logger::TimestampPrecision;
 use log::{error, info};
-use mikrotik_model::model::{InterfaceBridge, IpAddress, IpDhcpClient, IpDhcpClientCfg, IpRoute};
 use mikrotik_model::model::InterfaceBridgePort;
 use mikrotik_model::model::InterfaceBridgeVlan;
 use mikrotik_model::model::SystemIdentity;
-use mikrotik_model::model::{
-    InterfaceEthernet,  InterfaceVlan, SystemResource,
-};
+use mikrotik_model::model::{InterfaceBridge, IpAddress, IpDhcpClient, IpDhcpClientCfg, IpRoute};
+use mikrotik_model::model::{InterfaceEthernet, InterfaceVlan, SystemResource};
 use mikrotik_model::resource::RosResource;
 use mikrotik_rs::command::response::CommandResponse;
 use mikrotik_rs::command::CommandBuilder;
