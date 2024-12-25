@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-mikrotik-rs = "0.3.3"
+mikrotik-rs = { version = "0.4.0", git = "https://github.com/koa/mikrotik-rs", package = "mikrotik-rs",branch = "extended-encoding" }
+#mikrotik-rs = { version = "0.4.0", path = "../mikrotik-rs/mikrotik-rs" }
 config = "0.14.1"
 lazy_static = "1.5.0"
 serde = { version = "1.0.216", features = ["derive"] }
@@ -17,6 +18,7 @@ itertools = "0.13.0"
 [dev-dependencies]
 tokio = { version = "1.42.0" , features = ["macros","rt-multi-thread"]}
 env_logger = "0.11.6"
+anyhow = "1.0.95"
 [build-dependencies]
 mikrotik-model-generator={version = "0.1.0", path = "mikrotik-model-generator"}
 quote = "1.0.37"

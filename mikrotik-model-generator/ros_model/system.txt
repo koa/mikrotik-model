@@ -21,3 +21,35 @@ write-sect-total: ro;u64
 
 1/system/identity
 name
+
+1/system/routerboard
+model: ro
+firmware-type: ro
+upgrade-firmware: ro
+serial-number: ro
+current-firmware: ro
+factory-firmware: ro
+routerboard: ro;bool
+
+1/system/routerboard/settings
+auto-upgrade: bool
+baud-rate: o;u32
+boot-delay: Duration
+boot-device: enum=ethernet,flash-boot,flash-boot-once-then-nand,nand-if-fail-then-ethernet,nand-only,try-ethernet-once-then-nand
+boot-os: o;enum=router-os,swos
+boot-protocol: enum=bootp,dhcp
+cpu-frequency: o
+cpu-mode: o;enum=power-save,regular
+enable-jumper-reset: bool
+enter-setup-on:enum=any-key,delete-key
+force-backup-booter: bool
+init-delay: o;Duration
+memory-frequency: o
+memory-data-rate: o
+preboot-etherboot:disabled;Duration
+preboot-etherboot-server
+regulatory-domain-ce: o;bool
+silent-boot: bool
+protected-routerboot: EnabledDisabled
+reformat-hold-button: Duration
+reformat-hold-button-max: Duration

@@ -1,10 +1,10 @@
 use ipnet::IpNet;
 use itertools::Itertools;
-use log::warn;
+use log::{error, warn};
 use mac_address::MacAddress;
 use std::borrow::Cow;
 use std::collections::HashSet;
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Formatter, Write};
 use std::hash::Hash;
 use std::net::IpAddr;
 use std::str::FromStr;
@@ -352,6 +352,31 @@ impl<V: RosValue> RosValue for HasUnlimited<V> {
         }
     }
 }
+#[derive(Debug, Clone, PartialEq)]
+pub enum HasDisabled<V: RosValue> {
+    Disabled,
+    Value(V),
+}
+impl<V: RosValue> RosValue for HasDisabled<V> {
+    fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
+        if value == "disabled" {
+            ParseRosValueResult::Value(HasDisabled::Disabled)
+        } else {
+            match RosValue::parse_ros(value) {
+                ParseRosValueResult::Value(v) => ParseRosValueResult::Value(HasDisabled::Value(v)),
+                ParseRosValueResult::None => ParseRosValueResult::None,
+                ParseRosValueResult::Invalid => ParseRosValueResult::Invalid,
+            }
+        }
+    }
+
+    fn encode_ros(&self) -> Cow<str> {
+        match self {
+            HasDisabled::Disabled => "disabled".into(),
+            HasDisabled::Value(v) => v.encode_ros(),
+        }
+    }
+}
 
 impl RosValue for IpAddr {
     fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
@@ -448,6 +473,39 @@ impl RosValue for IpOrInterface {
             IpOrInterface::IpWithInterface(ip_net) => ip_net.encode_ros(),
         }
     }
+}
+
+pub struct ModifiedValue<'a> {
+    pub key: &'static str,
+    pub value: Cow<'a, str>,
+}
+
+pub fn write_script_string(target: &mut impl Write, value: &str) -> core::fmt::Result {
+    target.write_char('"')?;
+    for character in value.chars() {
+        match character {
+            '0'..='9' | 'A'..='Z' | 'a'..='z' | ' ' => target.write_char(character)?,
+            '"' | '\\' => {
+                target.write_char('\\')?;
+                target.write_char(character)?;
+            }
+            '\n' => target.write_str("\\n")?,
+            '\r' => target.write_str("\\r")?,
+            '\t' => target.write_str("\\t")?,
+            '\x07' => target.write_str("\\a")?,
+            '\x08' => target.write_str("\\b")?,
+            ch => {
+                if (ch as u32) < 256 {
+                    target.write_char('\\')?;
+                    write!(target, "{:X}", ch as u8)?;
+                } else {
+                    error!("Skipping invalid character in string {value}: {character}")
+                }
+            }
+        }
+    }
+    target.write_char('"')?;
+    Ok(())
 }
 
 #[cfg(test)]

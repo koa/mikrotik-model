@@ -22,7 +22,7 @@ impl DeviceType {
         match self {
             DeviceType::RB750Gr3 => 0,
             DeviceType::CRS32624G2Splus => 2,
-            DeviceType::CCR10097G1C1Splus => 1
+            DeviceType::CCR10097G1C1Splus => 1,
         }
     }
     pub fn device_type_name(&self) -> &'static str {

@@ -2,9 +2,9 @@
 .id:ro;id
 default-name: ro;id
 advertise: mu;EthernetSpeed
-arp: enum=enabled, disabled, local-proxy-arp, proxy-arp, reply-only
-arp-timeout: o;auto;Duration
-auto-negotiation: bool
+arp: enum=enabled, disabled, local-proxy-arp, proxy-arp, reply-only; default=enabled
+arp-timeout: o;auto;Duration;default=30s
+auto-negotiation: bool;default=true
 bandwidth: unlimited;rxtxpair;u32
 cable-setting: o;enum=default , short , standard
 combo-mode: o;enum=auto, copper, sfp
@@ -26,9 +26,10 @@ poe-priority: o;u8
 sfp-shutdown-temperature:o;u8
 sfp-rate-select: o;enum=high,low
 speed: o;EthernetSpeed
+sfp-ignore-rx-los: o;bool
 
 disabled: bool
-switch: ro;o;u8
+switch: ro;o
 running: ro;bool
 slave: o;ro;bool
 

@@ -1,18 +1,26 @@
+use mikrotik_model::resource::SingleResource;
+use mikrotik_model::model::InterfaceVlanCfg;
 use config::{Config, Environment, File};
 use env_logger::Env;
 use env_logger::TimestampPrecision;
 use log::{error, info};
-use mikrotik_model::model::InterfaceBridgePort;
+use mikrotik_model::error::Error;
 use mikrotik_model::model::InterfaceBridgeVlan;
-use mikrotik_model::model::SystemIdentity;
+use mikrotik_model::model::SystemIdentityCfg;
+use mikrotik_model::model::SystemRouterboardState;
+use mikrotik_model::model::SystemRouterboardSettingsCfg;
 use mikrotik_model::model::{InterfaceBridge, IpAddress, IpDhcpClient, IpDhcpClientCfg, IpRoute};
-use mikrotik_model::model::{InterfaceEthernet, InterfaceVlan, SystemResource};
-use mikrotik_model::resource::RosResource;
-use mikrotik_rs::command::response::CommandResponse;
-use mikrotik_rs::command::CommandBuilder;
+use mikrotik_model::model::{InterfaceBridgePort, InterfaceEthernetCfg};
+use mikrotik_model::model::{InterfaceEthernet,  SystemResource};
+use mikrotik_model::resource::{stream_result, DeserializeRosResource, RosResource};
+use mikrotik_model::Credentials;
+use mikrotik_rs::error::DeviceError;
+use mikrotik_rs::protocol::command::{Command, CommandBuilder};
+use mikrotik_rs::protocol::CommandResponse;
 use mikrotik_rs::MikrotikDevice;
 use serde::Deserialize;
 use std::net::IpAddr;
+use tokio_stream::adapters::FilterMap;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::{Stream, StreamExt};
 /*
@@ -107,13 +115,9 @@ impl RosResource for SystemResource {
     }
 }
 */
-#[derive(Deserialize, Debug)]
-pub struct Credentials {
-    pub user: Box<str>,
-    pub password: Box<str>,
-}
+
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Error> {
     env_logger::builder()
         .parse_env(Env::default().filter_or("LOG_LEVEL", "info"))
         .format_timestamp(Some(TimestampPrecision::Millis))
@@ -130,69 +134,89 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let credentials: Credentials = cfg.get("credentials")?;
     let routers: Box<[IpAddr]> = cfg.get("routers")?;
     for router in routers {
+        println!("{router}");
         let device = MikrotikDevice::connect(
             (router, 8728),
             credentials.user.as_ref(),
             Some(credentials.password.as_ref()),
         )
         .await?;
-        println!("{}", SystemResource::path());
+        let system_cfg = SystemIdentityCfg::fetch(&device).await?;
+        println!("System cfg: {system_cfg:?}");
+        let mut stream = get_resource::<SystemRouterboardSettingsCfg>(&device).await;
+        while let Some(r) = stream.next().await {
+            println!("Board Settings: \n{r:#?}");
+        }
         let mut stream = get_resource::<SystemResource>(&device).await;
         while let Some(r) = stream.next().await {
             //println!("Res: \n{r:#?}");
         }
-        println!("{}", SystemIdentity::path());
-        let mut stream = get_resource::<SystemIdentity>(&device).await;
+        let mut stream = get_resource::<SystemIdentityCfg>(&device).await;
         while let Some(r) = stream.next().await {
             //println!("Id: \n{r:#?}");
         }
-        println!("{}", InterfaceEthernet::path());
         let mut stream = get_resource::<InterfaceEthernet>(&device).await;
         while let Some(r) = stream.next().await {
             //println!("Eth: \n{r:#?}");
         }
-        println!("{}", InterfaceVlan::path());
-        let mut stream = get_resource::<InterfaceVlan>(&device).await;
+        let mut stream = get_resource::<InterfaceVlanCfg>(&device).await;
         while let Some(r) = stream.next().await {
             //println!("Vlan: \n{r:#?}");
         }
-        println!("{}", InterfaceBridge::path());
         let mut stream = get_resource::<InterfaceBridge>(&device).await;
         while let Some(r) = stream.next().await {
             //println!("Vlan: \n{r:#?}");
         }
-        println!("{}", InterfaceBridgePort::path());
         let mut stream = get_resource::<InterfaceBridgePort>(&device).await;
         while let Some(r) = stream.next().await {
             //println!("Vlan: \n{r:#?}");
         }
-        println!("{}", InterfaceBridgeVlan::path());
         let mut stream = get_resource::<InterfaceBridgeVlan>(&device).await;
         while let Some(r) = stream.next().await {
             //println!("Vlan: \n{r:#?}");
         }
-        println!("{}", IpAddress::path());
         let mut stream = get_resource::<IpAddress>(&device).await;
         while let Some(r) = stream.next().await {
             //println!("Vlan: \n{r:#?}");
         }
-        println!("{}", IpDhcpClient::path());
         let mut stream = get_resource::<IpDhcpClient>(&device).await;
         while let Some(r) = stream.next().await {
             println!("DHCP Client: \n{r:#?}");
         }
-        println!("{}", IpRoute::path());
         let mut stream = get_resource::<IpRoute>(&device).await;
         while let Some(r) = stream.next().await {
             //println!("Vlan: \n{r:#?}");
         }
+        println!("--------------------------------------------");
+        let cmd = CommandBuilder::new()
+            .command(&format!("/{}/print", InterfaceEthernet::path()))
+            .query_equal("default-name", "ether1")
+            .build();
+        let rows = stream_result::<InterfaceEthernetCfg>(cmd, &device)
+            .await
+            .collect::<Result<Box<[_]>, _>>()
+            .await?;
+        for row in rows {
+            println!("e1: {row:?}");
+        }
+        println!("----------------------------------------------");
     }
     Ok(())
 }
-async fn get_resource<R: RosResource>(device: &MikrotikDevice) -> impl Stream<Item = R> {
+async fn get_resource<R: RosResource + DeserializeRosResource>(
+    device: &MikrotikDevice,
+) -> impl Stream<Item = R> {
+    println!("{}", R::path());
     let cmd = CommandBuilder::new()
         .command(&format!("/{}/print", R::path()))
         .build();
+    fetch_results(device, cmd).await
+}
+
+async fn fetch_results<R: RosResource + DeserializeRosResource>(
+    device: &MikrotikDevice,
+    cmd: Command,
+) -> impl Stream<Item = R> {
     ReceiverStream::new(device.send_command(cmd).await).filter_map(|res| {
         //println!(">> Get System Res Response {:?}", res);
         match res {
@@ -212,6 +236,7 @@ async fn get_resource<R: RosResource>(device: &MikrotikDevice) -> impl Stream<It
                     }
                 }
             }
+            Ok(CommandResponse::Done(_)) => None,
             Ok(reply) => {
                 info!("response: {reply:?}");
                 None

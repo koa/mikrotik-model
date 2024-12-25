@@ -5,7 +5,10 @@ use proc_macro2::{Ident, Literal, Span};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use syn::punctuated::Punctuated;
-use syn::{parse_quote, Expr, ExprArray, ExprLit, FieldValue, FieldsNamed, Item, Lit, LitStr, Path, PathSegment, Token, Type, TypePath, Variant};
+use syn::{
+    parse_quote, Expr, ExprArray, ExprLit, FieldValue, FieldsNamed, Item, Lit, LitStr, Path,
+    PathSegment, Token, Type, TypePath, Variant,
+};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct Model {
@@ -43,6 +46,11 @@ impl Entity {
             elems: Default::default(),
         };
         let mut inline_enums = HashMap::new();
+        let mut changed_values_array = ExprArray {
+            attrs: vec![],
+            bracket_token: Default::default(),
+            elems: Default::default(),
+        };
         for field in self.fields.iter() {
             let enum_type = if let Some(enum_values) = field.inline_enum.as_ref() {
                 let enum_name = format!("{struct_name}_{}", field.name);
@@ -56,13 +64,14 @@ impl Entity {
                 attrs: vec![],
                 lit: Lit::Str(LitStr::new(&field.name, Span::call_site())),
             }));
-            let (field_def, parser) = field.generate_code(enum_type);
+            let (field_def, parser, change_expression) = field.generate_code(enum_type);
             if field.is_read_only {
                 fields_named_status.named.push(field_def);
                 punctuated_fields_status.push(parser);
             } else {
                 fields_named_cfg.named.push(field_def);
                 punctuated_fields_cfg.push(parser);
+                changed_values_array.elems.push(change_expression);
             }
         }
         let struct_ident = Ident::new(&struct_name, Span::call_site());
@@ -89,18 +98,47 @@ impl Entity {
                 cfg: #struct_ident_cfg::parse(values)?
             });
             items.push((parse_quote! {
-                impl resource::RosResource for #struct_ident_cfg {
+                impl resource::DeserializeRosResource for #struct_ident_cfg {
                      fn parse(values: &std::collections::HashMap<String, Option<String>>) -> Result<Self, resource::ResourceAccessError> {
                         Ok(#struct_ident_cfg {#punctuated_fields_cfg})
                     }
                     fn path()->&'static str{
                         #path
                     }
-                    fn known_fields()->&'static[&'static str]{
-                        &#known_fields
-                    }
                 }
             }, None));
+            items.push((
+                parse_quote! {
+                    impl resource::RosResource for #struct_ident_cfg {
+                        fn known_fields()->&'static[&'static str]{
+                            &#known_fields
+                        }
+                    }
+                },
+                None,
+            ));
+            items.push((
+                parse_quote! {
+                    impl resource::CfgResource for #struct_ident_cfg {
+                        #[allow(clippy::needless_lifetimes)]
+                        fn changed_values<'a, 'b>(
+                            &'a self,
+                            before: &'b Self,
+                        ) -> impl Iterator<Item = value::ModifiedValue<'a>> {
+                            #changed_values_array.into_iter().flatten()
+                        }
+                    }
+                },
+                None,
+            ));
+            if self.is_single {
+                items.push((
+                    parse_quote! {
+                        impl resource::SingleResource for #struct_ident_cfg {}
+                    },
+                    None,
+                ));
+            }
         };
         if !fields_named_status.named.is_empty() {
             items.push((
@@ -117,27 +155,38 @@ impl Entity {
                 status: #struct_ident_status{#punctuated_fields_status}
             });
         }
-        items.push((
-            parse_quote! {
-                #[derive(Debug, Clone, PartialEq)]
-                pub struct #struct_ident #fields_named
-            },
-            None,
-        ));
-        items.push((parse_quote! {
-                impl resource::RosResource for #struct_ident {
-                     fn parse(values: &std::collections::HashMap<String, Option<String>>) -> Result<Self, resource::ResourceAccessError> {
-                        Ok(#struct_ident {#punctuated_fields})
+        if !fields_named_cfg.named.is_empty() && !fields_named_status.named.is_empty() {
+            items.push((
+                parse_quote! {
+                    #[derive(Debug, Clone, PartialEq)]
+                    pub struct #struct_ident #fields_named
+                },
+                None,
+            ));
+            items.push((
+                parse_quote! {
+                    impl resource::DeserializeRosResource for #struct_ident {
+                        fn parse(values: &std::collections::HashMap<String, Option<String>>) -> Result<Self, resource::ResourceAccessError> {
+                            Ok(#struct_ident {#punctuated_fields})
+                        }
+                        fn path()->&'static str{
+                            #path
+                        }
                     }
-                    fn path()->&'static str{
-                        #path
+                },
+                None,
+            ));
+            items.push((
+                parse_quote! {
+                    impl resource::RosResource for #struct_ident {
+                        fn known_fields()->&'static[&'static str]{
+                            &#known_fields
+                        }
                     }
-                    fn known_fields()->&'static[&'static str]{
-                        &#known_fields
-                    }
-                }
-            }, None));
-
+                },
+                None,
+            ));
+        }
         generate_enums(&inline_enums)
             .map(|item| (item, None))
             .collect::<Vec<_>>()
@@ -162,11 +211,12 @@ pub struct Field {
     pub reference: Reference,
     pub has_none: bool,
     pub has_unlimited: bool,
+    pub has_disabled: bool,
     pub is_rxtx_pair: bool,
 }
 
 impl Field {
-    fn generate_code(&self, enum_field_type: Option<Type>) -> (syn::Field, FieldValue) {
+    fn generate_code(&self, enum_field_type: Option<Type>) -> (syn::Field, FieldValue, Expr) {
         let field_name = cleanup_field_name(self.name.as_ref()).to_case(Case::Snake);
         let field_name = if KEYWORDS.contains(field_name.as_str()) {
             format!("_{field_name}")
@@ -213,6 +263,11 @@ impl Field {
         } else {
             field_type
         };
+        let field_type = if self.has_disabled {
+            parse_quote!(value::HasDisabled<#field_type>)
+        } else {
+            field_type
+        };
         let field_type = if self.is_rxtx_pair {
             parse_quote!(value::RxTxPair<#field_type>)
         } else {
@@ -252,6 +307,16 @@ impl Field {
                         },
                     )
                     .unwrap_or(#default)?
+            },
+            parse_quote! {
+               if self.#field_name == before.#field_name {
+                    None
+                } else {
+                    Some(value::ModifiedValue {
+                        key: #attribute_name,
+                        value: value::RosValue::encode_ros(&self.#field_name),
+                    })
+                }
             },
         )
     }
@@ -346,6 +411,7 @@ fn parse_field_line(line: &str) -> Option<Field> {
                     "none" => field.has_none = true,
                     "unlimited" => field.has_unlimited = true,
                     "rxtxpair" => field.is_rxtx_pair = true,
+                    "disabled" => field.has_disabled = true,
                     name => field.field_type = Some(name.into()),
                 }
             }
