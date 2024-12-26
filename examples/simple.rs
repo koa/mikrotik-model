@@ -1,17 +1,17 @@
-use mikrotik_model::resource::SingleResource;
-use mikrotik_model::model::InterfaceVlanCfg;
 use config::{Config, Environment, File};
 use env_logger::Env;
 use env_logger::TimestampPrecision;
 use log::{error, info};
 use mikrotik_model::error::Error;
 use mikrotik_model::model::InterfaceBridgeVlan;
+use mikrotik_model::model::InterfaceVlanCfg;
 use mikrotik_model::model::SystemIdentityCfg;
-use mikrotik_model::model::SystemRouterboardState;
 use mikrotik_model::model::SystemRouterboardSettingsCfg;
+use mikrotik_model::model::SystemRouterboardState;
 use mikrotik_model::model::{InterfaceBridge, IpAddress, IpDhcpClient, IpDhcpClientCfg, IpRoute};
 use mikrotik_model::model::{InterfaceBridgePort, InterfaceEthernetCfg};
-use mikrotik_model::model::{InterfaceEthernet,  SystemResource};
+use mikrotik_model::model::{InterfaceEthernet, SystemResource};
+use mikrotik_model::resource::SingleResource;
 use mikrotik_model::resource::{stream_result, DeserializeRosResource, RosResource};
 use mikrotik_model::Credentials;
 use mikrotik_rs::error::DeviceError;
@@ -190,7 +190,9 @@ async fn main() -> Result<(), Error> {
         println!("--------------------------------------------");
         let cmd = CommandBuilder::new()
             .command(&format!("/{}/print", InterfaceEthernet::path()))
+            .unwrap()
             .query_equal("default-name", "ether1")
+            .unwrap()
             .build();
         let rows = stream_result::<InterfaceEthernetCfg>(cmd, &device)
             .await
@@ -209,6 +211,7 @@ async fn get_resource<R: RosResource + DeserializeRosResource>(
     println!("{}", R::path());
     let cmd = CommandBuilder::new()
         .command(&format!("/{}/print", R::path()))
+        .unwrap()
         .build();
     fetch_results(device, cmd).await
 }

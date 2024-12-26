@@ -4,7 +4,7 @@ use itertools::Itertools;
 use mikrotik_model::model::SystemIdentityCfg;
 use mikrotik_model::resource::DeserializeRosResource;
 use mikrotik_model::resource::{list_resources, CfgResource};
-use mikrotik_model::value::{write_script_string, ModifiedValue};
+use mikrotik_model::value::{write_script_string, KeyValuePair};
 use mikrotik_model::Credentials;
 use mikrotik_rs::protocol::command::{Cmd, CommandBuilder};
 use mikrotik_rs::MikrotikDevice;
@@ -48,12 +48,12 @@ async fn main() -> anyhow::Result<()> {
         println!("{:#?}", new_entry);
 
         let cmd = CommandBuilder::new()
-            .command(&format!("/{}/set", SystemIdentityCfg::path()))
+            .command(&format!("/{}/set", SystemIdentityCfg::path()))?
             .build();
         let mut cmd: Option<CommandBuilder<Cmd>> = None;
         let mut update_str: Option<String> = None;
 
-        for ModifiedValue { key, value } in new_entry.changed_values(&entry) {
+        for KeyValuePair { key, value } in new_entry.changed_values(&entry) {
             let update = if let Some(value) = update_str.as_mut() {
                 value.push(' ');
                 value
@@ -69,8 +69,9 @@ async fn main() -> anyhow::Result<()> {
                     .unwrap_or_else(|| {
                         CommandBuilder::new()
                             .command(&format!("/{}/set", SystemIdentityCfg::path()))
+                            .unwrap()
                     })
-                    .attribute(key, Some(value.as_ref())),
+                    .attribute(key, Some(value.as_ref()))?,
             );
         }
         if let Some(update) = update_str {

@@ -4,6 +4,7 @@ use convert_case::{Case, Casing};
 use proc_macro2::{Ident, Literal, Span};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use syn::__private::ToTokens;
 use syn::punctuated::Punctuated;
 use syn::{
     parse_quote, Expr, ExprArray, ExprLit, FieldValue, FieldsNamed, Item, Lit, LitStr, Path,
@@ -51,6 +52,7 @@ impl Entity {
             bracket_token: Default::default(),
             elems: Default::default(),
         };
+        let mut id_fields = Vec::new();
         for field in self.fields.iter() {
             let enum_type = if let Some(enum_values) = field.inline_enum.as_ref() {
                 let enum_name = format!("{struct_name}_{}", field.name);
@@ -64,14 +66,21 @@ impl Entity {
                 attrs: vec![],
                 lit: Lit::Str(LitStr::new(&field.name, Span::call_site())),
             }));
-            let (field_def, parser, change_expression) = field.generate_code(enum_type);
+            let (field_name, field_type, parser, change_expression) =
+                field.generate_code(enum_type);
+            let field_def = parse_quote!(
+                pub #field_name: #field_type
+            );
             if field.is_read_only {
                 fields_named_status.named.push(field_def);
-                punctuated_fields_status.push(parser);
+                punctuated_fields_status.push(parser.clone());
             } else {
                 fields_named_cfg.named.push(field_def);
-                punctuated_fields_cfg.push(parser);
+                punctuated_fields_cfg.push(parser.clone());
                 changed_values_array.elems.push(change_expression);
+            }
+            if field.is_key {
+                id_fields.push((field, field_name, field_type, parser));
             }
         }
         let struct_ident = Ident::new(&struct_name, Span::call_site());
@@ -83,7 +92,9 @@ impl Entity {
             named: Default::default(),
         };
         let mut punctuated_fields: Punctuated<FieldValue, Token![,]> = Punctuated::new();
-        if !fields_named_cfg.named.is_empty() {
+        let has_cfg_struct = !fields_named_cfg.named.is_empty();
+        let has_status_struct = !fields_named_status.named.is_empty();
+        if has_cfg_struct {
             items.push((
                 parse_quote! {
                     #[derive(Debug, Clone, PartialEq)]
@@ -124,7 +135,7 @@ impl Entity {
                         fn changed_values<'a, 'b>(
                             &'a self,
                             before: &'b Self,
-                        ) -> impl Iterator<Item = value::ModifiedValue<'a>> {
+                        ) -> impl Iterator<Item = value::KeyValuePair<'a>> {
                             #changed_values_array.into_iter().flatten()
                         }
                     }
@@ -138,9 +149,154 @@ impl Entity {
                     },
                     None,
                 ));
+                items.push((
+                    parse_quote! {
+                        impl resource::Updatable for #struct_ident_cfg {
+                            fn calculate_update<'a>(&'a self, from: &'a Self) -> resource::ResourceMutation<'a> {
+                                resource::ResourceMutation {
+                                    resource: <#struct_ident_cfg as resource::DeserializeRosResource>::path(),
+                                    operation: resource::ResourceMutationOperation::UpdateSingle,
+                                    fields: resource::CfgResource::changed_values(self,from).collect(),
+                                }
+                            }
+                        }
+                    },
+                    None,
+                ));
+            } else {
+                let mut plain_items = Vec::new();
+                for (id_field, id_field_name, id_field_type, parser) in id_fields {
+                    let id_struct_name =
+                        cleanup_field_name(&format!("{struct_name}By_{}", id_field.name))
+                            .to_case(Case::UpperCamel);
+                    let id_struct_ident = Ident::new(&id_struct_name, Span::call_site());
+                    let field_name = id_field.name.as_ref();
+                    if id_field.is_read_only {
+                        plain_items.push(parse_quote! {
+                            #[derive(Debug, Clone, PartialEq)]
+                            pub struct #id_struct_ident {
+                                pub #id_field_name: #id_field_type,
+                                pub data: #struct_ident_cfg,
+                            }
+                        });
+                        plain_items.push(parse_quote! {
+                                impl resource::DeserializeRosResource for #id_struct_ident {
+                                    fn parse(values: &std::collections::HashMap<String, Option<String>>) -> Result<Self, resource::ResourceAccessError> {
+                                        Ok(#id_struct_ident{
+                                        #parser,
+                                        data: <#struct_ident_cfg as resource::DeserializeRosResource>::parse(
+                                            values,
+                                        )?})
+                                    }
+
+                                    fn path() -> &'static str {
+                                        #struct_ident_cfg::path()
+                                    }
+                                }
+                            });
+                        plain_items.push(parse_quote! {
+                            impl resource::KeyedResource for #id_struct_ident {
+                                type Key = #id_field_type;
+
+                                fn key_name() -> &'static str {
+                                    #field_name
+                                }
+
+                                fn key_value(&self) -> &#id_field_type {
+                                    &self.#id_field_name
+                                }
+                            }
+                        });
+                        plain_items.push(parse_quote! {
+                            impl resource::CfgResource for #id_struct_ident {
+                                #[allow(clippy::needless_lifetimes)]
+                                fn changed_values<'a, 'b>(
+                                    &'a self,
+                                    before: &'b Self,
+                                ) -> impl Iterator<Item = value::KeyValuePair<'a>> {
+                                    self.data.changed_values(&before.data)
+                                }
+                            }
+                        });
+                    } else {
+                        plain_items.push(parse_quote! {
+                            #[derive(Debug, Clone, PartialEq)]
+                            pub struct #id_struct_ident(pub #struct_ident_cfg);
+                        });
+                        plain_items.push(parse_quote! {
+                                impl resource::DeserializeRosResource for #id_struct_ident {
+                                    fn parse(values: &std::collections::HashMap<String, Option<String>>) -> Result<Self, resource::ResourceAccessError> {
+                                        Ok(#id_struct_ident(<#struct_ident_cfg as resource::DeserializeRosResource>::parse(
+                                            values,
+                                        )?))
+                                    }
+
+                                    fn path() -> &'static str {
+                                        #struct_ident_cfg::path()
+                                    }
+                                }
+                            });
+                        plain_items.push(parse_quote! {
+                            impl resource::KeyedResource for #id_struct_ident {
+                                type Key = #id_field_type;
+
+                                fn key_name() -> &'static str {
+                                    #field_name
+                                }
+
+                                fn key_value(&self) -> &#id_field_type {
+                                    &self.0.#id_field_name
+                                }
+                            }
+                        });
+                        plain_items.push(parse_quote! {
+                            impl resource::CfgResource for #id_struct_ident {
+                                #[allow(clippy::needless_lifetimes)]
+                                fn changed_values<'a, 'b>(
+                                    &'a self,
+                                    before: &'b Self,
+                                ) -> impl Iterator<Item = value::KeyValuePair<'a>> {
+                                    self.0.changed_values(&before.0)
+                                }
+                            }
+                        });
+                    };
+                    if has_status_struct {
+                        plain_items.push(parse_quote! {
+                                impl resource::DeserializeRosResource for (#id_struct_ident, #struct_ident_status) {
+                                    fn parse(values: &std::collections::HashMap<String, Option<String>>) -> Result<Self, resource::ResourceAccessError> {
+                                        Ok((
+                                            #id_struct_ident::parse(values)?,
+                                            #struct_ident_status::parse(values)?,
+                                        ))
+                                    }
+                                
+                                    fn path()->&'static str{
+                                        #path
+                                    }
+                                }
+                            });
+                        plain_items.push(parse_quote! {
+                                impl resource::KeyedResource for (#id_struct_ident, #struct_ident_status) {
+                                    type Key = #id_field_type;
+
+                                    fn key_name() -> &'static str {
+                                        #field_name
+                                    }
+
+                                    fn key_value(&self) -> &#id_field_type {
+                                        self.0.key_value()
+                                    }
+                                }
+                            });
+                    }
+                }
+                for item in plain_items {
+                    items.push((item, None));
+                }
             }
         };
-        if !fields_named_status.named.is_empty() {
+        if has_status_struct {
             items.push((
                 parse_quote! {
                     #[derive(Debug, Clone, PartialEq)]
@@ -148,14 +304,25 @@ impl Entity {
                 },
                 None,
             ));
+            items.push((parse_quote! {
+                impl resource::DeserializeRosResource for #struct_ident_status {
+                     fn parse(values: &std::collections::HashMap<String, Option<String>>) -> Result<Self, resource::ResourceAccessError> {
+                        Ok(#struct_ident_status {#punctuated_fields_status})
+                    }
+                    fn path()->&'static str{
+                        #path
+                    }
+                }
+            }, None));
+
             fields_named.named.push(parse_quote! {
                 pub status: #struct_ident_status
             });
             punctuated_fields.push(parse_quote! {
-                status: #struct_ident_status{#punctuated_fields_status}
+                status: #struct_ident_status::parse(values)?
             });
         }
-        if !fields_named_cfg.named.is_empty() && !fields_named_status.named.is_empty() {
+        if has_cfg_struct && has_status_struct {
             items.push((
                 parse_quote! {
                     #[derive(Debug, Clone, PartialEq)]
@@ -216,7 +383,7 @@ pub struct Field {
 }
 
 impl Field {
-    fn generate_code(&self, enum_field_type: Option<Type>) -> (syn::Field, FieldValue, Expr) {
+    fn generate_code(&self, enum_field_type: Option<Type>) -> (Ident, Type, FieldValue, Expr) {
         let field_name = cleanup_field_name(self.name.as_ref()).to_case(Case::Snake);
         let field_name = if KEYWORDS.contains(field_name.as_str()) {
             format!("_{field_name}")
@@ -286,38 +453,39 @@ impl Field {
                 parse_quote!(Err(resource::ResourceAccessError::MissingFieldError {field_name: #attribute_name,})),
             )
         };
+        let parse_snippet = parse_quote! {
+            #field_name: values
+                .get(#attribute_name)
+                .and_then(|v| v.as_ref())
+                .map(
+                    |value| match value::RosValue::parse_ros(value.as_str()) {
+                        value::ParseRosValueResult::None => #default,
+                        value::ParseRosValueResult::Value(v) => Ok(v),
+                        value::ParseRosValueResult::Invalid => {
+                            Err(resource::ResourceAccessError::InvalidValueError {
+                                field_name: #attribute_name,
+                                value: value.clone().into_boxed_str(),
+                            })
+                        }
+                    },
+                )
+                .unwrap_or(#default)?
+        };
+        let compare_and_set_snippet = parse_quote! {
+           if self.#field_name == before.#field_name {
+                None
+            } else {
+                Some(value::KeyValuePair {
+                    key: #attribute_name,
+                    value: value::RosValue::encode_ros(&self.#field_name),
+                })
+            }
+        };
         (
-            parse_quote!(
-                pub #field_name: #field_type
-            ),
-            parse_quote! {
-                #field_name: values
-                    .get(#attribute_name)
-                    .and_then(|v| v.as_ref())
-                    .map(
-                        |value| match value::RosValue::parse_ros(value.as_str()) {
-                            value::ParseRosValueResult::None => #default,
-                            value::ParseRosValueResult::Value(v) => Ok(v),
-                            value::ParseRosValueResult::Invalid => {
-                                Err(resource::ResourceAccessError::InvalidValueError {
-                                    field_name: #attribute_name,
-                                    value: value.clone().into_boxed_str(),
-                                })
-                            }
-                        },
-                    )
-                    .unwrap_or(#default)?
-            },
-            parse_quote! {
-               if self.#field_name == before.#field_name {
-                    None
-                } else {
-                    Some(value::ModifiedValue {
-                        key: #attribute_name,
-                        value: value::RosValue::encode_ros(&self.#field_name),
-                    })
-                }
-            },
+            field_name,
+            field_type,
+            parse_snippet,
+            compare_and_set_snippet,
         )
     }
 }

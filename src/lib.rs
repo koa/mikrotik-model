@@ -1,6 +1,7 @@
 use serde::Deserialize;
 
 pub mod error;
+pub mod generator;
 pub mod hwconfig;
 pub mod resource;
 pub mod value;

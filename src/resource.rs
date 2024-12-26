@@ -1,8 +1,8 @@
-use crate::model::{InterfaceEthernet, InterfaceEthernetCfg, SystemIdentityCfg};
-use crate::value::{ModifiedValue, RosValue};
+use crate::model::{InterfaceEthernet, InterfaceEthernetCfg, InterfaceEthernetState};
+use crate::value::{KeyValuePair, RosValue};
 use crate::{resource, value};
 use log::{error, info};
-use mikrotik_rs::error::DeviceError;
+use mikrotik_rs::error::{CommandError, DeviceError};
 use mikrotik_rs::protocol::command::{Command, CommandBuilder};
 use mikrotik_rs::protocol::{CommandResponse, FatalResponse, TrapResponse};
 use mikrotik_rs::MikrotikDevice;
@@ -38,6 +38,8 @@ pub enum Error {
     Fatal(FatalResponse),
     #[error("Trap from device: {0}")]
     Trap(TrapResponse),
+    #[error("Cannot build query: {0}")]
+    InvalidQueryParameter(#[from] CommandError),
 }
 
 pub async fn stream_result<R: DeserializeRosResource>(
@@ -66,6 +68,7 @@ pub async fn stream_resource<R: DeserializeRosResource>(
 ) -> impl Stream<Item = Result<R, Error>> {
     let cmd = CommandBuilder::new()
         .command(&format!("/{}/print", R::path()))
+        .expect("Invalid path")
         .build();
     stream_result(cmd, device).await
 }
@@ -75,6 +78,7 @@ pub async fn list_resources<R: DeserializeRosResource>(
 ) -> impl Stream<Item = R> {
     let cmd = CommandBuilder::new()
         .command(&format!("/{}/print", R::path()))
+        .expect("Invalid path")
         .build();
     ReceiverStream::new(device.send_command(cmd).await).filter_map(|res| {
         println!(">> Get System Res Response {:?}", res);
@@ -123,19 +127,57 @@ pub trait SingleResource: DeserializeRosResource {
         }
     }
 }
-pub trait KeyedResource<K: RosValue>: DeserializeRosResource {
+pub trait KeyedResource: DeserializeRosResource {
+    type Key: RosValue;
     fn key_name() -> &'static str;
-    fn key_value(&self) -> &K;
+    fn key_value(&self) -> &Self::Key;
+    fn fetch_all(
+        device: &MikrotikDevice,
+    ) -> impl std::future::Future<Output = Result<Box<[Self]>, Error>> + Send
+    where
+        <Self as KeyedResource>::Key: Sync,
+        Self: Send,
+    {
+        async {
+            let cmd = CommandBuilder::new()
+                .command(&format!("/{}/print", Self::path()))
+                .expect("Invalid path")
+                .build();
+            stream_result::<Self>(cmd, device)
+                .await
+                .collect::<Result<Box<[_]>, _>>()
+                .await
+        }
+    }
+    fn fetch(
+        device: &MikrotikDevice,
+        key: &Self::Key,
+    ) -> impl std::future::Future<Output = Result<Option<Self>, Error>> + Send
+    where
+        <Self as KeyedResource>::Key: Sync,
+    {
+        async {
+            let cmd = CommandBuilder::new()
+                .command(&format!("/{}/print", Self::path()))
+                .expect("Invalid path")
+                .query_equal(Self::key_name(), key.encode_ros().as_ref())?
+                .build();
+            if let Some(row) = stream_result(cmd, device).await.next().await {
+                Ok(Some(row?))
+            } else {
+                Ok(None)
+            }
+        }
+    }
 }
 pub trait CfgResource: DeserializeRosResource {
     #[allow(clippy::needless_lifetimes)]
-    fn changed_values<'a, 'b>(
-        &'a self,
-        before: &'b Self,
-    ) -> impl Iterator<Item = ModifiedValue<'a>>;
+    fn changed_values<'a, 'b>(&'a self, before: &'b Self)
+        -> impl Iterator<Item = KeyValuePair<'a>>;
 }
+
 #[derive(Debug, Clone, PartialEq)]
-struct InterfaceEthernetById {
+pub struct InterfaceEthernetById {
     id: Box<str>,
     interface: InterfaceEthernetCfg,
 }
@@ -168,7 +210,9 @@ impl DeserializeRosResource for InterfaceEthernetById {
         InterfaceEthernet::path()
     }
 }
-impl KeyedResource<Box<str>> for InterfaceEthernetById {
+impl KeyedResource for InterfaceEthernetById {
+    type Key = Box<str>;
+
     fn key_name() -> &'static str {
         ".id"
     }
@@ -178,36 +222,33 @@ impl KeyedResource<Box<str>> for InterfaceEthernetById {
     }
 }
 
-impl CfgResource for InterfaceEthernetById {
-    #[allow(clippy::needless_lifetimes)]
-    fn changed_values<'a, 'b>(&'a self, before: &'b Self) -> impl Iterator<Item=ModifiedValue<'a>> {
-        self.interface.changed_values(&before.interface)
-    }
+#[derive(Debug, Clone, PartialEq)]
+pub struct ResourceMutation<'a> {
+    pub resource: &'static str,
+    pub operation: ResourceMutationOperation<'a>,
+    pub fields: Box<[KeyValuePair<'a>]>,
 }
 #[derive(Debug, Clone, PartialEq)]
-struct InterfaceEthernetByName(InterfaceEthernetCfg);
-
-impl DeserializeRosResource for InterfaceEthernetByName {
-    fn parse(values: &HashMap<String, Option<String>>) -> Result<Self, ResourceAccessError> {
-        Ok(InterfaceEthernetByName(InterfaceEthernetCfg::parse(values)?))
-    }
-
-    fn path() -> &'static str {
-        InterfaceEthernetCfg::path()
-    }
+pub enum ResourceMutationOperation<'a> {
+    Add,
+    RemoveByKey(KeyValuePair<'a>),
+    UpdateSingle,
+    UpdateByKey(KeyValuePair<'a>),
 }
-impl KeyedResource<Box<str>> for InterfaceEthernetByName {
-    fn key_name() -> &'static str {
-        "name"
-    }
 
-    fn key_value(&self) -> &Box<str> {
-        &self.0.name
-    }
+pub trait Updatable {
+    fn calculate_update<'a>(&'a self, from: &'a Self) -> ResourceMutation<'a>;
 }
-impl CfgResource for InterfaceEthernetByName {
-    #[allow(clippy::needless_lifetimes)]
-    fn changed_values<'a, 'b>(&'a self, before: &'b Self) -> impl Iterator<Item=ModifiedValue<'a>> {
-        self.0.changed_values(&before.0)
+
+impl<R: KeyedResource + CfgResource> Updatable for R {
+    fn calculate_update<'a>(&'a self, from: &'a Self) -> ResourceMutation<'a> {
+        ResourceMutation {
+            resource: R::path(),
+            operation: ResourceMutationOperation::UpdateByKey(KeyValuePair {
+                key: R::key_name(),
+                value: from.key_value().encode_ros(),
+            }),
+            fields: self.changed_values(from).collect(),
+        }
     }
 }

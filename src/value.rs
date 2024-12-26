@@ -474,8 +474,8 @@ impl RosValue for IpOrInterface {
         }
     }
 }
-
-pub struct ModifiedValue<'a> {
+#[derive(Debug, Clone, PartialEq)]
+pub struct KeyValuePair<'a> {
     pub key: &'static str,
     pub value: Cow<'a, str>,
 }
@@ -484,7 +484,7 @@ pub fn write_script_string(target: &mut impl Write, value: &str) -> core::fmt::R
     target.write_char('"')?;
     for character in value.chars() {
         match character {
-            '0'..='9' | 'A'..='Z' | 'a'..='z' | ' ' => target.write_char(character)?,
+            '0'..='9' | 'A'..='Z' | 'a'..='z' | ' ' | '.' | '-' => target.write_char(character)?,
             '"' | '\\' => {
                 target.write_char('\\')?;
                 target.write_char(character)?;

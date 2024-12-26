@@ -515,7 +515,7 @@ dependencies = [
 [[package]]
 name = "mikrotik-rs"
 version = "0.4.0"
-source = "git+https://github.com/koa/mikrotik-rs?branch=extended-encoding#b17ff86841081459dffc2b7e7b63e984aa2b0d43"
+source = "git+https://github.com/koa/mikrotik-rs?branch=extended-encoding#ee8ce56493f64bc7e400aa8c9bb2c817a3c90265"
 dependencies = [
  "encoding_rs",
  "getrandom",
