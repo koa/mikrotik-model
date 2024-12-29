@@ -1,6 +1,6 @@
+use encoding_rs::mem::{decode_latin1, encode_latin1_lossy};
 use ipnet::IpNet;
-use itertools::Itertools;
-use log::{error, warn};
+use log::warn;
 use mac_address::MacAddress;
 use std::borrow::Cow;
 use std::collections::HashSet;
@@ -70,16 +70,16 @@ impl<V: Clone> Clone for ParseRosValueResult<V> {
 impl<V: Copy> Copy for ParseRosValueResult<V> {}
 
 pub trait RosValue: Sized {
-    fn parse_ros(value: &str) -> ParseRosValueResult<Self>;
-    fn encode_ros(&self) -> Cow<str>;
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self>;
+    fn encode_ros(&self) -> Cow<[u8]>;
 }
 
-impl RosValue for Box<str> {
-    fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
+impl RosValue for Box<[u8]> {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
         ParseRosValueResult::Value(value.into())
     }
 
-    fn encode_ros(&self) -> Cow<str> {
+    fn encode_ros(&self) -> Cow<[u8]> {
         self.as_ref().into()
     }
 }
@@ -87,19 +87,22 @@ impl RosValue for Box<str> {
 macro_rules! parameter_value_impl {
         ($($t:ty)*) => {$(
             impl RosValue for $t {
-                fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
+                fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
                     if value.is_empty() {
                         ParseRosValueResult::None
+                    } else if !value.is_ascii(){
+                        ParseRosValueResult::Invalid
                     } else {
-                        match <$t>::from_str(value) {
+                        match <$t>::from_str(String::from_utf8_lossy(value).as_ref()) {
                             Ok(v) => ParseRosValueResult::Value(v),
                             Err(_) => ParseRosValueResult::Invalid,
                         }
                     }
                 }
 
-                fn encode_ros(&self) -> Cow<str> {
-                    format!("{}", self).into()
+                fn encode_ros(&self) -> Cow<[u8]> {
+                    Cow::Owned(self.to_string().as_bytes().into())
+
                 }
             }
         )*}
@@ -112,14 +115,16 @@ pub struct Hex<V: Copy + Eq + Hash>(V);
 macro_rules! hex_value_impl {
         ($($t:ty)*) => {$(
             impl RosValue for  Hex<$t>  {
-                fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
+                fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
                     if value.is_empty() {
                         ParseRosValueResult::None
+                    } else if !value.is_ascii(){
+                        ParseRosValueResult::Invalid
                     } else {
-                        match if let Some(hex_value) = value.strip_prefix("0x") {
-                            <$t>::from_str_radix(hex_value, 16)
+                        match if let Some(hex_value) = value.strip_prefix(b"0x") {
+                            <$t>::from_str_radix(String::from_utf8_lossy(hex_value).as_ref(), 16)
                         } else {
-                            value.parse::<$t>()
+                            String::from_utf8_lossy(value).parse::<$t>()
                         } {
                             Ok(v) => ParseRosValueResult::Value(Hex(v)),
                             Err(_) => ParseRosValueResult::Invalid,
@@ -127,8 +132,8 @@ macro_rules! hex_value_impl {
                     }
                 }
 
-                fn encode_ros(&self) -> Cow<str> {
-                    format!("0x{:X}", self.0).into()
+                fn encode_ros(&self) -> Cow<[u8]> {
+                    Cow::Owned( Vec::from( format!("0x{:X}", self.0).as_bytes()))
                 }
             }
             impl Debug for Hex<$t>{
@@ -141,69 +146,62 @@ macro_rules! hex_value_impl {
 hex_value_impl! { isize i8 i16 i32 i64 i128 usize u8 u16 u32 u64 u128}
 
 impl RosValue for Duration {
-    fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
         let mut ret = Duration::default();
-        let mut chars = value.chars();
+        let mut chars = value.iter();
         let mut unit = None;
-        let mut number = String::with_capacity(10);
+        let mut number = 0;
         loop {
             #[allow(clippy::while_let_on_iterator)]
             while let Some(c) = chars.next() {
-                if c.is_numeric() {
-                    number.push(c);
+                if c.is_ascii_digit() {
+                    number = number * 10 + (c - b'0') as u64;
                 } else {
                     unit = Some(c);
                     break;
                 }
             }
-            if number.is_empty() && unit.is_none() {
+            if number == 0 && unit.is_none() {
                 return ParseRosValueResult::Value(ret);
             }
-            let count = match number.parse::<u64>() {
-                Ok(v) => v,
-                Err(e) => {
-                    warn!("Cannot parse duration {}: {}", value, e);
-                    return ParseRosValueResult::Invalid;
-                }
-            };
             let duration = match unit {
                 None => {
                     return ParseRosValueResult::Value(ret);
                 }
-                Some('s') => Duration::from_secs(count),
-                Some('m') => Duration::from_secs(60 * count),
-                Some('h') => Duration::from_secs(3600 * count),
-                Some('d') => Duration::from_secs(24 * 3600 * count),
-                Some('w') => Duration::from_secs(7 * 24 * 3600 * count),
-                Some(u) => {
-                    warn!("Invalid time unit {u} on {value}");
+                Some(b's') => Duration::from_secs(number),
+                Some(b'm') => Duration::from_secs(60 * number),
+                Some(b'h') => Duration::from_secs(3600 * number),
+                Some(b'd') => Duration::from_secs(24 * 3600 * number),
+                Some(b'w') => Duration::from_secs(7 * 24 * 3600 * number),
+                Some(&u) => {
+                    warn!("Invalid time unit {} on {value:?}", u as char);
                     return ParseRosValueResult::Invalid;
                 }
             };
-            number.clear();
+            number = 0;
             unit = None;
             ret += duration;
         }
     }
 
-    fn encode_ros(&self) -> Cow<str> {
-        format!("{}s", self.as_secs()).into()
+    fn encode_ros(&self) -> Cow<[u8]> {
+        Cow::Owned(Vec::from(format!("{}s", self.as_secs()).as_bytes()))
     }
 }
 impl RosValue for MacAddress {
-    fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
-        match MacAddress::from_str(value) {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
+        match MacAddress::from_str(String::from_utf8_lossy(value).as_ref()) {
             Ok(v) => ParseRosValueResult::Value(v),
             Err(_) => ParseRosValueResult::Invalid,
         }
     }
 
-    fn encode_ros(&self) -> Cow<str> {
-        self.to_string().into()
+    fn encode_ros(&self) -> Cow<[u8]> {
+        self.to_string().into_bytes().into()
     }
 }
 impl<V: RosValue> RosValue for Option<V> {
-    fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
         if value.is_empty() {
             ParseRosValueResult::None
         } else {
@@ -215,20 +213,20 @@ impl<V: RosValue> RosValue for Option<V> {
         }
     }
 
-    fn encode_ros(&self) -> Cow<str> {
+    fn encode_ros(&self) -> Cow<[u8]> {
         match self {
-            None => "".into(),
+            None => b"".into(),
             Some(v) => v.encode_ros(),
         }
     }
 }
 impl<V: RosValue + Hash + Eq> RosValue for HashSet<V> {
-    fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
         if value.is_empty() {
             ParseRosValueResult::Value(HashSet::new())
         } else {
             let mut result = HashSet::new();
-            for value in value.split(',').map(V::parse_ros) {
+            for value in value.split(|ch| *ch == b',').map(V::parse_ros) {
                 match value {
                     ParseRosValueResult::None => {}
                     ParseRosValueResult::Value(v) => {
@@ -241,9 +239,12 @@ impl<V: RosValue + Hash + Eq> RosValue for HashSet<V> {
         }
     }
 
-    fn encode_ros(&self) -> Cow<str> {
-        let string = self.iter().map(|v| v.encode_ros()).join(",");
-        string.into()
+    fn encode_ros(&self) -> Cow<[u8]> {
+        let mut ret = Vec::new();
+        for value in self {
+            ret.extend_from_slice(value.encode_ros().as_ref());
+        }
+        ret.into()
     }
 }
 #[derive(Debug, Clone, PartialEq)]
@@ -252,8 +253,8 @@ pub enum Auto<V: RosValue> {
     Value(V),
 }
 impl<V: RosValue> RosValue for Auto<V> {
-    fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
-        if value == "auto" {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
+        if value == b"auto" {
             ParseRosValueResult::Value(Auto::Auto)
         } else {
             match RosValue::parse_ros(value) {
@@ -264,9 +265,9 @@ impl<V: RosValue> RosValue for Auto<V> {
         }
     }
 
-    fn encode_ros(&self) -> Cow<str> {
+    fn encode_ros(&self) -> Cow<[u8]> {
         match self {
-            Auto::Auto => "auto".into(),
+            Auto::Auto => b"auto".into(),
             Auto::Value(v) => v.encode_ros(),
         }
     }
@@ -277,29 +278,34 @@ pub struct RxTxPair<V: RosValue> {
     pub tx: V,
 }
 impl<V: RosValue> RosValue for RxTxPair<V> {
-    fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
         if value.is_empty() {
             ParseRosValueResult::None
-        } else if let Some((rx_value, tx_value)) = value.split_once('/') {
-            match (
-                <V as RosValue>::parse_ros(rx_value),
-                <V as RosValue>::parse_ros(tx_value),
-            ) {
-                (ParseRosValueResult::Value(rx), ParseRosValueResult::Value(tx)) => {
+        } else {
+            let mut values = value.splitn(2, |ch| *ch == b'/').map(V::parse_ros);
+            let rx = values.next();
+            let tx = values.next();
+            match (rx, tx) {
+                (Some(ParseRosValueResult::Value(rx)), Some(ParseRosValueResult::Value(tx))) => {
                     ParseRosValueResult::Value(RxTxPair { rx, tx })
                 }
-                (ParseRosValueResult::Invalid, _) | (_, ParseRosValueResult::Invalid) => {
-                    ParseRosValueResult::Invalid
-                }
+                (None, _)
+                | (_, None)
+                | (Some(ParseRosValueResult::Invalid), _)
+                | (_, Some(ParseRosValueResult::Invalid)) => ParseRosValueResult::Invalid,
                 _ => ParseRosValueResult::None,
             }
-        } else {
-            ParseRosValueResult::Invalid
         }
     }
 
-    fn encode_ros(&self) -> Cow<str> {
-        format!("{}/{}", self.tx.encode_ros(), self.rx.encode_ros()).into()
+    fn encode_ros(&self) -> Cow<[u8]> {
+        [
+            self.rx.encode_ros().as_ref(),
+            b"/",
+            self.tx.encode_ros().as_ref(),
+        ]
+        .concat()
+        .into()
     }
 }
 #[derive(Debug, Clone, PartialEq)]
@@ -308,8 +314,8 @@ pub enum HasNone<V: RosValue> {
     Value(V),
 }
 impl<V: RosValue> RosValue for HasNone<V> {
-    fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
-        if value == "none" {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
+        if value == b"none" {
             ParseRosValueResult::Value(HasNone::NoneValue)
         } else {
             match RosValue::parse_ros(value) {
@@ -320,9 +326,9 @@ impl<V: RosValue> RosValue for HasNone<V> {
         }
     }
 
-    fn encode_ros(&self) -> Cow<str> {
+    fn encode_ros(&self) -> Cow<[u8]> {
         match self {
-            HasNone::NoneValue => "none".into(),
+            HasNone::NoneValue => b"none".into(),
             HasNone::Value(v) => v.encode_ros(),
         }
     }
@@ -333,8 +339,8 @@ pub enum HasUnlimited<V: RosValue> {
     Value(V),
 }
 impl<V: RosValue> RosValue for HasUnlimited<V> {
-    fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
-        if value == "unlimited" {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
+        if value == b"unlimited" {
             ParseRosValueResult::Value(HasUnlimited::Unlimited)
         } else {
             match RosValue::parse_ros(value) {
@@ -345,9 +351,9 @@ impl<V: RosValue> RosValue for HasUnlimited<V> {
         }
     }
 
-    fn encode_ros(&self) -> Cow<str> {
+    fn encode_ros(&self) -> Cow<[u8]> {
         match self {
-            HasUnlimited::Unlimited => "unlimited".into(),
+            HasUnlimited::Unlimited => b"unlimited".into(),
             HasUnlimited::Value(v) => v.encode_ros(),
         }
     }
@@ -358,8 +364,8 @@ pub enum HasDisabled<V: RosValue> {
     Value(V),
 }
 impl<V: RosValue> RosValue for HasDisabled<V> {
-    fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
-        if value == "disabled" {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
+        if value == b"disabled" {
             ParseRosValueResult::Value(HasDisabled::Disabled)
         } else {
             match RosValue::parse_ros(value) {
@@ -370,56 +376,56 @@ impl<V: RosValue> RosValue for HasDisabled<V> {
         }
     }
 
-    fn encode_ros(&self) -> Cow<str> {
+    fn encode_ros(&self) -> Cow<[u8]> {
         match self {
-            HasDisabled::Disabled => "disabled".into(),
+            HasDisabled::Disabled => b"disabled".into(),
             HasDisabled::Value(v) => v.encode_ros(),
         }
     }
 }
 
 impl RosValue for IpAddr {
-    fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
         if value.is_empty() {
             ParseRosValueResult::None
         } else {
-            match value.parse::<IpAddr>() {
+            match decode_latin1(value).parse::<IpAddr>() {
                 Ok(v) => ParseRosValueResult::Value(v),
                 Err(_) => ParseRosValueResult::Invalid,
             }
         }
     }
 
-    fn encode_ros(&self) -> Cow<str> {
-        self.to_string().into()
+    fn encode_ros(&self) -> Cow<[u8]> {
+        Vec::from(encode_latin1_lossy(&self.to_string())).into()
     }
 }
 
 impl RosValue for IpNet {
-    fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
         if value.is_empty() {
             ParseRosValueResult::None
         } else {
-            match IpNet::from_str(value) {
+            match IpNet::from_str(decode_latin1(value).as_ref()) {
                 Ok(v) => ParseRosValueResult::Value(v),
                 Err(_) => ParseRosValueResult::Invalid,
             }
         }
     }
 
-    fn encode_ros(&self) -> Cow<str> {
-        format!("{}", self).into()
+    fn encode_ros(&self) -> Cow<[u8]> {
+        Vec::from(encode_latin1_lossy(&format!("{}", self))).into()
     }
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct IpWithInterface {
     pub ip: IpAddr,
-    pub interface: Box<str>,
+    pub interface: Box<[u8]>,
 }
 impl RosValue for IpWithInterface {
-    fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
-        if let Some((ip, if_name)) = value.split_once('%') {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
+        if let Some((ip, if_name)) = split_once(value, b'%') {
             IpAddr::parse_ros(ip).map(|ip| IpWithInterface {
                 ip,
                 interface: if_name.into(),
@@ -429,15 +435,28 @@ impl RosValue for IpWithInterface {
         }
     }
 
-    fn encode_ros(&self) -> Cow<str> {
-        format!("{}%{}", self.ip.encode_ros(), self.interface).into()
+    fn encode_ros(&self) -> Cow<[u8]> {
+        [
+            self.ip.encode_ros().as_ref(),
+            b"%",
+            self.interface.encode_ros().as_ref(),
+        ]
+        .concat()
+        .into()
     }
+}
+
+fn split_once(value: &[u8], char: u8) -> Option<(&[u8], &[u8])> {
+    let mut parts = value.splitn(2, |&ch| ch == char);
+    let first_part = parts.next();
+    let second_part = parts.next();
+    Option::zip(first_part, second_part)
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum IpOrInterface {
     Ip(IpAddr),
-    Interface(Box<str>),
+    Interface(Box<[u8]>),
     IpWithInterface(IpWithInterface),
 }
 
@@ -454,8 +473,8 @@ impl From<IpWithInterface> for IpOrInterface {
 }
 
 impl RosValue for IpOrInterface {
-    fn parse_ros(value: &str) -> ParseRosValueResult<Self> {
-        if value.contains('%') {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
+        if value.contains(&b'%') {
             IpWithInterface::parse_ros(value).map(IpOrInterface::IpWithInterface)
         } else {
             match IpAddr::parse_ros(value).map(IpOrInterface::Ip) {
@@ -466,7 +485,7 @@ impl RosValue for IpOrInterface {
         }
     }
 
-    fn encode_ros(&self) -> Cow<str> {
+    fn encode_ros(&self) -> Cow<[u8]> {
         match self {
             IpOrInterface::Ip(ip) => ip.encode_ros(),
             IpOrInterface::Interface(ifname) => ifname.encode_ros(),
@@ -476,31 +495,29 @@ impl RosValue for IpOrInterface {
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct KeyValuePair<'a> {
-    pub key: &'static str,
-    pub value: Cow<'a, str>,
+    pub key: &'static [u8],
+    pub value: Cow<'a, [u8]>,
 }
 
-pub fn write_script_string(target: &mut impl Write, value: &str) -> core::fmt::Result {
+pub fn write_script_string(target: &mut impl Write, value: &[u8]) -> core::fmt::Result {
     target.write_char('"')?;
-    for character in value.chars() {
+    for character in value.iter().copied() {
         match character {
-            '0'..='9' | 'A'..='Z' | 'a'..='z' | ' ' | '.' | '-' => target.write_char(character)?,
-            '"' | '\\' => {
-                target.write_char('\\')?;
-                target.write_char(character)?;
+            b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b' ' | b'.' | b'-' => {
+                target.write_char(character as char)?
             }
-            '\n' => target.write_str("\\n")?,
-            '\r' => target.write_str("\\r")?,
-            '\t' => target.write_str("\\t")?,
-            '\x07' => target.write_str("\\a")?,
-            '\x08' => target.write_str("\\b")?,
+            b'"' | b'\\' => {
+                target.write_char('\\')?;
+                target.write_char(character as char)?;
+            }
+            b'\n' => target.write_str("\\n")?,
+            b'\r' => target.write_str("\\r")?,
+            b'\t' => target.write_str("\\t")?,
+            b'\x07' => target.write_str("\\a")?,
+            b'\x08' => target.write_str("\\b")?,
             ch => {
-                if (ch as u32) < 256 {
-                    target.write_char('\\')?;
-                    write!(target, "{:X}", ch as u8)?;
-                } else {
-                    error!("Skipping invalid character in string {value}: {character}")
-                }
+                target.write_char('\\')?;
+                write!(target, "{:X}", ch as u8)?;
             }
         }
     }
@@ -513,14 +530,14 @@ mod tests {
     use super::*;
     #[test]
     fn test_option_parse() {
-        let x: ParseRosValueResult<Option<Box<str>>> = RosValue::parse_ros("");
+        let x: ParseRosValueResult<Option<Box<[u8]>>> = RosValue::parse_ros(b"");
         println!("x: {x:?}");
     }
     #[test]
     fn test_hex_parse() {
-        let parsed: ParseRosValueResult<Hex<u16>> = RosValue::parse_ros("0x8000");
+        let parsed: ParseRosValueResult<Hex<u16>> = RosValue::parse_ros(b"0x8000");
         assert_eq!(parsed, ParseRosValueResult::Value(Hex(0x8000)));
         let encoded = Hex(0x8000).encode_ros();
-        assert_eq!(encoded, "0x8000");
+        assert_eq!(encoded.as_ref(), b"0x8000");
     }
 }

@@ -4,11 +4,11 @@ use convert_case::{Case, Casing};
 use proc_macro2::{Ident, Literal, Span};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use syn::__private::ToTokens;
 use syn::punctuated::Punctuated;
+use syn::token::{Colon, Comma};
 use syn::{
-    parse_quote, Expr, ExprArray, ExprLit, FieldValue, FieldsNamed, Item, Lit, LitStr, Path,
-    PathSegment, Token, Type, TypePath, Variant,
+    parse_quote, Expr, ExprArray, ExprLit, FieldValue, FieldsNamed, FnArg, Item, Lit, LitByteStr,
+    Member, Path, PathSegment, Token, Type, TypePath, Variant,
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -20,16 +20,17 @@ pub struct Entity {
     pub path: Box<[Box<str>]>,
     pub fields: Vec<Field>,
     pub is_single: bool,
+    pub can_add: bool,
 }
 
 impl Entity {
-    pub fn generate_code(&self) -> impl Iterator<Item=(Item, Option<Variant>)> + '_ {
+    pub fn generate_code(&self) -> impl Iterator<Item = (Item, Option<Variant>)> + '_ {
         let struct_name: Box<str> = self
             .path
             .iter()
             .map(|c| c.as_ref().to_case(Case::UpperCamel))
             .collect();
-        let path = self.path.join("/");
+        let path = Literal::byte_string(self.path.join("/").as_bytes());
         let mut fields_named_status = FieldsNamed {
             brace_token: Default::default(),
             named: Default::default(),
@@ -52,7 +53,14 @@ impl Entity {
             bracket_token: Default::default(),
             elems: Default::default(),
         };
+        let mut create_values_array = ExprArray {
+            attrs: vec![],
+            bracket_token: Default::default(),
+            elems: Default::default(),
+        };
         let mut id_fields = Vec::new();
+        let mut constructor_fields = Vec::new();
+        let mut default_fields = Vec::new();
         for field in self.fields.iter() {
             let enum_type = if let Some(enum_values) = field.inline_enum.as_ref() {
                 let enum_name = format!("{struct_name}_{}", field.name);
@@ -64,7 +72,7 @@ impl Entity {
             };
             known_fields.elems.push(Expr::Lit(ExprLit {
                 attrs: vec![],
-                lit: Lit::Str(LitStr::new(&field.name, Span::call_site())),
+                lit: Lit::ByteStr(LitByteStr::new(field.name.as_bytes(), Span::call_site())),
             }));
             let (field_name, field_type, parser, change_expression) =
                 field.generate_code(enum_type);
@@ -78,6 +86,18 @@ impl Entity {
                 fields_named_cfg.named.push(field_def);
                 punctuated_fields_cfg.push(parser.clone());
                 changed_values_array.elems.push(change_expression);
+                if field.is_optional || field.is_multiple {
+                    default_fields.push(field_name.clone());
+                } else {
+                    constructor_fields.push((field_name.clone(), field_type.clone()));
+                }
+                let field_key = Literal::byte_string(field.name.as_bytes());
+                create_values_array.elems.push(parse_quote! {
+                    value::KeyValuePair {
+                        key: #field_key,
+                        value: <#field_type as value::RosValue>::encode_ros(&self.#field_name),
+                    }
+                });
             }
             if field.is_key {
                 id_fields.push((field, field_name, field_type, parser));
@@ -110,10 +130,10 @@ impl Entity {
             });
             items.push((parse_quote! {
                 impl resource::DeserializeRosResource for #struct_ident_cfg {
-                     fn parse(values: &std::collections::HashMap<String, Option<String>>) -> Result<Self, resource::ResourceAccessError> {
+                     fn parse(values: &std::collections::HashMap<Box<[u8]>, Option<Box<[u8]>>>) -> Result<Self, resource::ResourceAccessError> {
                         Ok(#struct_ident_cfg {#punctuated_fields_cfg})
                     }
-                    fn path()->&'static str{
+                    fn path()->&'static [u8]{
                         #path
                     }
                 }
@@ -121,7 +141,7 @@ impl Entity {
             items.push((
                 parse_quote! {
                     impl resource::RosResource for #struct_ident_cfg {
-                        fn known_fields()->&'static[&'static str]{
+                        fn known_fields()->&'static[&'static [u8]]{
                             &#known_fields
                         }
                     }
@@ -165,12 +185,50 @@ impl Entity {
                 ));
             } else {
                 let mut plain_items = Vec::new();
+                if self.can_add {
+                    let mut params: Punctuated<FnArg, Comma> = Default::default();
+                    let mut fields_named: Punctuated<FieldValue, Token![,]> = Punctuated::new();
+
+                    for (p_name, p_type) in constructor_fields {
+                        params.push(parse_quote!(#p_name: #p_type));
+                        fields_named.push(parse_quote!(#p_name));
+                    }
+                    for p_name in default_fields {
+                        //fields_named.push(parse_quote!(#p_name: Default:default()));
+                        fields_named.push(FieldValue {
+                            attrs: vec![],
+                            member: Member::Named(p_name),
+                            colon_token: Some(Colon::default()),
+                            expr: parse_quote!(Default::default()),
+                        });
+                    }
+                    plain_items.push(parse_quote! {
+                        impl #struct_ident_cfg{
+                            pub fn new(#params)->Self{
+                                Self{
+                                    #fields_named
+                                }
+                            }
+                        }
+                    });
+                    plain_items.push(parse_quote! {
+                        impl resource::Creatable for #struct_ident_cfg{
+                            fn calculate_create(&self) -> resource::ResourceMutation<'_> {
+                                resource::ResourceMutation {
+                                    resource: <#struct_ident_cfg as resource::DeserializeRosResource>::path(),
+                                    operation: resource::ResourceMutationOperation::Add,
+                                    fields: Box::new(#create_values_array),
+                                }
+                            }
+                        }
+                    });
+                }
                 for (id_field, id_field_name, id_field_type, parser) in id_fields {
                     let id_struct_name =
                         cleanup_field_name(&format!("{struct_name}By_{}", id_field.name))
                             .to_case(Case::UpperCamel);
                     let id_struct_ident = Ident::new(&id_struct_name, Span::call_site());
-                    let field_name = id_field.name.as_ref();
+                    let field_name = Literal::byte_string(id_field.name.as_bytes());
                     if id_field.is_read_only {
                         plain_items.push(parse_quote! {
                             #[derive(Debug, Clone, PartialEq)]
@@ -181,7 +239,7 @@ impl Entity {
                         });
                         plain_items.push(parse_quote! {
                                 impl resource::DeserializeRosResource for #id_struct_ident {
-                                    fn parse(values: &std::collections::HashMap<String, Option<String>>) -> Result<Self, resource::ResourceAccessError> {
+                                    fn parse(values: &std::collections::HashMap<Box<[u8]>, Option<Box<[u8]>>>) -> Result<Self, resource::ResourceAccessError> {
                                         Ok(#id_struct_ident{
                                         #parser,
                                         data: <#struct_ident_cfg as resource::DeserializeRosResource>::parse(
@@ -189,7 +247,7 @@ impl Entity {
                                         )?})
                                     }
 
-                                    fn path() -> &'static str {
+                                    fn path() -> &'static [u8] {
                                         #struct_ident_cfg::path()
                                     }
                                 }
@@ -198,7 +256,7 @@ impl Entity {
                             impl resource::KeyedResource for #id_struct_ident {
                                 type Key = #id_field_type;
 
-                                fn key_name() -> &'static str {
+                                fn key_name() -> &'static [u8] {
                                     #field_name
                                 }
 
@@ -225,13 +283,13 @@ impl Entity {
                         });
                         plain_items.push(parse_quote! {
                                 impl resource::DeserializeRosResource for #id_struct_ident {
-                                    fn parse(values: &std::collections::HashMap<String, Option<String>>) -> Result<Self, resource::ResourceAccessError> {
+                                    fn parse(values: &std::collections::HashMap<Box<[u8]>, Option<Box<[u8]>>>) -> Result<Self, resource::ResourceAccessError> {
                                         Ok(#id_struct_ident(<#struct_ident_cfg as resource::DeserializeRosResource>::parse(
                                             values,
                                         )?))
                                     }
 
-                                    fn path() -> &'static str {
+                                    fn path() -> &'static [u8] {
                                         #struct_ident_cfg::path()
                                     }
                                 }
@@ -240,7 +298,7 @@ impl Entity {
                             impl resource::KeyedResource for #id_struct_ident {
                                 type Key = #id_field_type;
 
-                                fn key_name() -> &'static str {
+                                fn key_name() -> &'static [u8] {
                                     #field_name
                                 }
 
@@ -264,14 +322,14 @@ impl Entity {
                     if has_status_struct {
                         plain_items.push(parse_quote! {
                                 impl resource::DeserializeRosResource for (#id_struct_ident, #struct_ident_status) {
-                                    fn parse(values: &std::collections::HashMap<String, Option<String>>) -> Result<Self, resource::ResourceAccessError> {
+                                    fn parse(values: &std::collections::HashMap<Box<[u8]>, Option<Box<[u8]>>>) -> Result<Self, resource::ResourceAccessError> {
                                         Ok((
                                             #id_struct_ident::parse(values)?,
                                             #struct_ident_status::parse(values)?,
                                         ))
                                     }
-                                
-                                    fn path()->&'static str{
+
+                                    fn path()->&'static [u8]{
                                         #path
                                     }
                                 }
@@ -280,7 +338,7 @@ impl Entity {
                                 impl resource::KeyedResource for (#id_struct_ident, #struct_ident_status) {
                                     type Key = #id_field_type;
 
-                                    fn key_name() -> &'static str {
+                                    fn key_name() -> &'static [u8] {
                                         #field_name
                                     }
 
@@ -306,10 +364,10 @@ impl Entity {
             ));
             items.push((parse_quote! {
                 impl resource::DeserializeRosResource for #struct_ident_status {
-                     fn parse(values: &std::collections::HashMap<String, Option<String>>) -> Result<Self, resource::ResourceAccessError> {
+                     fn parse(values: &std::collections::HashMap<Box<[u8]>, Option<Box<[u8]>>>) -> Result<Self, resource::ResourceAccessError> {
                         Ok(#struct_ident_status {#punctuated_fields_status})
                     }
-                    fn path()->&'static str{
+                    fn path()->&'static [u8]{
                         #path
                     }
                 }
@@ -333,10 +391,10 @@ impl Entity {
             items.push((
                 parse_quote! {
                     impl resource::DeserializeRosResource for #struct_ident {
-                        fn parse(values: &std::collections::HashMap<String, Option<String>>) -> Result<Self, resource::ResourceAccessError> {
+                        fn parse(values: &std::collections::HashMap<Box<[u8]>, Option<Box<[u8]>>>) -> Result<Self, resource::ResourceAccessError> {
                             Ok(#struct_ident {#punctuated_fields})
                         }
-                        fn path()->&'static str{
+                        fn path()->&'static [u8]{
                             #path
                         }
                     }
@@ -346,7 +404,7 @@ impl Entity {
             items.push((
                 parse_quote! {
                     impl resource::RosResource for #struct_ident {
-                        fn known_fields()->&'static[&'static str]{
+                        fn known_fields()->&'static[&'static [u8]]{
                             &#known_fields
                         }
                     }
@@ -391,7 +449,7 @@ impl Field {
             field_name
         };
         let field_name = Ident::new(&field_name, Span::mixed_site());
-        let attribute_name = Literal::string(self.name.as_ref());
+        let attribute_name = Literal::byte_string(self.name.as_bytes());
         let field_type = self
             .field_type
             .as_ref()
@@ -408,7 +466,7 @@ impl Field {
                 })
             })
             .or(enum_field_type)
-            .unwrap_or(parse_quote!(Box<str>));
+            .unwrap_or(parse_quote!(Box<[u8]>));
         let field_type = if self.is_hex {
             parse_quote!(value::Hex<#field_type>)
         } else {
@@ -455,16 +513,16 @@ impl Field {
         };
         let parse_snippet = parse_quote! {
             #field_name: values
-                .get(#attribute_name)
+                .get(#attribute_name as &[u8])
                 .and_then(|v| v.as_ref())
                 .map(
-                    |value| match value::RosValue::parse_ros(value.as_str()) {
+                    |value| match value::RosValue::parse_ros(value.as_ref()) {
                         value::ParseRosValueResult::None => #default,
                         value::ParseRosValueResult::Value(v) => Ok(v),
                         value::ParseRosValueResult::Invalid => {
                             Err(resource::ResourceAccessError::InvalidValueError {
                                 field_name: #attribute_name,
-                                value: value.clone().into_boxed_str(),
+                                value: value.clone(),
                             })
                         }
                     },
@@ -501,7 +559,7 @@ pub enum Reference {
     RefereesTo(Box<str>),
 }
 
-pub fn parse_lines<'a>(lines: impl Iterator<Item=&'a str>) -> Vec<Entity> {
+pub fn parse_lines<'a>(lines: impl Iterator<Item = &'a str>) -> Vec<Entity> {
     let mut collected_entities = Vec::new();
     let mut current_entity = None;
     for line in lines {
@@ -512,6 +570,7 @@ pub fn parse_lines<'a>(lines: impl Iterator<Item=&'a str>) -> Vec<Entity> {
                 path,
                 fields: vec![],
                 is_single: false,
+                can_add: false,
             }) {
                 collected_entities.push(entity);
             }
@@ -521,6 +580,17 @@ pub fn parse_lines<'a>(lines: impl Iterator<Item=&'a str>) -> Vec<Entity> {
                 path,
                 fields: vec![],
                 is_single: true,
+                can_add: false,
+            }) {
+                collected_entities.push(entity);
+            }
+        } else if let Some(name) = line.strip_prefix("*/") {
+            let path = parse_path(name);
+            if let Some(entity) = current_entity.replace(Entity {
+                path,
+                fields: vec![],
+                is_single: false,
+                can_add: true,
             }) {
                 collected_entities.push(entity);
             }

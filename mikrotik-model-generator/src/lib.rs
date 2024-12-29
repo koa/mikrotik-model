@@ -107,7 +107,7 @@ fn generate_enums(
                     .push(parse_quote!(#name::Value(v) => v.encode_ros()))
             } else {
                 let ident = Ident::new(&derive_ident(value), Span::call_site());
-                let value = Literal::string(value);
+                let value = Literal::byte_string(value.as_bytes());
                 enum_variants.push(parse_quote!(#ident));
                 parse_match.arms.push(parse_quote!(#value => crate::value::ParseRosValueResult::Value(#name::#ident),));
                 encode_match
@@ -125,10 +125,10 @@ fn generate_enums(
             },
             parse_quote! {
                     impl crate::value::RosValue for #name {
-                        fn parse_ros(value: &str) -> crate::value::ParseRosValueResult<Self> {
+                        fn parse_ros(value: &[u8]) -> crate::value::ParseRosValueResult<Self> {
                             #parse_match
                         }
-                        fn encode_ros(&self) -> std::borrow::Cow<str> {
+                        fn encode_ros(&self) -> std::borrow::Cow<[u8]> {
                             #encode_match
                         }
                     }

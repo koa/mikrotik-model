@@ -1,10 +1,11 @@
-use crate::model::{InterfaceEthernet, InterfaceEthernetCfg, InterfaceEthernetState};
+use crate::model::{InterfaceEthernet, InterfaceEthernetCfg};
 use crate::value::{KeyValuePair, RosValue};
 use crate::{resource, value};
+use encoding_rs::mem::decode_latin1;
 use log::{error, info};
-use mikrotik_rs::error::{CommandError, DeviceError};
+use mikrotik_rs::error::DeviceError;
 use mikrotik_rs::protocol::command::{Command, CommandBuilder};
-use mikrotik_rs::protocol::{CommandResponse, FatalResponse, TrapResponse};
+use mikrotik_rs::protocol::{CommandResponse, FatalResponse, ReplyResponse, TrapResponse};
 use mikrotik_rs::MikrotikDevice;
 use std::collections::HashMap;
 use thiserror::Error;
@@ -14,18 +15,18 @@ use tokio_stream::StreamExt;
 
 #[derive(Debug, Error)]
 pub enum ResourceAccessError {
-    #[error("Missing field {field_name}")]
-    MissingFieldError { field_name: &'static str },
-    #[error("Failed to parse field {field_name}: {value}")]
+    #[error("Missing field {}",decode_latin1(.field_name))]
+    MissingFieldError { field_name: &'static [u8] },
+    #[error("Failed to parse field {}: {}",decode_latin1(.field_name),decode_latin1(.value))]
     InvalidValueError {
-        field_name: &'static str,
-        value: Box<str>,
+        field_name: &'static [u8],
+        value: Box<[u8]>,
     },
 }
 
 pub trait DeserializeRosResource: Sized {
-    fn parse(values: &HashMap<String, Option<String>>) -> Result<Self, ResourceAccessError>;
-    fn path() -> &'static str;
+    fn parse(values: &HashMap<Box<[u8]>, Option<Box<[u8]>>>) -> Result<Self, ResourceAccessError>;
+    fn path() -> &'static [u8];
 }
 
 #[derive(Error, Debug)]
@@ -38,8 +39,6 @@ pub enum Error {
     Fatal(FatalResponse),
     #[error("Trap from device: {0}")]
     Trap(TrapResponse),
-    #[error("Cannot build query: {0}")]
-    InvalidQueryParameter(#[from] CommandError),
 }
 
 pub async fn stream_result<R: DeserializeRosResource>(
@@ -50,7 +49,7 @@ pub async fn stream_result<R: DeserializeRosResource>(
         //println!(">> Get System Res Response {:?}", res);
         match res {
             Ok(CommandResponse::Reply(r)) => {
-                Some(R::parse(&r.attributes).map_err(Error::ResourceAccess))
+                Some(R::parse(&get_attributes(&r)).map_err(Error::ResourceAccess))
             }
             Ok(CommandResponse::Fatal(e)) => Some(Err(Error::Fatal(e))),
             Ok(CommandResponse::Trap(e)) => Some(Err(Error::Trap(e))),
@@ -63,12 +62,23 @@ pub async fn stream_result<R: DeserializeRosResource>(
     })
 }
 
+fn get_attributes(r: &ReplyResponse) -> &HashMap<Box<[u8]>, Option<Box<[u8]>>> {
+    /*let attributes: HashMap<_, _> = r
+        .attributes
+        .iter()
+        .map(|(key, value)| (key.as_deref(), value.as_ref().map(|v| v.as_deref())))
+        .collect();
+    attributes
+
+     */
+    &r.attributes
+}
+
 pub async fn stream_resource<R: DeserializeRosResource>(
     device: &MikrotikDevice,
 ) -> impl Stream<Item = Result<R, Error>> {
     let cmd = CommandBuilder::new()
-        .command(&format!("/{}/print", R::path()))
-        .expect("Invalid path")
+        .command(&[b"/", R::path(), b"/print"])
         .build();
     stream_result(cmd, device).await
 }
@@ -77,13 +87,12 @@ pub async fn list_resources<R: DeserializeRosResource>(
     device: &MikrotikDevice,
 ) -> impl Stream<Item = R> {
     let cmd = CommandBuilder::new()
-        .command(&format!("/{}/print", R::path()))
-        .expect("Invalid path")
+        .command(&[b"/", R::path(), b"/print"])
         .build();
     ReceiverStream::new(device.send_command(cmd).await).filter_map(|res| {
         println!(">> Get System Res Response {:?}", res);
         match res {
-            Ok(CommandResponse::Reply(r)) => match R::parse(&r.attributes) {
+            Ok(CommandResponse::Reply(r)) => match R::parse(&get_attributes(&r)) {
                 Ok(resource) => Some(resource),
                 Err(e) => {
                     error!("Cannot parse ROS resource: {e}");
@@ -104,7 +113,7 @@ pub async fn list_resources<R: DeserializeRosResource>(
 }
 
 pub trait RosResource: Sized {
-    fn known_fields() -> &'static [&'static str];
+    fn known_fields() -> &'static [&'static [u8]];
 }
 
 pub trait SingleResource: DeserializeRosResource {
@@ -129,7 +138,7 @@ pub trait SingleResource: DeserializeRosResource {
 }
 pub trait KeyedResource: DeserializeRosResource {
     type Key: RosValue;
-    fn key_name() -> &'static str;
+    fn key_name() -> &'static [u8];
     fn key_value(&self) -> &Self::Key;
     fn fetch_all(
         device: &MikrotikDevice,
@@ -140,8 +149,7 @@ pub trait KeyedResource: DeserializeRosResource {
     {
         async {
             let cmd = CommandBuilder::new()
-                .command(&format!("/{}/print", Self::path()))
-                .expect("Invalid path")
+                .command(&[b"/", Self::path(), b"/print"])
                 .build();
             stream_result::<Self>(cmd, device)
                 .await
@@ -158,9 +166,8 @@ pub trait KeyedResource: DeserializeRosResource {
     {
         async {
             let cmd = CommandBuilder::new()
-                .command(&format!("/{}/print", Self::path()))
-                .expect("Invalid path")
-                .query_equal(Self::key_name(), key.encode_ros().as_ref())?
+                .command(&[b"/", Self::path(), b"/print"])
+                .query_equal(Self::key_name(), key.encode_ros().as_ref())
                 .build();
             if let Some(row) = stream_result(cmd, device).await.next().await {
                 Ok(Some(row?))
@@ -178,53 +185,53 @@ pub trait CfgResource: DeserializeRosResource {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct InterfaceEthernetById {
-    id: Box<str>,
+    id: Box<[u8]>,
     interface: InterfaceEthernetCfg,
 }
 impl DeserializeRosResource for InterfaceEthernetById {
-    fn parse(values: &HashMap<String, Option<String>>) -> Result<Self, ResourceAccessError> {
+    fn parse(values: &HashMap<Box<[u8]>, Option<Box<[u8]>>>) -> Result<Self, ResourceAccessError> {
         Ok(Self {
             id: values
-                .get(".id")
+                .get(b".id" as &[u8])
                 .and_then(|v| v.as_ref())
-                .map(|value| match value::RosValue::parse_ros(value.as_str()) {
+                .map(|value| match value::RosValue::parse_ros(value.as_ref()) {
                     value::ParseRosValueResult::None => {
-                        Err(resource::ResourceAccessError::MissingFieldError { field_name: ".id" })
+                        Err(resource::ResourceAccessError::MissingFieldError { field_name: b".id" })
                     }
                     value::ParseRosValueResult::Value(v) => Ok(v),
                     value::ParseRosValueResult::Invalid => {
                         Err(resource::ResourceAccessError::InvalidValueError {
-                            field_name: ".id",
-                            value: value.clone().into_boxed_str(),
+                            field_name: b".id",
+                            value: value.clone(),
                         })
                     }
                 })
                 .unwrap_or(Err(resource::ResourceAccessError::MissingFieldError {
-                    field_name: ".id",
+                    field_name: b".id",
                 }))?,
             interface: InterfaceEthernetCfg::parse(values)?,
         })
     }
 
-    fn path() -> &'static str {
+    fn path() -> &'static [u8] {
         InterfaceEthernet::path()
     }
 }
 impl KeyedResource for InterfaceEthernetById {
-    type Key = Box<str>;
+    type Key = Box<[u8]>;
 
-    fn key_name() -> &'static str {
-        ".id"
+    fn key_name() -> &'static [u8] {
+        b".id"
     }
 
-    fn key_value(&self) -> &Box<str> {
+    fn key_value(&self) -> &Box<[u8]> {
         &self.id
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ResourceMutation<'a> {
-    pub resource: &'static str,
+    pub resource: &'static [u8],
     pub operation: ResourceMutationOperation<'a>,
     pub fields: Box<[KeyValuePair<'a>]>,
 }
@@ -252,3 +259,20 @@ impl<R: KeyedResource + CfgResource> Updatable for R {
         }
     }
 }
+
+pub trait Creatable: CfgResource {
+    fn calculate_create(&self) -> ResourceMutation<'_>;
+}
+
+/*impl Creatable for IpAddressCfg {
+    fn calculate_create(&self) -> ResourceMutation<'_> {
+        ResourceMutation {
+            resource: IpAddressCfg::path(),
+            operation: ResourceMutationOperation::Add,
+            fields: Box::new([KeyValuePair {
+                key: "address",
+                value: self.address.encode_ros(),
+            }]),
+        }
+    }
+}*/

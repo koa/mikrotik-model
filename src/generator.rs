@@ -1,11 +1,12 @@
 use crate::resource::{ResourceMutation, ResourceMutationOperation};
 use crate::value::{write_script_string, KeyValuePair};
+use encoding_rs::mem::decode_latin1;
 use std::fmt::Write;
 
 #[derive(Debug)]
 pub struct Generator<'a, W: Write> {
     target: &'a mut W,
-    current_path: Option<&'static str>,
+    current_path: Option<&'static [u8]>,
 }
 impl<'a, W: Write> Generator<'a, W> {
     pub fn new(target: &'a mut W) -> Self {
@@ -19,7 +20,7 @@ impl<'a, W: Write> Generator<'a, W> {
             return Ok(());
         }
         if Some(mutation.resource) != self.current_path {
-            writeln!(self.target, "/{}", mutation.resource)?;
+            writeln!(self.target, "/{}", decode_latin1(mutation.resource))?;
             self.current_path = Some(mutation.resource);
         }
         match &mutation.operation {
@@ -56,13 +57,11 @@ impl<'a, W: Write> Generator<'a, W> {
         Ok(())
     }
     fn append_field(&mut self, kv: &KeyValuePair) -> std::fmt::Result {
-        write!(self.target, "{}=", kv.key)?;
-        if kv
-            .value
-            .chars()
-            .all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '-' || ch == ',' || ch == '*')
-        {
-            write!(self.target, "{}", kv.value)?;
+        write!(self.target, "{}=", decode_latin1(kv.key))?;
+        if kv.value.iter().copied().all(|ch| {
+            ch.is_ascii_alphanumeric() || ch == b'_' || ch == b'-' || ch == b',' || ch == b'*'
+        }) {
+            write!(self.target, "{}", decode_latin1(kv.value.as_ref()))?;
         } else {
             write_script_string(self.target, &kv.value)?;
         }
@@ -74,7 +73,7 @@ pub fn generate_cfg(target: &mut impl Write, mutations: &[ResourceMutation]) -> 
     let mut current_path = None;
     for mutation in mutations {
         if Some(mutation.resource) != current_path {
-            writeln!(target, "/{},", mutation.resource)?;
+            writeln!(target, "/{},", decode_latin1(mutation.resource))?;
             current_path = Some(mutation.resource);
         }
         match &mutation.operation {
@@ -114,13 +113,14 @@ fn append_fields<W: Write>(target: &mut W, mutation: &ResourceMutation) -> std::
 }
 
 fn append_field(target: &mut impl Write, kv: &KeyValuePair) -> std::fmt::Result {
-    write!(target, "{}=", kv.key)?;
+    write!(target, "{}=", decode_latin1(&kv.key))?;
     if kv
         .value
-        .chars()
-        .all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '-' || ch == ',')
+        .iter()
+        .copied()
+        .all(|ch| ch.is_ascii_alphanumeric() || ch == b'_' || ch == b'-' || ch == b',')
     {
-        write!(target, "{}", kv.value)?;
+        write!(target, "{}", decode_latin1(&kv.value))?;
     } else {
         write_script_string(target, &kv.value)?;
     }

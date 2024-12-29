@@ -1,4 +1,5 @@
 use config::{Config, Environment, File};
+use encoding_rs::mem::decode_latin1;
 use env_logger::Env;
 use env_logger::TimestampPrecision;
 use log::{error, info};
@@ -137,8 +138,8 @@ async fn main() -> Result<(), Error> {
         println!("{router}");
         let device = MikrotikDevice::connect(
             (router, 8728),
-            credentials.user.as_ref(),
-            Some(credentials.password.as_ref()),
+            credentials.user.as_bytes(),
+            Some(credentials.password.as_bytes()),
         )
         .await?;
         let system_cfg = SystemIdentityCfg::fetch(&device).await?;
@@ -189,10 +190,8 @@ async fn main() -> Result<(), Error> {
         }
         println!("--------------------------------------------");
         let cmd = CommandBuilder::new()
-            .command(&format!("/{}/print", InterfaceEthernet::path()))
-            .unwrap()
-            .query_equal("default-name", "ether1")
-            .unwrap()
+            .command(&[b"/", InterfaceEthernet::path(), b"/print"])
+            .query_equal(b"default-name" as &[u8], b"ether1" as &[u8])
             .build();
         let rows = stream_result::<InterfaceEthernetCfg>(cmd, &device)
             .await
@@ -208,10 +207,9 @@ async fn main() -> Result<(), Error> {
 async fn get_resource<R: RosResource + DeserializeRosResource>(
     device: &MikrotikDevice,
 ) -> impl Stream<Item = R> {
-    println!("{}", R::path());
+    println!("{}", decode_latin1(R::path()));
     let cmd = CommandBuilder::new()
-        .command(&format!("/{}/print", R::path()))
-        .unwrap()
+        .command(&[b"/", R::path(), b"/print"])
         .build();
     fetch_results(device, cmd).await
 }
@@ -227,9 +225,9 @@ async fn fetch_results<R: RosResource + DeserializeRosResource>(
                 for (field_name, value) in r
                     .attributes
                     .iter()
-                    .filter(|(name, _)| !R::known_fields().contains(&name.as_str()))
+                    .filter(|(name, _)| !R::known_fields().contains(&name.as_ref()))
                 {
-                    error!("new field found: {field_name}: {value:?}",);
+                    error!("new field found: {}: {:?}",decode_latin1(field_name), value);
                 }
                 match R::parse(&r.attributes) {
                     Ok(resource) => Some(resource),

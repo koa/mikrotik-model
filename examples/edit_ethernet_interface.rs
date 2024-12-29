@@ -1,15 +1,13 @@
 use config::{Config, Environment, File};
+use encoding_rs::mem::decode_latin1;
 use env_logger::{Env, TimestampPrecision};
-use itertools::Itertools;
 use mikrotik_model::generator::Generator;
-use mikrotik_model::model::{InterfaceEthernetByName, InterfaceEthernetState};
+use mikrotik_model::model::InterfaceEthernetById;
+use mikrotik_model::model::InterfaceEthernetState;
 use mikrotik_model::resource::{KeyedResource, Updatable};
 use mikrotik_model::Credentials;
 use mikrotik_rs::MikrotikDevice;
-use std::collections::HashSet;
 use std::net::{IpAddr, Ipv4Addr};
-use tokio_stream::StreamExt;
-use mikrotik_model::model::InterfaceEthernetById;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -32,8 +30,8 @@ async fn main() -> anyhow::Result<()> {
     println!("{router}");
     let device = MikrotikDevice::connect(
         (router, 8728),
-        credentials.user.as_ref(),
-        Some(credentials.password.as_ref()),
+        credentials.user.as_bytes(),
+        Some(credentials.password.as_bytes()),
     )
     .await?;
 
@@ -47,17 +45,17 @@ async fn main() -> anyhow::Result<()> {
     for (interface, status) in res.iter() {
         let mut new_if = interface.clone();
         let default_name = status.default_name.as_ref();
-        if default_name.starts_with("sfp") {
+        if default_name.starts_with(b"sfp") {
             sfp_idx += 1;
-            new_if.data.name = format!("s{:02}", sfp_idx).into();
-        } else if default_name.starts_with("ether") {
+            new_if.data.name = Box::from(format!("s{:02}", sfp_idx).as_bytes());
+        } else if default_name.starts_with(b"ether") {
             ether_idx += 1;
-            new_if.data.name = format!("e{:02}", ether_idx).into();
-        } else if default_name.starts_with("qsfp") {
+            new_if.data.name = format!("e{:02}", ether_idx).as_bytes().into();
+        } else if default_name.starts_with(b"qsfp") {
             qsfp_idx += 1;
-            new_if.data.name = format!("q{:02}", qsfp_idx).into();
+            new_if.data.name = format!("q{:02}", qsfp_idx).as_bytes().into();
         } else {
-            println!("Default: {}", default_name);
+            println!("Default: {}", decode_latin1(default_name));
         }
 
         //new_if.0.name = format!("e{:02}", idx + 1).into();

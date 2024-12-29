@@ -1,7 +1,7 @@
-/ip/address
-.id: id
+*/ip/address
+.id: ro;id
 address: IpNet
-network
+network: ro;IpAddr
 interface: ref=>interface
 actual-interface: ro;ref=>interface
 disabled: ro;bool
@@ -11,7 +11,7 @@ slave: ro;bool
 comment: o
 
 /ip/dhcp-client
-.id: id
+.id: ro;id
 interface: ref=>interface
 add-default-route: YesNo
 comment:o
