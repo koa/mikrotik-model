@@ -1,5 +1,6 @@
 use serde::Deserialize;
 
+pub mod ascii;
 pub mod error;
 pub mod generator;
 pub mod hwconfig;

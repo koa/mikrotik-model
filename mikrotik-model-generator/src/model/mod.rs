@@ -1,14 +1,14 @@
-use crate::{cleanup_field_name, derive_ident};
-use crate::{generate_enums, KEYWORDS};
+use crate::{cleanup_field_name, derive_ident, generate_enums, KEYWORDS};
 use convert_case::{Case, Casing};
 use proc_macro2::{Ident, Literal, Span};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use syn::punctuated::Punctuated;
-use syn::token::{Colon, Comma};
 use syn::{
-    parse_quote, Expr, ExprArray, ExprLit, FieldValue, FieldsNamed, FnArg, Item, Lit, LitByteStr,
-    Member, Path, PathSegment, Token, Type, TypePath, Variant,
+    parse_quote,
+    punctuated::Punctuated,
+    token::{Colon, Comma},
+    Expr, ExprArray, ExprLit, ExprMatch, ExprStruct, FieldValue, FieldsNamed, FnArg, ImplItem,
+    Item, ItemImpl, Lit, LitByteStr, Member, Path, PathSegment, Token, Type, TypePath,
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -23,46 +23,606 @@ pub struct Entity {
     pub can_add: bool,
 }
 
-impl Entity {
-    pub fn generate_code(&self) -> impl Iterator<Item = (Item, Option<Variant>)> + '_ {
-        let struct_name: Box<str> = self
-            .path
-            .iter()
-            .map(|c| c.as_ref().to_case(Case::UpperCamel))
-            .collect();
-        let path = Literal::byte_string(self.path.join("/").as_bytes());
-        let mut fields_named_status = FieldsNamed {
-            brace_token: Default::default(),
-            named: Default::default(),
-        };
-        let mut fields_named_cfg = FieldsNamed {
-            brace_token: Default::default(),
-            named: Default::default(),
-        };
-        let mut punctuated_fields_status: Punctuated<FieldValue, Token![,]> = Punctuated::new();
-        let mut punctuated_fields_cfg: Punctuated<FieldValue, Token![,]> = Punctuated::new();
+pub struct RosTypeEntry {
+    pub name: Ident,
+    pub builder: Type,
+    pub data: Type,
+}
 
-        let mut known_fields: ExprArray = ExprArray {
-            attrs: vec![],
-            bracket_token: Default::default(),
-            elems: Default::default(),
-        };
+impl Entity {
+    pub fn generate_code(
+        &self,
+    ) -> (
+        impl IntoIterator<Item = Item>,
+        impl IntoIterator<Item = RosTypeEntry>,
+    ) {
         let mut inline_enums = HashMap::new();
-        let mut changed_values_array = ExprArray {
-            attrs: vec![],
-            bracket_token: Default::default(),
-            elems: Default::default(),
+        let (struct_field_types, builder_field_types) = self.create_field_types(&mut inline_enums);
+        let mut items: Vec<Item> = Vec::with_capacity(5);
+        let mut enum_entries: Vec<RosTypeEntry> = Vec::with_capacity(1);
+
+        let has_cfg_struct = self
+            .modifiable_fields_iterator(&struct_field_types)
+            .next()
+            .is_some();
+        let has_readonly_fields = self
+            .read_only_fields_iterator(&struct_field_types)
+            .next()
+            .is_some();
+
+        if has_cfg_struct {
+            items.push(self.create_cfg_struct(&struct_field_types));
+            items.push(self.create_cfg_builder_struct(&builder_field_types));
+            enum_entries.push(self.create_cfg_enum_entry());
+            items.push(self.create_deserialize_for_cfg_struct());
+            items.push(self.generate_ros_resource_for_cfg());
+            items.push(self.create_deserialize_builder_for_cfg());
+            items.push(self.create_cfg_resource(&struct_field_types));
+            let mut cfg_struct_items = Vec::new();
+            if self.is_single {
+                items.push(self.single_resource_cfg());
+                items.push(self.updateable_cfg());
+            } else {
+                if self.can_add {
+                    cfg_struct_items.push(self.create_constructor(&struct_field_types));
+                    items.push(self.create_createable_impl(&struct_field_types));
+                }
+                for (id_field, (id_field_type, id_builder_type)) in self
+                    .fields
+                    .iter()
+                    .zip(struct_field_types.iter().zip(builder_field_types.iter()))
+                    .filter(|(f, _)| f.is_key)
+                {
+                    if id_field.is_read_only {
+                        items.push(self.generate_id_struct_external(id_field, id_field_type));
+                        items.push(self.generate_id_builder_external(id_field, id_builder_type));
+                        items.push(self.generate_deserialize_for_id(id_field));
+                        items.push(self.generate_ros_resource_for_id(id_field));
+                        items.push(self.generate_deserialize_builder_for_id_external(id_field));
+                        items.push(self.generate_keyed_for_id_external(id_field, id_field_type));
+                        items.push(self.generate_cfg_for_id_external(id_field));
+                    } else {
+                        items.push(self.generate_id_struct_internal(id_field));
+                        items.push(self.generate_id_builder_internal(id_field, id_builder_type));
+                        items.push(self.generate_deserialize_for_id(id_field));
+                        items.push(self.generate_ros_resource_for_id(id_field));
+                        items.push(self.generate_deserialize_builder_for_id_internal(id_field));
+                        items.push(self.generate_keyed_for_id_internal(id_field, id_field_type));
+                        items.push(self.generate_cfg_for_id_internal(id_field));
+                    }
+                    if has_readonly_fields {
+                        items.push(self.generate_deserialize_for_id_combined(id_field));
+                        items.push(self.generate_ros_for_id_combined(id_field));
+                        items.push(self.generate_deserialize_builder_for_id_combined(id_field));
+                        items.push(self.generate_keyed_for_id_combined(id_field, id_field_type));
+                    }
+                }
+            }
+            if !cfg_struct_items.is_empty() {
+                let struct_ident_cfg = self.struct_type_cfg();
+                let mut impl_item: ItemImpl = parse_quote! {impl #struct_ident_cfg{}};
+                impl_item.items.extend(cfg_struct_items);
+                items.push(impl_item.into());
+            }
         };
+        if has_readonly_fields {
+            items.push(self.create_status_struct(&struct_field_types));
+            items.push(self.create_status_builder_struct(&builder_field_types));
+            items.push(self.create_deserialize_for_status_struct(&struct_field_types));
+            items.push(self.create_ros_resource_for_status());
+            items.push(self.create_deserialize_builder_for_status());
+            enum_entries.push(self.create_status_enum_entry());
+        }
+        if has_cfg_struct && has_readonly_fields {
+            enum_entries.push(self.create_enum_entry());
+            items.push(self.generate_combined_struct());
+            items.push(self.generate_combined_builder_struct());
+            items.push(self.generate_deserialize_for_combined_struct());
+            items.push(self.generate_combined_deserialize_builder());
+            items.push(self.generate_ros_for_combined_struct());
+        }
+        (
+            generate_enums(&inline_enums)
+                .chain(items)
+                .collect::<Vec<_>>(),
+            enum_entries,
+        )
+    }
+
+    fn create_cfg_builder_struct(&self, builder_field_types: &[Type]) -> Item {
+        let struct_name = self.struct_ident_cfg_builder();
+        let fields = self.modifiable_field_declarations(builder_field_types);
+        parse_quote! {
+            #[derive(Debug, Clone, PartialEq, Default)]
+            pub struct #struct_name #fields
+        }
+    }
+
+    fn create_cfg_struct(&self, struct_field_types: &[Type]) -> Item {
+        let struct_name = self.struct_type_cfg();
+        let fields = self.modifiable_field_declarations(struct_field_types);
+        parse_quote! {
+            #[derive(Debug, Clone, PartialEq)]
+            pub struct #struct_name #fields
+        }
+    }
+
+    fn generate_ros_for_combined_struct(&self) -> Item {
+        let struct_ident = self.struct_type();
+        let path = self.generate_path();
+        parse_quote! {
+            impl resource::RosResource for #struct_ident {
+                fn path()->&'static [u8]{
+                    #path
+                }
+            }
+        }
+    }
+
+    fn generate_deserialize_for_combined_struct(&self) -> Item {
+        Self::generate_deserialize(self.struct_type(), self.struct_builder())
+    }
+
+    fn generate_combined_struct(&self) -> Item {
+        let struct_ident = self.struct_type();
+        let struct_ident_cfg = self.struct_type_cfg();
+        let struct_ident_status = self.struct_status_type();
+        parse_quote! {
+            #[derive(Debug, Clone, PartialEq)]
+            pub struct #struct_ident {
+                pub cfg: #struct_ident_cfg,
+                pub status: #struct_ident_status,
+            }
+        }
+    }
+
+    fn generate_keyed_for_id_combined(&self, id_field: &Field, id_field_type: &Type) -> Item {
+        let field_name = id_field.attribute_name();
+        let struct_ident_status = self.struct_status_type();
+        let id_struct_ident = self.id_struct_ident(id_field);
+        let item = parse_quote! {
+            impl resource::KeyedResource for (#id_struct_ident, #struct_ident_status) {
+                type Key = #id_field_type;
+
+                fn key_name() -> &'static [u8] {
+                    #field_name
+                }
+
+                fn key_value(&self) -> &#id_field_type {
+                    self.0.key_value()
+                }
+            }
+        };
+        item
+    }
+
+    fn generate_deserialize_for_id_combined(&self, id_field: &Field) -> Item {
+        Self::generate_deserialize(
+            self.data_tuples_for_id_combined(id_field),
+            self.builder_tuples_for_id_combined(id_field),
+        )
+    }
+
+    fn generate_deserialize(data_type: Type, builder_type: Type) -> Item {
+        parse_quote! {
+            impl resource::DeserializeRosResource for #data_type {
+                type Builder=#builder_type;
+            }
+        }
+    }
+
+    fn builder_tuples_for_id_combined(&self, id_field: &Field) -> Type {
+        let struct_ident_status_builder = self.struct_ident_builder_status();
+        let id_struct_ident_builder = self.id_struct_builder_ident(id_field);
+        parse_quote! {(#id_struct_ident_builder, #struct_ident_status_builder)}
+    }
+
+    fn data_tuples_for_id_combined(&self, id_field: &Field) -> Type {
+        let struct_ident_status = self.struct_status_type();
+        let id_struct_ident = self.id_struct_ident(id_field);
+        parse_quote! {(#id_struct_ident, #struct_ident_status)}
+    }
+
+    fn generate_cfg_for_id_internal(&self, id_field: &Field) -> Item {
+        let id_struct_ident = self.id_struct_ident(id_field);
+        let item = parse_quote! {
+            impl resource::CfgResource for #id_struct_ident {
+                #[allow(clippy::needless_lifetimes)]
+                fn changed_values<'a, 'b>(
+                    &'a self,
+                    before: &'b Self,
+                ) -> impl Iterator<Item = value::KeyValuePair<'a>> {
+                    self.0.changed_values(&before.0)
+                }
+            }
+        };
+        item
+    }
+
+    fn generate_keyed_for_id_internal(&self, id_field: &Field, id_field_type: &Type) -> Item {
+        let id_struct_ident = self.id_struct_ident(id_field);
+        let field_name = id_field.attribute_name();
+        let id_field_name = id_field.generate_field_name();
+
+        let item = parse_quote! {
+            impl resource::KeyedResource for #id_struct_ident {
+                type Key = #id_field_type;
+
+                fn key_name() -> &'static [u8] {
+                    #field_name
+                }
+
+                fn key_value(&self) -> &#id_field_type {
+                    &self.0.#id_field_name
+                }
+            }
+        };
+        item
+    }
+
+    fn generate_deserialize_for_id_internal(&self, id_field: &Field) -> Item {
+        let id_struct_ident = self.id_struct_ident(id_field);
+        let struct_ident_cfg = self.struct_type_cfg();
+        let item = parse_quote! {
+            impl resource::DeserializeRosResource for #id_struct_ident {
+                fn parse(values: &std::collections::HashMap<Box<[u8]>, Option<Box<[u8]>>>) -> Result<Self, resource::ResourceAccessError> {
+                    Ok(#id_struct_ident(<#struct_ident_cfg as resource::DeserializeRosResource>::parse(
+                        values,
+                    )?))
+                }
+
+                fn path() -> &'static [u8] {
+                    #struct_ident_cfg::path()
+                }
+            }
+        };
+        item
+    }
+
+    fn generate_id_struct_internal(&self, id_field: &Field) -> Item {
+        let id_struct_ident = self.id_struct_ident(id_field);
+        let struct_ident_cfg = self.struct_type_cfg();
+
+        let item = parse_quote! {
+            #[derive(Debug, Clone, PartialEq)]
+            pub struct #id_struct_ident(pub #struct_ident_cfg);
+        };
+        item
+    }
+
+    fn generate_cfg_for_id_external(&self, id_field: &Field) -> Item {
+        let id_struct_ident = self.id_struct_ident(id_field);
+
+        let item = parse_quote! {
+            impl resource::CfgResource for #id_struct_ident {
+                #[allow(clippy::needless_lifetimes)]
+                fn changed_values<'a, 'b>(
+                    &'a self,
+                    before: &'b Self,
+                ) -> impl Iterator<Item = value::KeyValuePair<'a>> {
+                    self.data.changed_values(&before.data)
+                }
+            }
+        };
+        item
+    }
+
+    fn generate_keyed_for_id_external(&self, id_field: &Field, id_field_type: &Type) -> Item {
+        let field_name = id_field.attribute_name();
+        let id_field_name = id_field.generate_field_name();
+        let id_struct_ident = self.id_struct_ident(id_field);
+
+        parse_quote! {
+            impl resource::KeyedResource for #id_struct_ident {
+                type Key = #id_field_type;
+
+                fn key_name() -> &'static [u8] {
+                    #field_name
+                }
+
+                fn key_value(&self) -> &#id_field_type {
+                    &self.#id_field_name
+                }
+            }
+        }
+    }
+
+    fn generate_deserialize_for_id(&self, id_field: &Field) -> Item {
+        let id_struct_ident = self.id_struct_ident(id_field);
+        let builder_name = self.id_struct_builder_ident(id_field);
+        Self::generate_deserialize(id_struct_ident, builder_name)
+    }
+
+    fn generate_id_struct_external(&self, id_field: &Field, id_field_type: &Type) -> Item {
+        let struct_ident_cfg = self.struct_type_cfg();
+        let id_struct_ident = self.id_struct_ident(id_field);
+        let id_field_name = id_field.generate_field_name();
+        parse_quote! {
+            #[derive(Debug, Clone, PartialEq)]
+            pub struct #id_struct_ident {
+                pub #id_field_name: #id_field_type,
+                pub data: #struct_ident_cfg,
+            }
+        }
+    }
+
+    fn id_struct_ident(&self, id_field: &Field) -> Type {
+        let struct_name = self.struct_name();
+        name2type(
+            cleanup_field_name(&format!("{struct_name}By_{}", id_field.name))
+                .to_case(Case::UpperCamel)
+                .as_str(),
+        )
+    }
+    fn id_struct_builder_ident(&self, id_field: &Field) -> Type {
+        let struct_name = self.struct_name();
+        name2type(
+            cleanup_field_name(&format!("{struct_name}By_{}_Builder", id_field.name))
+                .to_case(Case::UpperCamel)
+                .as_str(),
+        )
+    }
+
+    fn create_deserialize_for_status_struct(&self, field_types: &[Type]) -> Item {
+        Self::generate_deserialize(
+            self.struct_status_type(),
+            self.struct_ident_builder_status(),
+        )
+    }
+
+    fn create_status_struct(&self, field_types: &[Type]) -> Item {
+        let fields_named_status = self.create_status_fields(field_types);
+        let struct_ident_status = self.struct_status_type();
+        parse_quote! {
+            #[derive(Debug, Clone, PartialEq)]
+            pub struct #struct_ident_status #fields_named_status
+        }
+    }
+
+    fn create_createable_impl(&self, field_types: &[Type]) -> Item {
+        let struct_ident_cfg = self.struct_type_cfg();
+        let create_values_array = self.modifiable_field_creators(field_types);
+        let item = parse_quote! {
+            impl resource::Creatable for #struct_ident_cfg{
+                fn calculate_create(&self) -> resource::ResourceMutation<'_> {
+                    resource::ResourceMutation {
+                        resource: <#struct_ident_cfg as resource::RosResource>::path(),
+                        operation: resource::ResourceMutationOperation::Add,
+                        fields: Box::new(#create_values_array),
+                    }
+                }
+            }
+        };
+        item
+    }
+
+    fn create_constructor(&self, field_types: &[Type]) -> ImplItem {
+        let mut params: Punctuated<FnArg, Comma> = Default::default();
+        let mut fields_named: Punctuated<FieldValue, Token![,]> = Punctuated::new();
+
+        for (field, field_type) in self.modifiable_fields_iterator(field_types) {
+            let field_name = field.generate_field_name();
+            if field.is_optional || field.is_multiple {
+                fields_named.push(FieldValue {
+                    attrs: vec![],
+                    member: Member::Named(field_name),
+                    colon_token: Some(Colon::default()),
+                    expr: parse_quote!(Default::default()),
+                });
+            } else {
+                params.push(parse_quote!(#field_name: #field_type));
+                fields_named.push(parse_quote!(#field_name));
+            }
+        }
+        parse_quote! {
+            pub fn new(#params)->Self{
+                Self{
+                    #fields_named
+                }
+            }
+        }
+    }
+
+    fn updateable_cfg(&self) -> Item {
+        let struct_ident_cfg = self.struct_type_cfg();
+        let item = parse_quote! {
+            impl resource::Updatable for #struct_ident_cfg {
+                fn calculate_update<'a>(&'a self, from: &'a Self) -> resource::ResourceMutation<'a> {
+                    resource::ResourceMutation {
+                        resource: <#struct_ident_cfg as resource::RosResource>::path(),
+                        operation: resource::ResourceMutationOperation::UpdateSingle,
+                        fields: resource::CfgResource::changed_values(self,from).collect(),
+                    }
+                }
+            }
+        };
+        item
+    }
+
+    fn single_resource_cfg(&self) -> Item {
+        let struct_ident_cfg = self.struct_type_cfg();
+        let item = parse_quote! {
+            impl resource::SingleResource for #struct_ident_cfg {}
+        };
+        item
+    }
+
+    fn create_cfg_resource(&self, field_types: &[Type]) -> Item {
+        let struct_ident_cfg = self.struct_type_cfg();
+        let changed_values_array = self.modifiable_field_updaters(field_types);
+        parse_quote! {
+            impl resource::CfgResource for #struct_ident_cfg {
+                #[allow(clippy::needless_lifetimes)]
+                fn changed_values<'a, 'b>(
+                    &'a self,
+                    before: &'b Self,
+                ) -> impl Iterator<Item = value::KeyValuePair<'a>> {
+                    #changed_values_array.into_iter().flatten()
+                }
+            }
+        }
+    }
+
+    fn generate_ros_resource_for_cfg(&self) -> Item {
+        Self::generate_ros_resource(self.struct_type_cfg(), self.generate_path())
+    }
+
+    fn generate_ros_resource(struct_ident_cfg: Type, path: Literal) -> Item {
+        parse_quote! {
+            impl resource::RosResource for #struct_ident_cfg {
+                fn path()->&'static [u8]{
+                    #path
+                }
+            }
+        }
+    }
+
+    fn generate_path(&self) -> Literal {
+        Literal::byte_string(self.path.join("/").as_bytes())
+    }
+
+    fn create_deserialize_for_cfg_struct(&self) -> Item {
+        Self::generate_deserialize(self.struct_type_cfg(), self.struct_ident_cfg_builder())
+    }
+
+    fn create_cfg_enum_entry(&self) -> RosTypeEntry {
+        let struct_ident = self.struct_ident_cfg();
+        let builder = self.struct_ident_cfg_builder();
+        let data = self.struct_type_cfg();
+        RosTypeEntry {
+            name: struct_ident,
+            builder,
+            data,
+        }
+    }
+    fn create_status_enum_entry(&self) -> RosTypeEntry {
+        let struct_ident = self.struct_status_ident();
+        let builder = self.struct_ident_builder_status();
+        let data = self.struct_status_type();
+        RosTypeEntry {
+            name: struct_ident,
+            builder,
+            data,
+        }
+    }
+    fn create_enum_entry(&self) -> RosTypeEntry {
+        let struct_ident = self.struct_ident();
+        let builder = self.struct_builder();
+        let data = self.struct_type();
+        RosTypeEntry {
+            name: struct_ident,
+            builder,
+            data,
+        }
+    }
+
+    fn modifiable_field_creators(&self, field_types: &[Type]) -> ExprArray {
         let mut create_values_array = ExprArray {
             attrs: vec![],
             bracket_token: Default::default(),
             elems: Default::default(),
         };
-        let mut id_fields = Vec::new();
-        let mut constructor_fields = Vec::new();
-        let mut default_fields = Vec::new();
+        for (field, field_type) in self.modifiable_fields_iterator(field_types) {
+            let field_key = Literal::byte_string(field.name.as_bytes());
+            let field_name = field.generate_field_name();
+            create_values_array.elems.push(parse_quote! {
+                value::KeyValuePair {
+                    key: #field_key,
+                    value: <#field_type as value::RosValue>::encode_ros(&self.#field_name),
+                }
+            });
+        }
+        create_values_array
+    }
+
+    fn modifiable_field_updaters(&self, field_types: &[Type]) -> ExprArray {
+        let mut changed_values_array = ExprArray {
+            attrs: vec![],
+            bracket_token: Default::default(),
+            elems: Default::default(),
+        };
+        for (field, _) in self.modifiable_fields_iterator(field_types) {
+            changed_values_array
+                .elems
+                .push(field.compare_and_set_snippet());
+        }
+        changed_values_array
+    }
+
+    fn modifiable_field_parsers(&self, field_types: &[Type]) -> Punctuated<FieldValue, Comma> {
+        let mut parse_fields_cfg: Punctuated<FieldValue, Token![,]> = Punctuated::new();
+        for (field, _) in self.modifiable_fields_iterator(field_types) {
+            parse_fields_cfg.push(field.parse_snippet());
+        }
+        parse_fields_cfg
+    }
+
+    fn modifiable_field_declarations(&self, field_types: &[Type]) -> FieldsNamed {
+        let mut fields_named_cfg = FieldsNamed {
+            brace_token: Default::default(),
+            named: Default::default(),
+        };
+        for (f, field_type) in self.modifiable_fields_iterator(field_types) {
+            let field_name = f.generate_field_name();
+            fields_named_cfg
+                .named
+                .push(parse_quote!(pub #field_name: #field_type));
+        }
+        fields_named_cfg
+    }
+
+    fn modifiable_fields_iterator<'a>(
+        &'a self,
+        field_types: &'a [Type],
+    ) -> impl Iterator<Item = (&'a Field, &'a Type)> {
+        self.fields
+            .iter()
+            .zip(field_types.iter())
+            .filter(|(f, _)| !f.is_read_only)
+    }
+
+    fn create_status_field_parsers(&self, field_types: &[Type]) -> Punctuated<FieldValue, Comma> {
+        let mut parse_fields_status: Punctuated<FieldValue, Token![,]> = Punctuated::new();
+        for (field, _) in self.read_only_fields_iterator(field_types) {
+            parse_fields_status.push(field.parse_snippet());
+        }
+        parse_fields_status
+    }
+
+    fn create_status_fields(&self, field_types: &[Type]) -> FieldsNamed {
+        let mut fields_named_status = FieldsNamed {
+            brace_token: Default::default(),
+            named: Default::default(),
+        };
+        for (field, field_type) in self.read_only_fields_iterator(field_types) {
+            let field_name = field.generate_field_name();
+            let field_def = parse_quote!(
+                pub #field_name: #field_type
+            );
+            fields_named_status.named.push(field_def);
+        }
+        fields_named_status
+    }
+
+    fn read_only_fields_iterator<'a>(
+        &'a self,
+        field_types: &'a [Type],
+    ) -> impl Iterator<Item = (&'a Field, &'a Type)> {
+        self.fields
+            .iter()
+            .zip(field_types.iter())
+            .filter(|(f, _)| f.is_read_only)
+    }
+
+    fn create_field_types(
+        &self,
+        inline_enums: &mut HashMap<Box<str>, Box<[Box<str>]>>,
+    ) -> (Vec<Type>, Vec<Type>) {
+        let mut struct_field_types = Vec::new();
+        let mut builder_field_types = Vec::new();
         for field in self.fields.iter() {
             let enum_type = if let Some(enum_values) = field.inline_enum.as_ref() {
+                let struct_name = self.struct_name();
                 let enum_name = format!("{struct_name}_{}", field.name);
                 let enum_type = Ident::new(&derive_ident(&enum_name), Span::call_site());
                 inline_enums.insert(enum_name.into_boxed_str(), enum_values.clone());
@@ -70,354 +630,355 @@ impl Entity {
             } else {
                 None
             };
+            struct_field_types.push(field.generate_struct_field_type(enum_type.clone()));
+            builder_field_types.push(field.generate_builder_type(enum_type));
+        }
+        (struct_field_types, builder_field_types)
+    }
+
+    fn generate_known_fields_array(&self) -> ExprArray {
+        let mut known_fields: ExprArray = ExprArray {
+            attrs: vec![],
+            bracket_token: Default::default(),
+            elems: Default::default(),
+        };
+        for field in self.fields.iter() {
             known_fields.elems.push(Expr::Lit(ExprLit {
                 attrs: vec![],
                 lit: Lit::ByteStr(LitByteStr::new(field.name.as_bytes(), Span::call_site())),
             }));
-            let (field_name, field_type, parser, change_expression) =
-                field.generate_code(enum_type);
-            let field_def = parse_quote!(
-                pub #field_name: #field_type
-            );
-            if field.is_read_only {
-                fields_named_status.named.push(field_def);
-                punctuated_fields_status.push(parser.clone());
-            } else {
-                fields_named_cfg.named.push(field_def);
-                punctuated_fields_cfg.push(parser.clone());
-                changed_values_array.elems.push(change_expression);
-                if field.is_optional || field.is_multiple {
-                    default_fields.push(field_name.clone());
-                } else {
-                    constructor_fields.push((field_name.clone(), field_type.clone()));
-                }
-                let field_key = Literal::byte_string(field.name.as_bytes());
-                create_values_array.elems.push(parse_quote! {
-                    value::KeyValuePair {
-                        key: #field_key,
-                        value: <#field_type as value::RosValue>::encode_ros(&self.#field_name),
-                    }
-                });
-            }
-            if field.is_key {
-                id_fields.push((field, field_name, field_type, parser));
-            }
         }
-        let struct_ident = Ident::new(&struct_name, Span::call_site());
-        let struct_ident_status = Ident::new(&format!("{struct_name}State"), Span::call_site());
-        let struct_ident_cfg = Ident::new(&format!("{struct_name}Cfg"), Span::call_site());
-        let mut items = Vec::with_capacity(5);
-        let mut fields_named = FieldsNamed {
-            brace_token: Default::default(),
-            named: Default::default(),
-        };
-        let mut punctuated_fields: Punctuated<FieldValue, Token![,]> = Punctuated::new();
-        let has_cfg_struct = !fields_named_cfg.named.is_empty();
-        let has_status_struct = !fields_named_status.named.is_empty();
-        if has_cfg_struct {
-            items.push((
-                parse_quote! {
-                    #[derive(Debug, Clone, PartialEq)]
-                    pub struct #struct_ident_cfg #fields_named_cfg
-                },
-                Some(parse_quote!(#struct_ident(#struct_ident_cfg))),
-            ));
-            fields_named.named.push(parse_quote! {
-                pub cfg: #struct_ident_cfg
-            });
-            punctuated_fields.push(parse_quote! {
-                cfg: #struct_ident_cfg::parse(values)?
-            });
-            items.push((parse_quote! {
-                impl resource::DeserializeRosResource for #struct_ident_cfg {
-                     fn parse(values: &std::collections::HashMap<Box<[u8]>, Option<Box<[u8]>>>) -> Result<Self, resource::ResourceAccessError> {
-                        Ok(#struct_ident_cfg {#punctuated_fields_cfg})
-                    }
-                    fn path()->&'static [u8]{
-                        #path
-                    }
-                }
-            }, None));
-            items.push((
-                parse_quote! {
-                    impl resource::RosResource for #struct_ident_cfg {
-                        fn known_fields()->&'static[&'static [u8]]{
-                            &#known_fields
-                        }
-                    }
-                },
-                None,
-            ));
-            items.push((
-                parse_quote! {
-                    impl resource::CfgResource for #struct_ident_cfg {
-                        #[allow(clippy::needless_lifetimes)]
-                        fn changed_values<'a, 'b>(
-                            &'a self,
-                            before: &'b Self,
-                        ) -> impl Iterator<Item = value::KeyValuePair<'a>> {
-                            #changed_values_array.into_iter().flatten()
-                        }
-                    }
-                },
-                None,
-            ));
-            if self.is_single {
-                items.push((
-                    parse_quote! {
-                        impl resource::SingleResource for #struct_ident_cfg {}
-                    },
-                    None,
-                ));
-                items.push((
-                    parse_quote! {
-                        impl resource::Updatable for #struct_ident_cfg {
-                            fn calculate_update<'a>(&'a self, from: &'a Self) -> resource::ResourceMutation<'a> {
-                                resource::ResourceMutation {
-                                    resource: <#struct_ident_cfg as resource::DeserializeRosResource>::path(),
-                                    operation: resource::ResourceMutationOperation::UpdateSingle,
-                                    fields: resource::CfgResource::changed_values(self,from).collect(),
-                                }
-                            }
-                        }
-                    },
-                    None,
-                ));
-            } else {
-                let mut plain_items = Vec::new();
-                if self.can_add {
-                    let mut params: Punctuated<FnArg, Comma> = Default::default();
-                    let mut fields_named: Punctuated<FieldValue, Token![,]> = Punctuated::new();
-
-                    for (p_name, p_type) in constructor_fields {
-                        params.push(parse_quote!(#p_name: #p_type));
-                        fields_named.push(parse_quote!(#p_name));
-                    }
-                    for p_name in default_fields {
-                        //fields_named.push(parse_quote!(#p_name: Default:default()));
-                        fields_named.push(FieldValue {
-                            attrs: vec![],
-                            member: Member::Named(p_name),
-                            colon_token: Some(Colon::default()),
-                            expr: parse_quote!(Default::default()),
-                        });
-                    }
-                    plain_items.push(parse_quote! {
-                        impl #struct_ident_cfg{
-                            pub fn new(#params)->Self{
-                                Self{
-                                    #fields_named
-                                }
-                            }
-                        }
-                    });
-                    plain_items.push(parse_quote! {
-                        impl resource::Creatable for #struct_ident_cfg{
-                            fn calculate_create(&self) -> resource::ResourceMutation<'_> {
-                                resource::ResourceMutation {
-                                    resource: <#struct_ident_cfg as resource::DeserializeRosResource>::path(),
-                                    operation: resource::ResourceMutationOperation::Add,
-                                    fields: Box::new(#create_values_array),
-                                }
-                            }
-                        }
-                    });
-                }
-                for (id_field, id_field_name, id_field_type, parser) in id_fields {
-                    let id_struct_name =
-                        cleanup_field_name(&format!("{struct_name}By_{}", id_field.name))
-                            .to_case(Case::UpperCamel);
-                    let id_struct_ident = Ident::new(&id_struct_name, Span::call_site());
-                    let field_name = Literal::byte_string(id_field.name.as_bytes());
-                    if id_field.is_read_only {
-                        plain_items.push(parse_quote! {
-                            #[derive(Debug, Clone, PartialEq)]
-                            pub struct #id_struct_ident {
-                                pub #id_field_name: #id_field_type,
-                                pub data: #struct_ident_cfg,
-                            }
-                        });
-                        plain_items.push(parse_quote! {
-                                impl resource::DeserializeRosResource for #id_struct_ident {
-                                    fn parse(values: &std::collections::HashMap<Box<[u8]>, Option<Box<[u8]>>>) -> Result<Self, resource::ResourceAccessError> {
-                                        Ok(#id_struct_ident{
-                                        #parser,
-                                        data: <#struct_ident_cfg as resource::DeserializeRosResource>::parse(
-                                            values,
-                                        )?})
-                                    }
-
-                                    fn path() -> &'static [u8] {
-                                        #struct_ident_cfg::path()
-                                    }
-                                }
-                            });
-                        plain_items.push(parse_quote! {
-                            impl resource::KeyedResource for #id_struct_ident {
-                                type Key = #id_field_type;
-
-                                fn key_name() -> &'static [u8] {
-                                    #field_name
-                                }
-
-                                fn key_value(&self) -> &#id_field_type {
-                                    &self.#id_field_name
-                                }
-                            }
-                        });
-                        plain_items.push(parse_quote! {
-                            impl resource::CfgResource for #id_struct_ident {
-                                #[allow(clippy::needless_lifetimes)]
-                                fn changed_values<'a, 'b>(
-                                    &'a self,
-                                    before: &'b Self,
-                                ) -> impl Iterator<Item = value::KeyValuePair<'a>> {
-                                    self.data.changed_values(&before.data)
-                                }
-                            }
-                        });
-                    } else {
-                        plain_items.push(parse_quote! {
-                            #[derive(Debug, Clone, PartialEq)]
-                            pub struct #id_struct_ident(pub #struct_ident_cfg);
-                        });
-                        plain_items.push(parse_quote! {
-                                impl resource::DeserializeRosResource for #id_struct_ident {
-                                    fn parse(values: &std::collections::HashMap<Box<[u8]>, Option<Box<[u8]>>>) -> Result<Self, resource::ResourceAccessError> {
-                                        Ok(#id_struct_ident(<#struct_ident_cfg as resource::DeserializeRosResource>::parse(
-                                            values,
-                                        )?))
-                                    }
-
-                                    fn path() -> &'static [u8] {
-                                        #struct_ident_cfg::path()
-                                    }
-                                }
-                            });
-                        plain_items.push(parse_quote! {
-                            impl resource::KeyedResource for #id_struct_ident {
-                                type Key = #id_field_type;
-
-                                fn key_name() -> &'static [u8] {
-                                    #field_name
-                                }
-
-                                fn key_value(&self) -> &#id_field_type {
-                                    &self.0.#id_field_name
-                                }
-                            }
-                        });
-                        plain_items.push(parse_quote! {
-                            impl resource::CfgResource for #id_struct_ident {
-                                #[allow(clippy::needless_lifetimes)]
-                                fn changed_values<'a, 'b>(
-                                    &'a self,
-                                    before: &'b Self,
-                                ) -> impl Iterator<Item = value::KeyValuePair<'a>> {
-                                    self.0.changed_values(&before.0)
-                                }
-                            }
-                        });
-                    };
-                    if has_status_struct {
-                        plain_items.push(parse_quote! {
-                                impl resource::DeserializeRosResource for (#id_struct_ident, #struct_ident_status) {
-                                    fn parse(values: &std::collections::HashMap<Box<[u8]>, Option<Box<[u8]>>>) -> Result<Self, resource::ResourceAccessError> {
-                                        Ok((
-                                            #id_struct_ident::parse(values)?,
-                                            #struct_ident_status::parse(values)?,
-                                        ))
-                                    }
-
-                                    fn path()->&'static [u8]{
-                                        #path
-                                    }
-                                }
-                            });
-                        plain_items.push(parse_quote! {
-                                impl resource::KeyedResource for (#id_struct_ident, #struct_ident_status) {
-                                    type Key = #id_field_type;
-
-                                    fn key_name() -> &'static [u8] {
-                                        #field_name
-                                    }
-
-                                    fn key_value(&self) -> &#id_field_type {
-                                        self.0.key_value()
-                                    }
-                                }
-                            });
-                    }
-                }
-                for item in plain_items {
-                    items.push((item, None));
-                }
-            }
-        };
-        if has_status_struct {
-            items.push((
-                parse_quote! {
-                    #[derive(Debug, Clone, PartialEq)]
-                    pub struct #struct_ident_status #fields_named_status
-                },
-                None,
-            ));
-            items.push((parse_quote! {
-                impl resource::DeserializeRosResource for #struct_ident_status {
-                     fn parse(values: &std::collections::HashMap<Box<[u8]>, Option<Box<[u8]>>>) -> Result<Self, resource::ResourceAccessError> {
-                        Ok(#struct_ident_status {#punctuated_fields_status})
-                    }
-                    fn path()->&'static [u8]{
-                        #path
-                    }
-                }
-            }, None));
-
-            fields_named.named.push(parse_quote! {
-                pub status: #struct_ident_status
-            });
-            punctuated_fields.push(parse_quote! {
-                status: #struct_ident_status::parse(values)?
-            });
-        }
-        if has_cfg_struct && has_status_struct {
-            items.push((
-                parse_quote! {
-                    #[derive(Debug, Clone, PartialEq)]
-                    pub struct #struct_ident #fields_named
-                },
-                None,
-            ));
-            items.push((
-                parse_quote! {
-                    impl resource::DeserializeRosResource for #struct_ident {
-                        fn parse(values: &std::collections::HashMap<Box<[u8]>, Option<Box<[u8]>>>) -> Result<Self, resource::ResourceAccessError> {
-                            Ok(#struct_ident {#punctuated_fields})
-                        }
-                        fn path()->&'static [u8]{
-                            #path
-                        }
-                    }
-                },
-                None,
-            ));
-            items.push((
-                parse_quote! {
-                    impl resource::RosResource for #struct_ident {
-                        fn known_fields()->&'static[&'static [u8]]{
-                            &#known_fields
-                        }
-                    }
-                },
-                None,
-            ));
-        }
-        generate_enums(&inline_enums)
-            .map(|item| (item, None))
-            .collect::<Vec<_>>()
-            .into_iter()
-            .chain(items)
+        known_fields
     }
+
+    fn struct_type_cfg(&self) -> Type {
+        ident2type(self.struct_ident_cfg())
+    }
+
+    fn struct_ident_cfg(&self) -> Ident {
+        let struct_name = self.struct_name();
+        name2ident(&format!("{struct_name}Cfg"))
+    }
+
+    fn struct_ident_cfg_builder(&self) -> Type {
+        let struct_name = self.struct_name();
+        let ident = Ident::new(&format!("{struct_name}CfgBuilder"), Span::call_site());
+        parse_quote!(#ident)
+    }
+
+    fn struct_status_type(&self) -> Type {
+        ident2type(self.struct_status_ident())
+    }
+
+    fn struct_status_ident(&self) -> Ident {
+        let struct_name = self.struct_name();
+        let string = format!("{struct_name}State");
+        let ident = name2ident(&string);
+        ident
+    }
+
+    fn struct_ident_builder_status(&self) -> Type {
+        let struct_name = self.struct_name();
+        name2type(&format!("{struct_name}StateBuilder"))
+    }
+
+    fn struct_type(&self) -> Type {
+        ident2type(self.struct_ident())
+    }
+
+    fn struct_ident(&self) -> Ident {
+        name2ident(&self.struct_name())
+    }
+
+    fn struct_builder(&self) -> Type {
+        let struct_name = self.struct_name();
+        name2type(&format!("{struct_name}Builder"))
+    }
+
+    fn struct_name(&self) -> Box<str> {
+        self.path
+            .iter()
+            .map(|c| c.as_ref().to_case(Case::UpperCamel))
+            .collect()
+    }
+
+    fn create_deserialize_builder_for_cfg(&self) -> Item {
+        Self::generate_deserialize_for_builder(
+            self.struct_ident_cfg_builder(),
+            self.struct_type_cfg(),
+            || self.fields.iter().filter(|f| !f.is_read_only),
+        )
+    }
+
+    fn generate_deserialize_for_builder<'a, F: Fn() -> I, I: Iterator<Item = &'a Field>>(
+        builder_type: Type,
+        ty: Type,
+        fields: F,
+    ) -> Item {
+        let mut append_field_match: ExprMatch = parse_quote! {
+            match (key, value.as_ref()){
+            }
+        };
+        for field in fields() {
+            let field_name = field.generate_field_name();
+            let attribute_name = field.attribute_name();
+            let ok_expression: Expr = if field.is_optional || field.is_multiple {
+                parse_quote!(v)
+            } else {
+                parse_quote!(Some(v))
+            };
+            append_field_match.arms.push(parse_quote! {
+                (#attribute_name, Some(&value)) => match value::RosValue::parse_ros(value) {
+                    value::ParseRosValueResult::None => {
+                        resource::AppendFieldResult::InvalidValue(#attribute_name)
+                    }
+                    value::ParseRosValueResult::Value(v) => {
+                        self.#field_name = #ok_expression;
+                        resource::AppendFieldResult::Appended
+                    }
+                    value::ParseRosValueResult::Invalid => {
+                        resource::AppendFieldResult::InvalidValue(#attribute_name)
+                    }
+                }
+            })
+        }
+        append_field_match
+            .arms
+            .push(parse_quote!(_ => resource::AppendFieldResult::UnknownField));
+
+        let mut init_struct: ExprStruct = parse_quote!(#ty{});
+        for field in fields() {
+            let field_name = field.generate_field_name();
+            if field.is_optional || field.is_multiple {
+                init_struct
+                    .fields
+                    .push(parse_quote!(#field_name: self.#field_name));
+            } else {
+                let attribute_name = field.attribute_name();
+                init_struct.fields.push(
+                    parse_quote!(#field_name: self.#field_name.ok_or(#attribute_name as &[u8])?),
+                );
+            }
+        }
+        parse_quote! {
+            impl resource::DeserializeRosBuilder<#ty> for #builder_type {
+                type Context=();
+                fn init(_ctx: &Self::Context)->Self{
+                    Self::default()
+                }
+                fn append_field(&mut self, key: &[u8], value: Option<&[u8]>) -> resource::AppendFieldResult {
+                    #append_field_match
+                }
+                fn build(self)->Result<#ty,&'static [u8]>{
+                    Ok(#init_struct)
+                }
+            }
+        }
+    }
+
+    fn generate_id_builder_external(&self, id_field: &Field, id_builder_type: &Type) -> Item {
+        let field_name = id_field.generate_field_name();
+        let builder_name = self.id_struct_builder_ident(id_field);
+        let data_name = self.struct_ident_cfg_builder();
+        parse_quote! {
+            #[derive(Debug, Clone, PartialEq, Default)]
+            pub struct #builder_name{
+                pub #field_name: #id_builder_type,
+                pub data: #data_name,
+            }
+        }
+    }
+
+    fn generate_deserialize_builder_for_id_external(&self, id_field: &Field) -> Item {
+        let field_name = id_field.generate_field_name();
+        let attribute_name = id_field.attribute_name();
+        let builder_name = self.id_struct_builder_ident(id_field);
+        let struct_name = self.id_struct_ident(id_field);
+        let data_name = self.struct_ident_cfg_builder();
+        let ok_expression: Expr = if id_field.is_optional || id_field.is_multiple {
+            parse_quote!(v)
+        } else {
+            parse_quote!(Some(v))
+        };
+        let id_builder_value: Expr = if id_field.is_optional || id_field.is_multiple {
+            parse_quote!(self.#field_name)
+        } else {
+            parse_quote!(self.#field_name.ok_or(#attribute_name as &[u8])?)
+        };
+
+        parse_quote! {
+            impl resource::DeserializeRosBuilder<#struct_name> for #builder_name {
+                type Context=();
+                fn init(_ctx: &Self::Context)->Self{
+                    Self::default()
+                }
+                fn append_field(&mut self, key: &[u8], value: Option<&[u8]>) -> resource::AppendFieldResult {
+                     match (key, value.as_ref()) {
+                        (#attribute_name, Some(&value)) => match value::RosValue::parse_ros(value) {
+                            value::ParseRosValueResult::None => {
+                                resource::AppendFieldResult::InvalidValue(#attribute_name)
+                            }
+                            value::ParseRosValueResult::Value(v) => {
+                                self.#field_name = #ok_expression;
+                                resource::AppendFieldResult::Appended
+                            }
+                            value::ParseRosValueResult::Invalid => {
+                                resource::AppendFieldResult::InvalidValue(#attribute_name)
+                            }
+                        },
+                        (key, value) => self.data.append_field(key, value.map(|v| *v)),
+                    }
+                }
+                fn build(self)->Result<#struct_name,&'static [u8]>{
+                    Ok(#struct_name{
+                        #field_name: #id_builder_value,
+                        data: self.data.build()?
+                    })
+                }
+
+            }
+        }
+    }
+
+    fn generate_deserialize_builder_for_id_internal(&self, id_field: &Field) -> Item {
+        let builder_name = self.id_struct_builder_ident(id_field);
+        let struct_name = self.id_struct_ident(id_field);
+        parse_quote! {
+            impl resource::DeserializeRosBuilder<#struct_name> for #builder_name {
+                type Context=();
+                fn init(_ctx: &Self::Context)->Self{
+                    Self::default()
+                }
+                fn append_field(&mut self, key: &[u8], value: Option<&[u8]>) -> resource::AppendFieldResult {
+                    self.0.append_field(key, value)
+                }
+                fn build(self)->Result<#struct_name,&'static [u8]>{
+                    Ok(#struct_name(self.0.build()?))
+                }
+
+            }
+        }
+    }
+
+    fn generate_id_builder_internal(&self, id_field: &Field, id_type: &Type) -> Item {
+        let builder_name = self.id_struct_builder_ident(id_field);
+        let data_name = self.struct_ident_cfg_builder();
+        parse_quote! {
+            #[derive(Debug, Clone, PartialEq, Default)]
+            pub struct #builder_name(pub #data_name);
+        }
+    }
+
+    fn create_status_builder_struct(&self, builder_field_types: &[Type]) -> Item {
+        let struct_name = self.struct_ident_builder_status();
+        let fields = self.create_status_fields(builder_field_types);
+        parse_quote! {
+            #[derive(Debug, Clone, PartialEq, Default)]
+            pub struct #struct_name #fields
+        }
+    }
+
+    fn create_ros_resource_for_status(&self) -> Item {
+        let struct_ident_status = self.struct_status_type();
+        let path = self.generate_path();
+        parse_quote! {
+            impl resource::RosResource for #struct_ident_status {
+                fn path()->&'static [u8]{
+                    #path
+                }
+            }
+        }
+    }
+
+    fn create_deserialize_builder_for_status(&self) -> Item {
+        Self::generate_deserialize_for_builder(
+            self.struct_ident_builder_status(),
+            self.struct_status_type(),
+            || self.fields.iter().filter(|f| f.is_read_only),
+        )
+    }
+
+    fn generate_deserialize_builder_for_id_combined(&self, id_field: &Field) -> Item {
+        let builder_type = self.builder_tuples_for_id_combined(id_field);
+        let data_type = self.data_tuples_for_id_combined(id_field);
+        parse_quote! {
+            impl resource::DeserializeRosBuilder<#data_type> for #builder_type {
+                type Context=();
+                fn init(_ctx: &Self::Context)->Self{
+                    Self::default()
+                }
+                fn append_field(&mut self, key: &[u8], value: Option<&[u8]>) -> resource::AppendFieldResult {
+                    match (self.0.append_field(key, value),self.1.append_field(key, value)) {
+                       (resource::AppendFieldResult::InvalidValue(v),_)|(_,resource::AppendFieldResult::InvalidValue(v))=>resource::AppendFieldResult::InvalidValue(v),
+                       (resource::AppendFieldResult::Appended,_)|(_,resource::AppendFieldResult::Appended)=>resource::AppendFieldResult::Appended,
+                        _ => resource::AppendFieldResult::UnknownField,
+                    }
+                }
+                fn build(self)->Result<#data_type,&'static [u8]>{
+                    Ok((self.0.build()?, self.1.build()?))
+                }
+            }
+        }
+    }
+
+    fn generate_ros_resource_for_id(&self, id_field: &Field) -> Item {
+        Self::generate_ros_resource(self.id_struct_ident(id_field), self.generate_path())
+    }
+
+    fn generate_ros_for_id_combined(&self, id_field: &Field) -> Item {
+        let data_type = self.data_tuples_for_id_combined(id_field);
+        Self::generate_ros_resource(data_type, self.generate_path())
+    }
+
+    fn generate_combined_builder_struct(&self) -> Item {
+        let struct_name = self.struct_builder();
+        let cfg_type = self.struct_ident_cfg_builder();
+        let status_type = self.struct_ident_builder_status();
+        parse_quote! {
+            #[derive(Debug, Clone, PartialEq, Default)]
+            pub struct #struct_name{
+                pub cfg: #cfg_type,
+                pub status: #status_type,
+            }
+        }
+    }
+    fn generate_combined_deserialize_builder(&self) -> Item {
+        let builder_name = self.struct_builder();
+        let struct_name = self.struct_type();
+        parse_quote! {
+            impl resource::DeserializeRosBuilder<#struct_name> for #builder_name {
+                type Context=();
+                fn init(_ctx: &Self::Context)->Self{
+                    Self::default()
+                }
+                fn append_field(&mut self, key: &[u8], value: Option<&[u8]>) -> resource::AppendFieldResult {
+                    match (self.cfg.append_field(key, value),self.status.append_field(key, value)) {
+                       (resource::AppendFieldResult::InvalidValue(v),_)|(_,resource::AppendFieldResult::InvalidValue(v))=>resource::AppendFieldResult::InvalidValue(v),
+                       (resource::AppendFieldResult::Appended,_)|(_,resource::AppendFieldResult::Appended)=>resource::AppendFieldResult::Appended,
+                        _ => resource::AppendFieldResult::UnknownField,
+                    }
+                }
+                fn build(self)->Result<#struct_name,&'static [u8]>{
+                    Ok(#struct_name{cfg: self.cfg.build()?, status:self.status.build()?,})
+                }
+            }
+        }
+    }
+}
+
+fn name2type(name: &str) -> Type {
+    ident2type(name2ident(name))
+}
+
+fn ident2type(ident: Ident) -> Type {
+    parse_quote!(#ident)
+}
+
+fn name2ident(name: &str) -> Ident {
+    Ident::new(
+        cleanup_field_name(name).to_case(Case::UpperCamel).as_str(),
+        Span::call_site(),
+    )
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Default)]
@@ -441,15 +1002,68 @@ pub struct Field {
 }
 
 impl Field {
-    fn generate_code(&self, enum_field_type: Option<Type>) -> (Ident, Type, FieldValue, Expr) {
-        let field_name = cleanup_field_name(self.name.as_ref()).to_case(Case::Snake);
-        let field_name = if KEYWORDS.contains(field_name.as_str()) {
-            format!("_{field_name}")
-        } else {
-            field_name
+    fn compare_and_set_snippet(&self) -> Expr {
+        let field_name = self.generate_field_name();
+
+        let attribute_name = self.attribute_name();
+        let compare_and_set_snippet = parse_quote! {
+           if self.#field_name == before.#field_name {
+                None
+            } else {
+                Some(value::KeyValuePair {
+                    key: #attribute_name,
+                    value: value::RosValue::encode_ros(&self.#field_name),
+                })
+            }
         };
-        let field_name = Ident::new(&field_name, Span::mixed_site());
-        let attribute_name = Literal::byte_string(self.name.as_bytes());
+        compare_and_set_snippet
+    }
+
+    fn parse_snippet(&self) -> FieldValue {
+        let field_name = self.generate_field_name();
+
+        let default = self.generate_default();
+        let attribute_name = self.attribute_name();
+
+        let parse_snippet = parse_quote! {
+            #field_name: values
+                .get(#attribute_name as &[u8])
+                .and_then(|v| v.as_ref())
+                .map(
+                    |value| match value::RosValue::parse_ros(value.as_ref()) {
+                        value::ParseRosValueResult::None => #default,
+                        value::ParseRosValueResult::Value(v) => Ok(v),
+                        value::ParseRosValueResult::Invalid => {
+                            Err(resource::ResourceAccessError::InvalidValueError {
+                                field_name: #attribute_name,
+                                value: value.clone(),
+                            })
+                        }
+                    },
+                )
+                .unwrap_or(#default)?
+        };
+        parse_snippet
+    }
+
+    fn generate_default(&self) -> Expr {
+        if self.is_multiple {
+            parse_quote!(Ok(std::collections::HashSet::new()))
+        } else if self.is_optional {
+            parse_quote!(Ok(None))
+        } else {
+            let attribute_name = self.attribute_name();
+            parse_quote!(Err(resource::ResourceAccessError::MissingFieldError {field_name: #attribute_name,}))
+        }
+    }
+
+    fn generate_struct_field_type(&self, enum_field_type: Option<Type>) -> Type {
+        self.generate_field_type(enum_field_type, false)
+    }
+    fn generate_builder_type(&self, enum_field_type: Option<Type>) -> Type {
+        self.generate_field_type(enum_field_type, true)
+    }
+    fn generate_field_type(&self, enum_field_type: Option<Type>, for_builder: bool) -> Type {
         let field_type = self
             .field_type
             .as_ref()
@@ -466,7 +1080,7 @@ impl Field {
                 })
             })
             .or(enum_field_type)
-            .unwrap_or(parse_quote!(Box<[u8]>));
+            .unwrap_or(parse_quote!(ascii::AsciiString));
         let field_type = if self.is_hex {
             parse_quote!(value::Hex<#field_type>)
         } else {
@@ -498,53 +1112,27 @@ impl Field {
         } else {
             field_type
         };
-        let (field_type, default): (Type, Expr) = if self.is_multiple {
-            (
-                parse_quote!(std::collections::HashSet<#field_type>),
-                parse_quote!(Ok(std::collections::HashSet::new())),
-            )
-        } else if self.is_optional {
-            (parse_quote!(Option<#field_type>), parse_quote!(Ok(None)))
+        if self.is_multiple {
+            parse_quote!(std::collections::HashSet<#field_type>)
+        } else if self.is_optional || for_builder {
+            parse_quote!(Option<#field_type>)
         } else {
-            (
-                field_type,
-                parse_quote!(Err(resource::ResourceAccessError::MissingFieldError {field_name: #attribute_name,})),
-            )
+            field_type
+        }
+    }
+
+    fn attribute_name(&self) -> Literal {
+        Literal::byte_string(self.name.as_bytes())
+    }
+
+    fn generate_field_name(&self) -> Ident {
+        let field_name = cleanup_field_name(self.name.as_ref()).to_case(Case::Snake);
+        let field_name = if KEYWORDS.contains(field_name.as_str()) {
+            format!("_{field_name}")
+        } else {
+            field_name
         };
-        let parse_snippet = parse_quote! {
-            #field_name: values
-                .get(#attribute_name as &[u8])
-                .and_then(|v| v.as_ref())
-                .map(
-                    |value| match value::RosValue::parse_ros(value.as_ref()) {
-                        value::ParseRosValueResult::None => #default,
-                        value::ParseRosValueResult::Value(v) => Ok(v),
-                        value::ParseRosValueResult::Invalid => {
-                            Err(resource::ResourceAccessError::InvalidValueError {
-                                field_name: #attribute_name,
-                                value: value.clone(),
-                            })
-                        }
-                    },
-                )
-                .unwrap_or(#default)?
-        };
-        let compare_and_set_snippet = parse_quote! {
-           if self.#field_name == before.#field_name {
-                None
-            } else {
-                Some(value::KeyValuePair {
-                    key: #attribute_name,
-                    value: value::RosValue::encode_ros(&self.#field_name),
-                })
-            }
-        };
-        (
-            field_name,
-            field_type,
-            parse_snippet,
-            compare_and_set_snippet,
-        )
+        Ident::new(&field_name, Span::mixed_site())
     }
 }
 
@@ -664,6 +1252,7 @@ fn parse_field_line(line: &str) -> Option<Field> {
             })
     }
 }
+
 #[cfg(test)]
 mod test {
     use super::*;

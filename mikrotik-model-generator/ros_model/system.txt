@@ -34,14 +34,14 @@ routerboard: ro;bool
 1/system/routerboard/settings
 auto-upgrade: bool
 baud-rate: o;u32
-boot-delay: Duration
+boot-delay: o;Duration
 boot-device: enum=ethernet,flash-boot,flash-boot-once-then-nand,nand-if-fail-then-ethernet,nand-only,try-ethernet-once-then-nand
 boot-os: o;enum=router-os,swos
 boot-protocol: enum=bootp,dhcp
 cpu-frequency: o
 cpu-mode: o;enum=power-save,regular
-enable-jumper-reset: bool
-enter-setup-on:enum=any-key,delete-key
+enable-jumper-reset: o;bool
+enter-setup-on:o;enum=any-key,delete-key
 force-backup-booter: bool
 init-delay: o;Duration
 memory-frequency: o
@@ -53,3 +53,4 @@ silent-boot: bool
 protected-routerboot: EnabledDisabled
 reformat-hold-button: Duration
 reformat-hold-button-max: Duration
+disable-pci: o

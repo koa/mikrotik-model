@@ -1,3 +1,4 @@
+use crate::ascii::AsciiString;
 use encoding_rs::mem::{decode_latin1, encode_latin1_lossy};
 use ipnet::IpNet;
 use log::warn;
@@ -81,6 +82,16 @@ impl RosValue for Box<[u8]> {
 
     fn encode_ros(&self) -> Cow<[u8]> {
         self.as_ref().into()
+    }
+}
+
+impl RosValue for AsciiString {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
+        ParseRosValueResult::Value(AsciiString(Box::from(value)))
+    }
+
+    fn encode_ros(&self) -> Cow<[u8]> {
+        Cow::Borrowed(&self.0)
     }
 }
 

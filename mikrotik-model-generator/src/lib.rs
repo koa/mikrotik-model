@@ -2,12 +2,14 @@ use crate::model::{parse_lines, EnumDescriptions};
 use convert_case::{Case, Casing};
 use lazy_static::lazy_static;
 use proc_macro2::{Ident, Literal, Span};
-use std::collections::{HashMap, HashSet};
-use std::vec;
-use syn::__private::quote::format_ident;
-use syn::punctuated::Punctuated;
-use syn::token::Comma;
-use syn::{parse_quote, ExprMatch, Item, ItemMod, Variant, Visibility};
+use std::{
+    collections::{HashMap, HashSet},
+    vec,
+};
+use syn::{
+    __private::quote::format_ident, parse_quote, punctuated::Punctuated, token::Comma, ExprMatch,
+    Item, ItemMod, Variant, Visibility,
+};
 
 mod model;
 lazy_static! {
@@ -26,6 +28,7 @@ pub fn generator() -> syn::File {
             use crate::{
                 resource,
                 value::{self, IpOrInterface},
+                ascii,
             };
         ),
         parse_quote!(
@@ -44,7 +47,12 @@ pub fn generator() -> syn::File {
         items.push(item);
     }
 
-    let mut cfg_enum_variants: Punctuated<Variant, Comma> = Punctuated::new();
+    let mut resource_enum_variants: Punctuated<Variant, Comma> = Punctuated::new();
+    let mut resource_result_enum_variants: Punctuated<Variant, Comma> = Punctuated::new();
+    let mut resource_builder_enum_variants: Punctuated<Variant, Comma> = Punctuated::new();
+    let mut resource_init_match: ExprMatch = parse_quote! {match ctx{}};
+    let mut append_field_match: ExprMatch = parse_quote! {match self{}};
+    let mut build_match: ExprMatch = parse_quote! {match self{}};
 
     for content in [
         include_str!("../ros_model/system.txt"),
@@ -55,17 +63,63 @@ pub fn generator() -> syn::File {
         let entries = parse_lines(content.lines());
 
         for entity in entries.iter() {
-            for (item, field) in entity.generate_code() {
+            let (entity_items, enum_fields) = entity.generate_code();
+            for item in entity_items {
                 items.push(item);
-                if let Some(field) = field {
-                    cfg_enum_variants.push(field);
-                }
+            }
+            for field in enum_fields {
+                let name = field.name;
+                let data_type = field.data;
+                let builder_type = field.builder;
+                resource_enum_variants.push(parse_quote!(#name));
+                resource_result_enum_variants.push(parse_quote!(#name(#data_type)));
+                resource_builder_enum_variants.push(parse_quote!(#name(#builder_type)));
+                resource_init_match
+                    .arms
+                    .push(parse_quote! {ResourceType::#name=>Self::#name(Default::default())});
+                append_field_match
+                    .arms
+                    .push(parse_quote! {Self::#name(builder)=>builder.append_field(key, value)});
+                build_match
+                    .arms
+                    .push(parse_quote! {Self::#name(builder)=>Resource::#name(builder.build()?)});
             }
         }
     }
     items.push(parse_quote!(
         #[derive(Debug,Clone,PartialEq)]
-        pub enum CfgResource {#cfg_enum_variants}
+        pub enum ResourceType {#resource_enum_variants}
+    ));
+    items.push(parse_quote!(
+        #[derive(Debug,Clone,PartialEq)]
+        pub enum Resource {#resource_result_enum_variants}
+    ));
+    items.push(parse_quote!(
+        #[derive(Debug,Clone,PartialEq)]
+        pub enum ResourceBuilder {#resource_builder_enum_variants}
+    ));
+    items.push(parse_quote! {
+        impl resource::DeserializeRosResource for Resource {
+            type Builder = ResourceBuilder;
+        }
+    });
+    items.push(parse_quote!(
+        impl resource::DeserializeRosBuilder<Resource> for ResourceBuilder {
+            type Context=ResourceType;
+            fn init(ctx: &Self::Context)->Self{
+                #resource_init_match
+            }
+            fn append_field(
+                &mut self,
+                key: &[u8],
+                value: Option<&[u8]>,
+            ) -> resource::AppendFieldResult {
+                #append_field_match
+            }
+            fn build(self) -> Result<Resource, &'static [u8]> {
+                Ok(#build_match)
+            }
+        }
     ));
     let module = vec![Item::Mod(ItemMod {
         attrs: vec![],
@@ -86,7 +140,7 @@ pub fn generator() -> syn::File {
 
 fn generate_enums(
     enums: &HashMap<Box<str>, Box<[Box<str>]>>,
-) -> impl Iterator<Item = Item> + use<'_> {
+) -> impl Iterator<Item=Item> + use < '_ > {
     enums.iter().flat_map(|(name, values)| {
         let name = Ident::new(&derive_ident(name), Span::call_site());
         let mut enum_variants: Punctuated<Variant, Comma> = Punctuated::new();
@@ -173,11 +227,7 @@ mod test {
         let file = File::open("ros_model/interface.txt").unwrap();
         let content = read_to_string(file).unwrap();
         let entiries = parse_lines(content.lines());
-        let items = entiries
-            .iter()
-            .flat_map(|e| e.generate_code())
-            .map(|(item, _)| item)
-            .collect();
+        let items = entiries.iter().flat_map(|e| e.generate_code().0).collect();
         let f = syn::File {
             shebang: None,
             attrs: vec![],

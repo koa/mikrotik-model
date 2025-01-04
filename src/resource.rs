@@ -1,17 +1,11 @@
-use crate::model::{InterfaceEthernet, InterfaceEthernetCfg};
 use crate::value::{KeyValuePair, RosValue};
-use crate::{resource, value};
 use encoding_rs::mem::decode_latin1;
-use log::{error, info};
-use mikrotik_rs::error::DeviceError;
-use mikrotik_rs::protocol::command::{Command, CommandBuilder};
-use mikrotik_rs::protocol::{CommandResponse, FatalResponse, ReplyResponse, TrapResponse};
-use mikrotik_rs::MikrotikDevice;
-use std::collections::HashMap;
+use log::error;
+
+use crate::resource;
+use mikrotik_api::prelude::{ParsedMessage, TrapCategory, TrapResult};
+use std::fmt::{Debug, Display, Formatter};
 use thiserror::Error;
-use tokio_stream::wrappers::ReceiverStream;
-use tokio_stream::Stream;
-use tokio_stream::StreamExt;
 
 #[derive(Debug, Error)]
 pub enum ResourceAccessError {
@@ -24,9 +18,35 @@ pub enum ResourceAccessError {
     },
 }
 
+#[derive(Error)]
+pub enum ResourceAccessWarning {
+    #[error("Unexpected field received {}",decode_latin1(.field_name))]
+    UnexpectedFieldError { field_name: Box<[u8]> },
+}
+impl Debug for ResourceAccessWarning {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ResourceAccessWarning::UnexpectedFieldError { field_name } => {
+                write!(f, "Unexpected field: {}", decode_latin1(field_name),)
+            }
+        }
+    }
+}
+
 pub trait DeserializeRosResource: Sized {
-    fn parse(values: &HashMap<Box<[u8]>, Option<Box<[u8]>>>) -> Result<Self, ResourceAccessError>;
-    fn path() -> &'static [u8];
+    type Builder: DeserializeRosBuilder<Self>;
+}
+pub trait DeserializeRosBuilder<R: DeserializeRosResource> {
+    type Context: Send + Sync + Debug;
+    fn init(context: &Self::Context) -> Self;
+    fn append_field(&mut self, key: &[u8], value: Option<&[u8]>) -> AppendFieldResult;
+    fn build(self) -> Result<R, &'static [u8]>;
+}
+#[derive(Debug, Copy, Clone)]
+pub enum AppendFieldResult {
+    Appended,
+    InvalidValue(&'static [u8]),
+    UnknownField,
 }
 
 #[derive(Error, Debug)]
@@ -34,52 +54,45 @@ pub enum Error {
     #[error("Cannot parse result: {0}")]
     ResourceAccess(#[from] ResourceAccessError),
     #[error("Cannot access device: {0}")]
-    Device(#[from] DeviceError),
-    #[error("Fatal error from device: {0}")]
-    Fatal(FatalResponse),
+    Device(#[from] mikrotik_api::error::Error),
+    //#[error("Fatal error from device: {0}")]
+    //Fatal(FatalResponse),
     #[error("Trap from device: {0}")]
     Trap(TrapResponse),
 }
 
-pub async fn stream_result<R: DeserializeRosResource>(
-    cmd: Command,
-    device: &MikrotikDevice,
-) -> impl Stream<Item = Result<R, Error>> {
-    ReceiverStream::new(device.send_command(cmd).await).filter_map(|res| {
-        //println!(">> Get System Res Response {:?}", res);
-        match res {
-            Ok(CommandResponse::Reply(r)) => {
-                Some(R::parse(&get_attributes(&r)).map_err(Error::ResourceAccess))
-            }
-            Ok(CommandResponse::Fatal(e)) => Some(Err(Error::Fatal(e))),
-            Ok(CommandResponse::Trap(e)) => Some(Err(Error::Trap(e))),
-            Ok(CommandResponse::Done(_)) => None,
-            Err(e) => {
-                error!("Cannot fetch ROS resource: {e}");
-                Some(Err(Error::Device(e)))
-            }
+#[derive(Debug, Eq, PartialEq, Hash)]
+struct TrapResponse {
+    pub category: Option<TrapCategory>,
+    pub message: Box<[u8]>,
+}
+
+impl From<&TrapResult<'_>> for TrapResponse {
+    fn from(value: &TrapResult) -> Self {
+        Self {
+            category: value.category,
+            message: Box::from(value.message),
         }
-    })
+    }
+}
+impl Display for TrapResponse {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}: {}",
+            self.category.map(|c| c.description()).unwrap_or_default(),
+            decode_latin1(&self.message)
+        )
+    }
 }
 
-fn get_attributes(r: &ReplyResponse) -> &HashMap<Box<[u8]>, Option<Box<[u8]>>> {
-    /*let attributes: HashMap<_, _> = r
-        .attributes
-        .iter()
-        .map(|(key, value)| (key.as_deref(), value.as_ref().map(|v| v.as_deref())))
-        .collect();
-    attributes
-
-     */
-    &r.attributes
-}
-
-pub async fn stream_resource<R: DeserializeRosResource>(
-    device: &MikrotikDevice,
+/*pub async fn stream_resource<R: DeserializeRosResource>(
+    device: &MikrotikDevice<R>,
 ) -> impl Stream<Item = Result<R, Error>> {
     let cmd = CommandBuilder::new()
         .command(&[b"/", R::path(), b"/print"])
         .build();
+    device.send_simple_command([b"/", R::path(), b"/print"].concat());
     stream_result(cmd, device).await
 }
 
@@ -111,20 +124,13 @@ pub async fn list_resources<R: DeserializeRosResource>(
         }
     })
 }
-
+*/
 pub trait RosResource: Sized {
-    fn known_fields() -> &'static [&'static [u8]];
+    fn path() -> &'static [u8];
 }
 
 pub trait SingleResource: DeserializeRosResource {
-    /*async fn fetch(device: &MikrotikDevice)->Result<Option<Self>, Error>{
-        if let Some(row) = stream_resource::<Self>(device).await.next().await{
-            Ok(Some(row?))
-        }else{
-            Ok(None)
-        }
-    }*/
-    fn fetch(
+    /*fn fetch(
         device: &MikrotikDevice,
     ) -> impl std::future::Future<Output = Result<Option<Self>, Error>> + Send {
         async {
@@ -134,13 +140,13 @@ pub trait SingleResource: DeserializeRosResource {
                 Ok(None)
             }
         }
-    }
+    }*/
 }
 pub trait KeyedResource: DeserializeRosResource {
     type Key: RosValue;
     fn key_name() -> &'static [u8];
     fn key_value(&self) -> &Self::Key;
-    fn fetch_all(
+    /*fn fetch_all(
         device: &MikrotikDevice,
     ) -> impl std::future::Future<Output = Result<Box<[Self]>, Error>> + Send
     where
@@ -175,58 +181,12 @@ pub trait KeyedResource: DeserializeRosResource {
                 Ok(None)
             }
         }
-    }
+    }*/
 }
 pub trait CfgResource: DeserializeRosResource {
     #[allow(clippy::needless_lifetimes)]
     fn changed_values<'a, 'b>(&'a self, before: &'b Self)
         -> impl Iterator<Item = KeyValuePair<'a>>;
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct InterfaceEthernetById {
-    id: Box<[u8]>,
-    interface: InterfaceEthernetCfg,
-}
-impl DeserializeRosResource for InterfaceEthernetById {
-    fn parse(values: &HashMap<Box<[u8]>, Option<Box<[u8]>>>) -> Result<Self, ResourceAccessError> {
-        Ok(Self {
-            id: values
-                .get(b".id" as &[u8])
-                .and_then(|v| v.as_ref())
-                .map(|value| match value::RosValue::parse_ros(value.as_ref()) {
-                    value::ParseRosValueResult::None => {
-                        Err(resource::ResourceAccessError::MissingFieldError { field_name: b".id" })
-                    }
-                    value::ParseRosValueResult::Value(v) => Ok(v),
-                    value::ParseRosValueResult::Invalid => {
-                        Err(resource::ResourceAccessError::InvalidValueError {
-                            field_name: b".id",
-                            value: value.clone(),
-                        })
-                    }
-                })
-                .unwrap_or(Err(resource::ResourceAccessError::MissingFieldError {
-                    field_name: b".id",
-                }))?,
-            interface: InterfaceEthernetCfg::parse(values)?,
-        })
-    }
-
-    fn path() -> &'static [u8] {
-        InterfaceEthernet::path()
-    }
-}
-impl KeyedResource for InterfaceEthernetById {
-    type Key = Box<[u8]>;
-
-    fn key_name() -> &'static [u8] {
-        b".id"
-    }
-
-    fn key_value(&self) -> &Box<[u8]> {
-        &self.id
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -247,7 +207,7 @@ pub trait Updatable {
     fn calculate_update<'a>(&'a self, from: &'a Self) -> ResourceMutation<'a>;
 }
 
-impl<R: KeyedResource + CfgResource> Updatable for R {
+impl<R: KeyedResource + CfgResource + RosResource> Updatable for R {
     fn calculate_update<'a>(&'a self, from: &'a Self) -> ResourceMutation<'a> {
         ResourceMutation {
             resource: R::path(),
@@ -264,15 +224,75 @@ pub trait Creatable: CfgResource {
     fn calculate_create(&self) -> ResourceMutation<'_>;
 }
 
-/*impl Creatable for IpAddressCfg {
-    fn calculate_create(&self) -> ResourceMutation<'_> {
-        ResourceMutation {
-            resource: IpAddressCfg::path(),
-            operation: ResourceMutationOperation::Add,
-            fields: Box::new([KeyValuePair {
-                key: "address",
-                value: self.address.encode_ros(),
-            }]),
+#[derive(Debug)]
+pub enum SentenceResult<R> {
+    Row {
+        value: R,
+        warnings: Box<[resource::ResourceAccessWarning]>,
+    },
+    Error {
+        errors: Box<[resource::ResourceAccessError]>,
+        warnings: Box<[resource::ResourceAccessWarning]>,
+    },
+    Trap {
+        category: Option<TrapCategory>,
+        message: Box<[u8]>,
+    },
+}
+
+impl<R: resource::DeserializeRosResource + Send + 'static> ParsedMessage for SentenceResult<R> {
+    type Context = <<R as DeserializeRosResource>::Builder as DeserializeRosBuilder<R>>::Context;
+
+    fn parse_message(sentence: &[(&[u8], Option<&[u8]>)], context: &Self::Context) -> Self {
+        let mut builder = R::Builder::init(context);
+        let mut errors = Vec::new();
+        let mut warnings = Vec::new();
+        for (key, value) in sentence {
+            match builder.append_field(key, value.as_deref()) {
+                resource::AppendFieldResult::Appended => {}
+                resource::AppendFieldResult::InvalidValue(field_name) => {
+                    errors.push(resource::ResourceAccessError::InvalidValueError {
+                        field_name,
+                        value: value.map(|v| Box::from(v)).unwrap_or_default(),
+                    })
+                }
+                resource::AppendFieldResult::UnknownField => {
+                    warnings.push(resource::ResourceAccessWarning::UnexpectedFieldError {
+                        field_name: Box::from(*key),
+                    })
+                }
+            }
+        }
+        if errors.is_empty() {
+            match builder.build() {
+                Ok(result) => SentenceResult::Row {
+                    value: result,
+                    warnings: warnings.into_boxed_slice(),
+                },
+                Err(field_name) => {
+                    errors.push(resource::ResourceAccessError::MissingFieldError { field_name });
+                    SentenceResult::Error {
+                        errors: errors.into_boxed_slice(),
+                        warnings: warnings.into_boxed_slice(),
+                    }
+                }
+            }
+        } else {
+            SentenceResult::Error {
+                errors: errors.into_boxed_slice(),
+                warnings: warnings.into_boxed_slice(),
+            }
         }
     }
-}*/
+
+    fn process_error(error: &mikrotik_api::error::Error, context: &Self::Context) -> Self {
+        todo!()
+    }
+
+    fn process_trap(result: TrapResult, context: &Self::Context) -> Self {
+        SentenceResult::Trap {
+            category: result.category,
+            message: Box::from(result.message),
+        }
+    }
+}
