@@ -44,3 +44,8 @@ impl From<Box<[u8]>> for AsciiString {
         AsciiString(value)
     }
 }
+impl From<&[u8]> for AsciiString {
+    fn from(value: &[u8]) -> Self {
+        AsciiString(Box::from(value))
+    }
+}

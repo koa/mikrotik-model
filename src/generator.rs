@@ -79,7 +79,7 @@ pub fn generate_cfg(target: &mut impl Write, mutations: &[ResourceMutation]) -> 
         match &mutation.operation {
             ResourceMutationOperation::Add => {
                 write!(target, "add ")?;
-                append_fields(target, &mutation)?;
+                append_fields(target, mutation)?;
                 writeln!(target)?;
             }
             ResourceMutationOperation::RemoveByKey(id_key) => {
@@ -89,14 +89,14 @@ pub fn generate_cfg(target: &mut impl Write, mutations: &[ResourceMutation]) -> 
             }
             ResourceMutationOperation::UpdateSingle => {
                 target.write_str("set ")?;
-                append_fields(target, &mutation)?;
+                append_fields(target, mutation)?;
                 writeln!(target)?;
             }
             ResourceMutationOperation::UpdateByKey(id_key) => {
                 target.write_str("set [ find ")?;
                 append_field(target, id_key)?;
                 target.write_str("] ")?;
-                append_fields(target, &mutation)?;
+                append_fields(target, mutation)?;
                 writeln!(target)?;
             }
         }
@@ -113,7 +113,7 @@ fn append_fields<W: Write>(target: &mut W, mutation: &ResourceMutation) -> std::
 }
 
 fn append_field(target: &mut impl Write, kv: &KeyValuePair) -> std::fmt::Result {
-    write!(target, "{}=", decode_latin1(&kv.key))?;
+    write!(target, "{}=", decode_latin1(kv.key))?;
     if kv
         .value
         .iter()

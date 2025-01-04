@@ -50,7 +50,7 @@ pub fn generator() -> syn::File {
     let mut resource_enum_variants: Punctuated<Variant, Comma> = Punctuated::new();
     let mut resource_result_enum_variants: Punctuated<Variant, Comma> = Punctuated::new();
     let mut resource_builder_enum_variants: Punctuated<Variant, Comma> = Punctuated::new();
-    let mut resource_init_match: ExprMatch = parse_quote! {match ctx{}};
+    let mut resource_init_match: ExprMatch = parse_quote! {match self{}};
     let mut append_field_match: ExprMatch = parse_quote! {match self{}};
     let mut build_match: ExprMatch = parse_quote! {match self{}};
 
@@ -74,20 +74,20 @@ pub fn generator() -> syn::File {
                 resource_enum_variants.push(parse_quote!(#name));
                 resource_result_enum_variants.push(parse_quote!(#name(#data_type)));
                 resource_builder_enum_variants.push(parse_quote!(#name(#builder_type)));
-                resource_init_match
-                    .arms
-                    .push(parse_quote! {ResourceType::#name=>Self::#name(Default::default())});
+                resource_init_match.arms.push(
+                    parse_quote! {ResourceType::#name=>ResourceBuilder::#name(Default::default())},
+                );
                 append_field_match
                     .arms
-                    .push(parse_quote! {Self::#name(builder)=>builder.append_field(key, value)});
+                    .push(parse_quote! {Self::#name(builder)=><#builder_type as resource::DeserializeRosBuilder<#data_type>>::append_field(builder, key, value)});
                 build_match
                     .arms
-                    .push(parse_quote! {Self::#name(builder)=>Resource::#name(builder.build()?)});
+                    .push(parse_quote! {Self::#name(builder)=>Resource::#name(<#builder_type as resource::DeserializeRosBuilder<#data_type>>::build(builder)?)});
             }
         }
     }
     items.push(parse_quote!(
-        #[derive(Debug,Clone,PartialEq)]
+        #[derive(Copy,Debug,Clone,PartialEq)]
         pub enum ResourceType {#resource_enum_variants}
     ));
     items.push(parse_quote!(
@@ -99,24 +99,23 @@ pub fn generator() -> syn::File {
         pub enum ResourceBuilder {#resource_builder_enum_variants}
     ));
     items.push(parse_quote! {
-        impl resource::DeserializeRosResource for Resource {
-            type Builder = ResourceBuilder;
+        impl ResourceType {
+            pub fn create_builder(&self)->ResourceBuilder{
+                #resource_init_match
+            }
         }
     });
     items.push(parse_quote!(
-        impl resource::DeserializeRosBuilder<Resource> for ResourceBuilder {
-            type Context=ResourceType;
-            fn init(ctx: &Self::Context)->Self{
-                #resource_init_match
-            }
-            fn append_field(
+        impl ResourceBuilder {
+            //type Context=ResourceType;
+            pub fn append_field(
                 &mut self,
                 key: &[u8],
                 value: Option<&[u8]>,
             ) -> resource::AppendFieldResult {
                 #append_field_match
             }
-            fn build(self) -> Result<Resource, &'static [u8]> {
+            pub fn build(self) -> Result<Resource, &'static [u8]> {
                 Ok(#build_match)
             }
         }
@@ -140,7 +139,7 @@ pub fn generator() -> syn::File {
 
 fn generate_enums(
     enums: &HashMap<Box<str>, Box<[Box<str>]>>,
-) -> impl Iterator<Item=Item> + use < '_ > {
+) -> impl Iterator<Item = Item> + use<'_> {
     enums.iter().flat_map(|(name, values)| {
         let name = Ident::new(&derive_ident(name), Span::call_site());
         let mut enum_variants: Punctuated<Variant, Comma> = Punctuated::new();

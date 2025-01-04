@@ -1,3 +1,5 @@
+use crate::model::Resource;
+use crate::resource::SentenceResult;
 use serde::Deserialize;
 
 pub mod ascii;
@@ -14,3 +16,5 @@ pub struct Credentials {
     pub user: Box<str>,
     pub password: Box<str>,
 }
+
+pub type MikrotikDevice = mikrotik_api::prelude::MikrotikDevice<SentenceResult<Resource>>;

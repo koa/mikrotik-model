@@ -1,104 +1,11 @@
 use config::{Config, Environment, File};
-use encoding_rs::mem::decode_latin1;
 use env_logger::{Env, TimestampPrecision};
-use ipnet::{IpNet, Ipv4Net};
-use log::error;
-use mikrotik_api::prelude::MikrotikDevice;
-use mikrotik_model::model::{IpAddress, IpAddressCfg, IpAddressState};
-use mikrotik_model::model::{Resource, ResourceType};
-use mikrotik_model::model::{SystemResourceCfg, SystemResourceState, SystemRouterboardSettingsCfg};
+use mikrotik_model::model::IpAddress;
+use mikrotik_model::model::ResourceType;
 use mikrotik_model::resource::{RosResource, SentenceResult};
-use mikrotik_model::value::{ParseRosValueResult, RosValue};
-use mikrotik_model::Credentials;
-use std::any::Any;
+use mikrotik_model::{Credentials, MikrotikDevice};
 use std::net::{IpAddr, Ipv4Addr};
 use tokio_stream::StreamExt;
-
-mod test_model {
-    use mikrotik_api::error::Error;
-    use mikrotik_api::prelude::{ParsedMessage, TrapCategory, TrapResult};
-    use mikrotik_model::{resource, value};
-
-    #[derive(Debug, Clone, PartialEq)]
-    //#[builder(build_fn(error = "ResourceAccessError"))]
-    pub struct SystemResourceCfg {
-        pub cpu_frequency: u64,
-    }
-    #[derive(Debug, Clone, PartialEq, Default)]
-    pub struct SystemResourceCfgBuilder {
-        cpu_frequency: Option<u64>,
-    }
-
-    impl resource::DeserializeRosBuilder<SystemResourceCfg> for SystemResourceCfgBuilder {
-        type Context = ();
-        fn init(ctx: &Self::Context) -> Self {
-            Self::default()
-        }
-        fn append_field(
-            &mut self,
-            key: &[u8],
-            value: Option<&[u8]>,
-        ) -> resource::AppendFieldResult {
-            match (key, value.as_ref()) {
-                (b"cpu-frequency", Some(&value)) => match value::RosValue::parse_ros(value) {
-                    value::ParseRosValueResult::None => {
-                        resource::AppendFieldResult::InvalidValue(b"cpu-frequency")
-                    }
-                    value::ParseRosValueResult::Value(v) => {
-                        self.cpu_frequency = Some(v);
-                        resource::AppendFieldResult::Appended
-                    }
-                    value::ParseRosValueResult::Invalid => {
-                        resource::AppendFieldResult::InvalidValue(b"cpu-frequency")
-                    }
-                },
-                _ => resource::AppendFieldResult::UnknownField,
-            }
-        }
-
-        fn build(self) -> Result<SystemResourceCfg, &'static [u8]> {
-            Ok(SystemResourceCfg {
-                cpu_frequency: self.cpu_frequency.ok_or(b"cpu-frequency" as &[u8])?,
-            })
-        }
-    }
-    impl resource::DeserializeRosResource for SystemResourceCfg {
-        type Builder = SystemResourceCfgBuilder;
-    }
-    impl resource::RosResource for SystemResourceCfg {
-        fn path() -> &'static [u8] {
-            b"system/resource"
-        }
-    }
-    impl resource::CfgResource for SystemResourceCfg {
-        #[allow(clippy::needless_lifetimes)]
-        fn changed_values<'a, 'b>(
-            &'a self,
-            before: &'b Self,
-        ) -> impl Iterator<Item = value::KeyValuePair<'a>> {
-            [if self.cpu_frequency == before.cpu_frequency {
-                None
-            } else {
-                Some(value::KeyValuePair {
-                    key: b"cpu-frequency",
-                    value: value::RosValue::encode_ros(&self.cpu_frequency),
-                })
-            }]
-            .into_iter()
-            .flatten()
-        }
-    }
-    impl resource::SingleResource for SystemResourceCfg {}
-    impl resource::Updatable for SystemResourceCfg {
-        fn calculate_update<'a>(&'a self, from: &'a Self) -> resource::ResourceMutation<'a> {
-            resource::ResourceMutation {
-                resource: <SystemResourceCfg as resource::RosResource>::path(),
-                operation: resource::ResourceMutationOperation::UpdateSingle,
-                fields: resource::CfgResource::changed_values(self, from).collect(),
-            }
-        }
-    }
-}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -119,7 +26,7 @@ async fn main() -> anyhow::Result<()> {
     let router = IpAddr::V4(Ipv4Addr::new(10, 192, 5, 7));
     //let router = IpAddr::V4(Ipv4Addr::new(172, 16, 1, 51));
     println!("{router}");
-    let device: MikrotikDevice<SentenceResult<Resource>> = MikrotikDevice::connect(
+    let device: MikrotikDevice = MikrotikDevice::connect(
         (router, 8728),
         credentials.user.as_bytes(),
         Some(credentials.password.as_bytes()),

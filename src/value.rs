@@ -528,7 +528,7 @@ pub fn write_script_string(target: &mut impl Write, value: &[u8]) -> core::fmt::
             b'\x08' => target.write_str("\\b")?,
             ch => {
                 target.write_char('\\')?;
-                write!(target, "{:X}", ch as u8)?;
+                write!(target, "{:X}", ch)?;
             }
         }
     }

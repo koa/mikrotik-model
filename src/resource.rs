@@ -1,13 +1,15 @@
 use crate::value::{KeyValuePair, RosValue};
 use encoding_rs::mem::decode_latin1;
-use log::error;
+use log::{debug, error};
 
-use crate::resource;
+use crate::model::{Resource, ResourceType};
+use crate::MikrotikDevice;
 use mikrotik_api::prelude::{ParsedMessage, TrapCategory, TrapResult};
 use std::fmt::{Debug, Display, Formatter};
 use thiserror::Error;
+use tokio_stream::{Stream, StreamExt};
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, Clone)]
 pub enum ResourceAccessError {
     #[error("Missing field {}",decode_latin1(.field_name))]
     MissingFieldError { field_name: &'static [u8] },
@@ -16,6 +18,8 @@ pub enum ResourceAccessError {
         field_name: &'static [u8],
         value: Box<[u8]>,
     },
+    #[error("Error fetching data from mikrotik api {0}")]
+    ApiError(mikrotik_api::error::Error),
 }
 
 #[derive(Error)]
@@ -35,6 +39,8 @@ impl Debug for ResourceAccessWarning {
 
 pub trait DeserializeRosResource: Sized {
     type Builder: DeserializeRosBuilder<Self>;
+    fn unwrap_resource(resource: Resource) -> Option<Self>;
+    fn resource_type() -> ResourceType;
 }
 pub trait DeserializeRosBuilder<R: DeserializeRosResource> {
     type Context: Send + Sync + Debug;
@@ -62,7 +68,7 @@ pub enum Error {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash)]
-struct TrapResponse {
+pub struct TrapResponse {
     pub category: Option<TrapCategory>,
     pub message: Box<[u8]>,
 }
@@ -86,67 +92,58 @@ impl Display for TrapResponse {
     }
 }
 
-/*pub async fn stream_resource<R: DeserializeRosResource>(
-    device: &MikrotikDevice<R>,
-) -> impl Stream<Item = Result<R, Error>> {
-    let cmd = CommandBuilder::new()
-        .command(&[b"/", R::path(), b"/print"])
-        .build();
-    device.send_simple_command([b"/", R::path(), b"/print"].concat());
-    stream_result(cmd, device).await
+pub async fn stream_resource<R: DeserializeRosResource + RosResource>(
+    device: &MikrotikDevice,
+) -> impl Stream<Item = SentenceResult<R>> {
+    device
+        .send_simple_command(&[b"/", R::path(), b"/print"], R::resource_type())
+        .await
+        .map(|entry| entry.map(|r| R::unwrap_resource(r).expect("Unexpected result type")))
 }
 
-pub async fn list_resources<R: DeserializeRosResource>(
-    device: &MikrotikDevice,
-) -> impl Stream<Item = R> {
-    let cmd = CommandBuilder::new()
-        .command(&[b"/", R::path(), b"/print"])
-        .build();
-    ReceiverStream::new(device.send_command(cmd).await).filter_map(|res| {
-        println!(">> Get System Res Response {:?}", res);
-        match res {
-            Ok(CommandResponse::Reply(r)) => match R::parse(&get_attributes(&r)) {
-                Ok(resource) => Some(resource),
-                Err(e) => {
-                    error!("Cannot parse ROS resource: {e}");
-                    None
-                }
-            },
-            Ok(CommandResponse::Done(_)) => None,
-            Ok(reply) => {
-                info!("response: {reply:?}");
-                None
-            }
-            Err(e) => {
-                error!("Cannot fetch ROS resource: {e}");
-                None
-            }
-        }
-    })
-}
-*/
 pub trait RosResource: Sized {
     fn path() -> &'static [u8];
 }
 
-pub trait SingleResource: DeserializeRosResource {
-    /*fn fetch(
+pub trait SingleResource: DeserializeRosResource + RosResource {
+    fn fetch(
         device: &MikrotikDevice,
     ) -> impl std::future::Future<Output = Result<Option<Self>, Error>> + Send {
         async {
-            if let Some(row) = stream_resource::<Self>(device).await.next().await {
-                Ok(Some(row?))
-            } else {
-                Ok(None)
+            match stream_resource::<Self>(device).await.next().await {
+                Some(entry) => value_or_error(entry).map(Some),
+                None => Ok(None),
             }
         }
-    }*/
+    }
 }
-pub trait KeyedResource: DeserializeRosResource {
+fn value_or_error<R: DeserializeRosResource>(entry: SentenceResult<R>) -> Result<R, Error> {
+    match entry {
+        SentenceResult::Row { value, warnings } => {
+            if !warnings.is_empty() {
+                debug!("Warnings on fetch {:?}: {warnings:#?}", R::resource_type())
+            }
+            Ok(value)
+        }
+        SentenceResult::Error { errors, warnings } => {
+            if !warnings.is_empty() {
+                debug!("Warnings on fetch {:?}: {warnings:#?}", R::resource_type())
+            }
+            Err(Error::ResourceAccess(
+                errors.first().expect("Error without error").clone(),
+            ))
+        }
+        SentenceResult::Trap { category, message } => {
+            Err(Error::Trap(TrapResponse { category, message }))
+        }
+    }
+}
+
+pub trait KeyedResource: DeserializeRosResource + RosResource {
     type Key: RosValue;
     fn key_name() -> &'static [u8];
     fn key_value(&self) -> &Self::Key;
-    /*fn fetch_all(
+    fn fetch_all(
         device: &MikrotikDevice,
     ) -> impl std::future::Future<Output = Result<Box<[Self]>, Error>> + Send
     where
@@ -154,15 +151,14 @@ pub trait KeyedResource: DeserializeRosResource {
         Self: Send,
     {
         async {
-            let cmd = CommandBuilder::new()
-                .command(&[b"/", Self::path(), b"/print"])
-                .build();
-            stream_result::<Self>(cmd, device)
+            stream_resource::<Self>(device)
                 .await
+                .map(|entry| value_or_error(entry))
                 .collect::<Result<Box<[_]>, _>>()
                 .await
         }
     }
+
     fn fetch(
         device: &MikrotikDevice,
         key: &Self::Key,
@@ -171,17 +167,26 @@ pub trait KeyedResource: DeserializeRosResource {
         <Self as KeyedResource>::Key: Sync,
     {
         async {
-            let cmd = CommandBuilder::new()
-                .command(&[b"/", Self::path(), b"/print"])
-                .query_equal(Self::key_name(), key.encode_ros().as_ref())
-                .build();
-            if let Some(row) = stream_result(cmd, device).await.next().await {
-                Ok(Some(row?))
-            } else {
-                Ok(None)
-            }
+            Ok(
+                match device
+                    .send_command(
+                        &[b"/", Self::path(), b"/print"],
+                        |cmd| cmd.query_equal(Self::key_name(), key.encode_ros()),
+                        Self::resource_type(),
+                    )
+                    .await
+                    .map(|entry| {
+                        entry.map(|r| Self::unwrap_resource(r).expect("Unexpected result type"))
+                    })
+                    .next()
+                    .await
+                {
+                    None => None,
+                    Some(v) => Some(value_or_error(v)?),
+                },
+            )
         }
-    }*/
+    }
 }
 pub trait CfgResource: DeserializeRosResource {
     #[allow(clippy::needless_lifetimes)]
@@ -228,11 +233,11 @@ pub trait Creatable: CfgResource {
 pub enum SentenceResult<R> {
     Row {
         value: R,
-        warnings: Box<[resource::ResourceAccessWarning]>,
+        warnings: Box<[ResourceAccessWarning]>,
     },
     Error {
-        errors: Box<[resource::ResourceAccessError]>,
-        warnings: Box<[resource::ResourceAccessWarning]>,
+        errors: Box<[ResourceAccessError]>,
+        warnings: Box<[ResourceAccessWarning]>,
     },
     Trap {
         category: Option<TrapCategory>,
@@ -240,24 +245,41 @@ pub enum SentenceResult<R> {
     },
 }
 
-impl<R: resource::DeserializeRosResource + Send + 'static> ParsedMessage for SentenceResult<R> {
-    type Context = <<R as DeserializeRosResource>::Builder as DeserializeRosBuilder<R>>::Context;
+impl<R> SentenceResult<R> {
+    pub fn map<V, F: FnOnce(R) -> V>(self, apply: F) -> SentenceResult<V> {
+        match self {
+            SentenceResult::Row { value, warnings } => SentenceResult::Row {
+                value: apply(value),
+                warnings,
+            },
+            SentenceResult::Error { errors, warnings } => {
+                SentenceResult::Error { errors, warnings }
+            }
+            SentenceResult::Trap { category, message } => {
+                SentenceResult::Trap { category, message }
+            }
+        }
+    }
+}
+
+impl ParsedMessage for SentenceResult<Resource> {
+    type Context = ResourceType;
 
     fn parse_message(sentence: &[(&[u8], Option<&[u8]>)], context: &Self::Context) -> Self {
-        let mut builder = R::Builder::init(context);
+        let mut builder = context.create_builder();
         let mut errors = Vec::new();
         let mut warnings = Vec::new();
         for (key, value) in sentence {
             match builder.append_field(key, value.as_deref()) {
-                resource::AppendFieldResult::Appended => {}
-                resource::AppendFieldResult::InvalidValue(field_name) => {
-                    errors.push(resource::ResourceAccessError::InvalidValueError {
+                AppendFieldResult::Appended => {}
+                AppendFieldResult::InvalidValue(field_name) => {
+                    errors.push(ResourceAccessError::InvalidValueError {
                         field_name,
-                        value: value.map(|v| Box::from(v)).unwrap_or_default(),
+                        value: value.map(Box::from).unwrap_or_default(),
                     })
                 }
-                resource::AppendFieldResult::UnknownField => {
-                    warnings.push(resource::ResourceAccessWarning::UnexpectedFieldError {
+                AppendFieldResult::UnknownField => {
+                    warnings.push(ResourceAccessWarning::UnexpectedFieldError {
                         field_name: Box::from(*key),
                     })
                 }
@@ -270,7 +292,7 @@ impl<R: resource::DeserializeRosResource + Send + 'static> ParsedMessage for Sen
                     warnings: warnings.into_boxed_slice(),
                 },
                 Err(field_name) => {
-                    errors.push(resource::ResourceAccessError::MissingFieldError { field_name });
+                    errors.push(ResourceAccessError::MissingFieldError { field_name });
                     SentenceResult::Error {
                         errors: errors.into_boxed_slice(),
                         warnings: warnings.into_boxed_slice(),
@@ -285,11 +307,74 @@ impl<R: resource::DeserializeRosResource + Send + 'static> ParsedMessage for Sen
         }
     }
 
-    fn process_error(error: &mikrotik_api::error::Error, context: &Self::Context) -> Self {
-        todo!()
+    fn process_error(error: &mikrotik_api::error::Error, _context: &Self::Context) -> Self {
+        SentenceResult::Error {
+            errors: Box::new([ResourceAccessError::ApiError(error.clone())]),
+            warnings: Box::new([]),
+        }
     }
 
-    fn process_trap(result: TrapResult, context: &Self::Context) -> Self {
+    fn process_trap(result: TrapResult, _context: &Self::Context) -> Self {
+        SentenceResult::Trap {
+            category: result.category,
+            message: Box::from(result.message),
+        }
+    }
+}
+
+impl<R: DeserializeRosResource + Send + 'static> ParsedMessage for SentenceResult<R> {
+    type Context = <<R as DeserializeRosResource>::Builder as DeserializeRosBuilder<R>>::Context;
+
+    fn parse_message(sentence: &[(&[u8], Option<&[u8]>)], context: &Self::Context) -> Self {
+        let mut builder = R::Builder::init(context);
+        let mut errors = Vec::new();
+        let mut warnings = Vec::new();
+        for (key, value) in sentence {
+            match builder.append_field(key, value.as_deref()) {
+                AppendFieldResult::Appended => {}
+                AppendFieldResult::InvalidValue(field_name) => {
+                    errors.push(ResourceAccessError::InvalidValueError {
+                        field_name,
+                        value: value.map(Box::from).unwrap_or_default(),
+                    })
+                }
+                AppendFieldResult::UnknownField => {
+                    warnings.push(ResourceAccessWarning::UnexpectedFieldError {
+                        field_name: Box::from(*key),
+                    })
+                }
+            }
+        }
+        if errors.is_empty() {
+            match builder.build() {
+                Ok(result) => SentenceResult::Row {
+                    value: result,
+                    warnings: warnings.into_boxed_slice(),
+                },
+                Err(field_name) => {
+                    errors.push(ResourceAccessError::MissingFieldError { field_name });
+                    SentenceResult::Error {
+                        errors: errors.into_boxed_slice(),
+                        warnings: warnings.into_boxed_slice(),
+                    }
+                }
+            }
+        } else {
+            SentenceResult::Error {
+                errors: errors.into_boxed_slice(),
+                warnings: warnings.into_boxed_slice(),
+            }
+        }
+    }
+
+    fn process_error(error: &mikrotik_api::error::Error, _context: &Self::Context) -> Self {
+        SentenceResult::Error {
+            errors: Box::new([ResourceAccessError::ApiError(error.clone())]),
+            warnings: Box::new([]),
+        }
+    }
+
+    fn process_trap(result: TrapResult, _context: &Self::Context) -> Self {
         SentenceResult::Trap {
             category: result.category,
             message: Box::from(result.message),
