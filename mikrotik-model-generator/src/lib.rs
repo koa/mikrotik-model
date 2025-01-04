@@ -2,10 +2,8 @@ use crate::model::{parse_lines, EnumDescriptions};
 use convert_case::{Case, Casing};
 use lazy_static::lazy_static;
 use proc_macro2::{Ident, Literal, Span};
-use std::{
-    collections::{HashMap, HashSet},
-    vec,
-};
+use std::collections::BTreeMap;
+use std::{collections::HashSet, vec};
 use syn::{
     __private::quote::format_ident, parse_quote, punctuated::Punctuated, token::Comma, ExprMatch,
     Item, ItemMod, Variant, Visibility,
@@ -43,7 +41,13 @@ pub fn generator() -> syn::File {
     ];
     let enums: EnumDescriptions =
         serde_yaml::from_str(include_str!("../ros_model/enums.yaml")).unwrap();
-    for item in generate_enums(&enums.0) {
+
+    for item in generate_enums(
+        enums
+            .0
+            .into_iter()
+            .map(|(key, values)| (name2ident(key.as_ref()), values)),
+    ) {
         items.push(item);
     }
 
@@ -54,16 +58,19 @@ pub fn generator() -> syn::File {
     let mut append_field_match: ExprMatch = parse_quote! {match self{}};
     let mut build_match: ExprMatch = parse_quote! {match self{}};
 
+    let mut known_references = BTreeMap::new();
+
     for content in [
         include_str!("../ros_model/system.txt"),
         include_str!("../ros_model/interface.txt"),
         include_str!("../ros_model/bridge.txt"),
         include_str!("../ros_model/ip.txt"),
+        include_str!("../ros_model/ospf.txt"),
     ] {
         let entries = parse_lines(content.lines());
 
         for entity in entries.iter() {
-            let (entity_items, enum_fields) = entity.generate_code();
+            let (entity_items, enum_fields, references) = entity.generate_code();
             for item in entity_items {
                 items.push(item);
             }
@@ -84,10 +91,13 @@ pub fn generator() -> syn::File {
                     .arms
                     .push(parse_quote! {Self::#name(builder)=>Resource::#name(<#builder_type as resource::DeserializeRosBuilder<#data_type>>::build(builder)?)});
             }
+            for entry in references {
+                known_references.insert(entry.name, entry.data);
+            }
         }
     }
     items.push(parse_quote!(
-        #[derive(Copy,Debug,Clone,PartialEq)]
+        #[derive(Copy,Debug,Clone,PartialEq, Hash)]
         pub enum ResourceType {#resource_enum_variants}
     ));
     items.push(parse_quote!(
@@ -120,6 +130,16 @@ pub fn generator() -> syn::File {
             }
         }
     ));
+
+    let mut reference_enum_variants: Punctuated<Variant, Comma> = Punctuated::new();
+    for (name, _) in known_references {
+        reference_enum_variants.push(parse_quote!(#name));
+    }
+    items.push(parse_quote!(
+        #[derive(Copy,Debug,Clone,PartialEq, Hash)]
+        pub enum ReferenceType {#reference_enum_variants}
+    ));
+
     let module = vec![Item::Mod(ItemMod {
         attrs: vec![],
         vis: Visibility::Public(Default::default()),
@@ -137,11 +157,10 @@ pub fn generator() -> syn::File {
     }
 }
 
-fn generate_enums(
-    enums: &HashMap<Box<str>, Box<[Box<str>]>>,
-) -> impl Iterator<Item = Item> + use<'_> {
-    enums.iter().flat_map(|(name, values)| {
-        let name = Ident::new(&derive_ident(name), Span::call_site());
+fn generate_enums<'a, T: Iterator<Item=(Ident, Box<[Box<str>]>)>>(
+    enums: T,
+) -> impl Iterator<Item=Item> + use < 'a, T > {
+    enums.flat_map(|(name, values)| {
         let mut enum_variants: Punctuated<Variant, Comma> = Punctuated::new();
         let mut parse_match: ExprMatch = parse_quote!(match value {});
         let mut encode_match: ExprMatch = parse_quote!(match self {});
@@ -159,7 +178,7 @@ fn generate_enums(
                     .arms
                     .push(parse_quote!(#name::Value(v) => v.encode_ros()))
             } else {
-                let ident = Ident::new(&derive_ident(value), Span::call_site());
+                let ident = Ident::new(&derive_ident(value.as_ref()), Span::call_site());
                 let value = Literal::byte_string(value.as_bytes());
                 enum_variants.push(parse_quote!(#ident));
                 parse_match.arms.push(parse_quote!(#value => crate::value::ParseRosValueResult::Value(#name::#ident),));
@@ -171,7 +190,7 @@ fn generate_enums(
         parse_match.arms.push(default_arm);
         [
             parse_quote! {
-                #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+                #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
                 pub enum #name {
                     #enum_variants
                 }
@@ -208,7 +227,7 @@ fn derive_ident(value: &str) -> String {
 #[cfg(test)]
 mod test {
     use crate::model::{parse_lines, EnumDescriptions};
-    use crate::{generate_enums, generator};
+    use crate::{generate_enums, generator, name2ident};
     use std::fs::File;
     use std::io::read_to_string;
     use syn::__private::ToTokens;
@@ -217,7 +236,12 @@ mod test {
     fn test_read_enums() {
         let file = File::open("ros_model/enums.yaml").unwrap();
         let enums: EnumDescriptions = serde_yaml::from_reader(&file).unwrap();
-        for x in generate_enums(&enums.0) {
+        for x in generate_enums(
+            enums
+                .0
+                .into_iter()
+                .map(|(key, values)| (name2ident(key.as_ref()), values)),
+        ) {
             println!("{}", x.to_token_stream());
         }
     }
@@ -238,4 +262,11 @@ mod test {
     fn test_call_generate() {
         generator();
     }
+}
+
+fn name2ident(name: &str) -> Ident {
+    Ident::new(
+        cleanup_field_name(name).to_case(Case::UpperCamel).as_str(),
+        Span::call_site(),
+    )
 }

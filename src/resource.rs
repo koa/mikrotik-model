@@ -1,9 +1,12 @@
-use crate::value::{KeyValuePair, RosValue};
 use encoding_rs::mem::decode_latin1;
 use log::{debug, error};
 
-use crate::model::{Resource, ResourceType};
-use crate::MikrotikDevice;
+use crate::{
+    ascii::AsciiString,
+    model::{ReferenceType, Resource, ResourceType},
+    value::{KeyValuePair, RosValue},
+    MikrotikDevice,
+};
 use mikrotik_api::prelude::{ParsedMessage, TrapCategory, TrapResult};
 use std::fmt::{Debug, Display, Formatter};
 use thiserror::Error;
@@ -41,7 +44,17 @@ pub trait DeserializeRosResource: Sized {
     type Builder: DeserializeRosBuilder<Self>;
     fn unwrap_resource(resource: Resource) -> Option<Self>;
     fn resource_type() -> ResourceType;
+
+    fn update_reference<V: RosValue + 'static>(
+        &mut self,
+        ref_type: ReferenceType,
+        old_value: &V,
+        new_value: &V,
+    ) -> bool {
+        false
+    }
 }
+
 pub trait DeserializeRosBuilder<R: DeserializeRosResource> {
     type Context: Send + Sync + Debug;
     fn init(context: &Self::Context) -> Self;

@@ -1,14 +1,16 @@
-use crate::{cleanup_field_name, derive_ident, generate_enums, KEYWORDS};
+use crate::{cleanup_field_name, generate_enums, KEYWORDS};
 use convert_case::{Case, Casing};
 use proc_macro2::{Ident, Literal, Span};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
+use syn::Stmt;
+use syn::__private::ToTokens;
 use syn::{
     parse_quote,
     punctuated::Punctuated,
     token::{Colon, Comma},
-    Expr, ExprArray, ExprMatch, ExprStruct, FieldValue, FieldsNamed, FnArg, ImplItem,
-    Item, ItemImpl, Member, Path, PathSegment, Token, Type, TypePath,
+    Block, Expr, ExprArray, ExprMatch, ExprStruct, FieldValue, FieldsNamed, FnArg, ImplItem, Item,
+    ItemFn, ItemImpl, Member, Path, PathSegment, Token, Type, TypePath,
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -28,6 +30,13 @@ pub struct RosTypeEntry {
     pub builder: Type,
     pub data: Type,
 }
+pub struct ReferenceEntry {
+    pub name: Ident,
+    pub field_name: Box<str>,
+    pub field_ident: Ident,
+    pub incoming: bool,
+    pub data: Type,
+}
 
 impl Entity {
     pub fn generate_code(
@@ -35,11 +44,12 @@ impl Entity {
     ) -> (
         impl IntoIterator<Item=Item>,
         impl IntoIterator<Item=RosTypeEntry>,
+        impl IntoIterator<Item=ReferenceEntry>,
     ) {
-        let mut inline_enums = HashMap::new();
-        let (struct_field_types, builder_field_types) = self.create_field_types(&mut inline_enums);
-        let mut items: Vec<Item> = Vec::with_capacity(5);
-        let mut enum_entries: Vec<RosTypeEntry> = Vec::with_capacity(1);
+        let (struct_field_types, builder_field_types) = self.create_field_types();
+        let mut items: Vec<Item> = Vec::with_capacity(50);
+        let mut enum_entries: Vec<RosTypeEntry> = Vec::with_capacity(10);
+        let references = self.collect_references();
 
         let has_cfg_struct = self
             .modifiable_fields_iterator(&struct_field_types)
@@ -67,33 +77,28 @@ impl Entity {
                     cfg_struct_items.push(self.create_constructor(&struct_field_types));
                     items.push(self.create_createable_impl(&struct_field_types));
                 }
-                for (id_field, (id_field_type, id_builder_type)) in self
-                    .fields
-                    .iter()
-                    .zip(struct_field_types.iter().zip(builder_field_types.iter()))
-                    .filter(|(f, _)| f.is_key)
-                {
+                for id_field in self.fields.iter().filter(|f| f.is_key) {
                     items.push(self.generate_deserialize_for_id(id_field));
                     items.push(self.generate_ros_resource_for_id(id_field));
                     enum_entries.push(self.create_id_enum_entry(id_field));
                     if id_field.is_read_only {
-                        items.push(self.generate_id_struct_external(id_field, id_field_type));
-                        items.push(self.generate_id_builder_external(id_field, id_builder_type));
+                        items.push(self.generate_id_struct_external(id_field));
+                        items.push(self.generate_id_builder_external(id_field));
                         items.push(self.generate_deserialize_builder_for_id_external(id_field));
-                        items.push(self.generate_keyed_for_id_external(id_field, id_field_type));
+                        items.push(self.generate_keyed_for_id_external(id_field));
                         items.push(self.generate_cfg_for_id_external(id_field));
                     } else {
                         items.push(self.generate_id_struct_internal(id_field));
                         items.push(self.generate_id_builder_internal(id_field));
                         items.push(self.generate_deserialize_builder_for_id_internal(id_field));
-                        items.push(self.generate_keyed_for_id_internal(id_field, id_field_type));
+                        items.push(self.generate_keyed_for_id_internal(id_field));
                         items.push(self.generate_cfg_for_id_internal(id_field));
                     }
                     if has_readonly_fields {
                         items.push(self.generate_deserialize_for_id_combined(id_field));
                         items.push(self.generate_ros_for_id_combined(id_field));
                         items.push(self.generate_deserialize_builder_for_id_combined(id_field));
-                        items.push(self.generate_keyed_for_id_combined(id_field, id_field_type));
+                        items.push(self.generate_keyed_for_id_combined(id_field));
                         enum_entries.push(self.create_id_enum_entry_combined(id_field));
                     }
                 }
@@ -122,11 +127,50 @@ impl Entity {
             items.push(self.generate_ros_for_combined_struct());
         }
         (
-            generate_enums(&inline_enums)
+            generate_enums(self.collect_enum_field_types())
                 .chain(items)
                 .collect::<Vec<_>>(),
             enum_entries,
+            references,
         )
+    }
+
+    fn collect_enum_field_types(&self) -> impl Iterator<Item=(Ident, Box<[Box<str>]>)> + use < '_ > {
+        self.fields
+            .iter()
+            .filter_map(|field| self.enum_field_type(field))
+    }
+
+    fn collect_references(&self) -> Box<[ReferenceEntry]> {
+        self.referencing_fields()
+            .map(|(name, incoming, field, field_type)| ReferenceEntry {
+                name,
+                field_name: field.name.clone(),
+                field_ident: field.generate_field_name(),
+                incoming,
+                data: field_type.clone(),
+            })
+            .collect()
+    }
+
+    fn referencing_fields(&self) -> impl Iterator<Item=(Ident, bool, &Field, Type)> {
+        self.fields
+            .iter()
+            .filter_map(|field| match &field.reference {
+                Reference::None => None,
+                Reference::IsReference(r) => Some((
+                    crate::name2ident(r.as_ref()),
+                    true,
+                    field,
+                    self.base_field_type(field),
+                )),
+                Reference::RefereesTo(r) => Some((
+                    crate::name2ident(r.as_ref()),
+                    false,
+                    field,
+                    self.base_field_type(field),
+                )),
+            })
     }
 
     fn create_cfg_builder_struct(&self, builder_field_types: &[Type]) -> Item {
@@ -164,6 +208,12 @@ impl Entity {
             self.struct_type(),
             self.struct_builder(),
             self.struct_ident(),
+            Some(parse_quote! {
+                fn update_reference<V: value::RosValue>(&mut self,ref_type: ReferenceType,old_value: &V,new_value: &V) -> bool {
+                    self.cfg.update_reference(ref_type, old_value, new_value)|
+                    self.status.update_reference(ref_type, old_value, new_value)
+                }
+            }),
         )
     }
 
@@ -180,7 +230,8 @@ impl Entity {
         }
     }
 
-    fn generate_keyed_for_id_combined(&self, id_field: &Field, id_field_type: &Type) -> Item {
+    fn generate_keyed_for_id_combined(&self, id_field: &Field) -> Item {
+        let id_field_type = self.struct_field_type(id_field);
         let field_name = id_field.attribute_name();
         let struct_ident_status = self.struct_status_type();
         let id_struct_ident = self.id_struct_type(id_field);
@@ -205,10 +256,21 @@ impl Entity {
             self.data_tuples_for_id_combined(id_field),
             self.builder_tuples_for_id_combined(id_field),
             self.id_struct_ident_combined(id_field),
+            Some(parse_quote! {
+                fn update_reference<V: value::RosValue>(&mut self,ref_type: ReferenceType,old_value: &V,new_value: &V) -> bool {
+                    self.0.update_reference(ref_type, old_value, new_value)|
+                    self.1.update_reference(ref_type, old_value, new_value)
+                }
+            }),
         )
     }
 
-    fn generate_deserialize(data_type: Type, builder_type: Type, variant_name: Ident) -> Item {
+    fn generate_deserialize(
+        data_type: Type,
+        builder_type: Type,
+        variant_name: Ident,
+        update_reference_fn: Option<ItemFn>,
+    ) -> Item {
         parse_quote! {
             impl resource::DeserializeRosResource for #data_type {
                 type Builder=#builder_type;
@@ -222,7 +284,7 @@ impl Entity {
                 fn resource_type()->ResourceType{
                     ResourceType::#variant_name
                 }
-
+                #update_reference_fn
             }
         }
     }
@@ -255,7 +317,8 @@ impl Entity {
         item
     }
 
-    fn generate_keyed_for_id_internal(&self, id_field: &Field, id_field_type: &Type) -> Item {
+    fn generate_keyed_for_id_internal(&self, id_field: &Field) -> Item {
+        let id_field_type = self.struct_field_type(id_field);
         let id_struct_ident = self.id_struct_type(id_field);
         let field_name = id_field.attribute_name();
         let id_field_name = id_field.generate_field_name();
@@ -304,7 +367,8 @@ impl Entity {
         item
     }
 
-    fn generate_keyed_for_id_external(&self, id_field: &Field, id_field_type: &Type) -> Item {
+    fn generate_keyed_for_id_external(&self, id_field: &Field) -> Item {
+        let id_field_type = self.struct_field_type(id_field);
         let field_name = id_field.attribute_name();
         let id_field_name = id_field.generate_field_name();
         let id_struct_ident = self.id_struct_type(id_field);
@@ -327,14 +391,38 @@ impl Entity {
     fn generate_deserialize_for_id(&self, id_field: &Field) -> Item {
         let id_struct_ident = self.id_struct_type(id_field);
         let builder_name = self.id_struct_builder_ident(id_field);
-        Self::generate_deserialize(
-            id_struct_ident,
-            builder_name,
-            self.id_struct_ident(id_field),
-        )
+        let ident = self.id_struct_ident(id_field);
+        let update_ref_fn = if id_field.is_read_only {
+            self
+                .update_reference_match_expr(|f| f == id_field)
+                .map(|update_reference_match|
+                    parse_quote! {
+                    fn update_reference<V: value::RosValue>(&mut self, ref_type: ReferenceType, old_value: &V, new_value: &V)->bool{
+                        let old_value_any=old_value as &dyn core::any::Any;
+                        let new_value_any=new_value as &dyn core::any::Any;
+                        let modified = {#update_reference_match};
+                        modified | self.data.update_reference(ref_type, old_value, new_value)
+                    }
+                }
+                ).unwrap_or_else(||
+                parse_quote! {
+                    fn update_reference<V: value::RosValue>(&mut self,ref_type: ReferenceType,old_value: &V,new_value: &V) -> bool {
+                        self.data.update_reference(ref_type, old_value, new_value)
+                    }
+                }
+            )
+        } else {
+            parse_quote! {
+                fn update_reference<V: value::RosValue>(&mut self,ref_type: ReferenceType,old_value: &V,new_value: &V) -> bool {
+                    self.0.update_reference(ref_type, old_value, new_value)
+                }
+            }
+        };
+        Self::generate_deserialize(id_struct_ident, builder_name, ident, Some(update_ref_fn))
     }
 
-    fn generate_id_struct_external(&self, id_field: &Field, id_field_type: &Type) -> Item {
+    fn generate_id_struct_external(&self, id_field: &Field) -> Item {
+        let id_field_type = self.struct_field_type(id_field);
         let struct_ident_cfg = self.struct_type_cfg();
         let id_struct_ident = self.id_struct_type(id_field);
         let id_field_name = id_field.generate_field_name();
@@ -353,7 +441,7 @@ impl Entity {
 
     fn id_struct_ident(&self, id_field: &Field) -> Ident {
         let struct_name = self.struct_name();
-        name2ident(&format!("{struct_name}By_{}", id_field.name))
+        crate::name2ident(&format!("{struct_name}By_{}", id_field.name))
     }
 
     fn id_struct_builder_ident(&self, id_field: &Field) -> Type {
@@ -370,6 +458,7 @@ impl Entity {
             self.struct_status_type(),
             self.struct_ident_builder_status(),
             self.struct_status_ident(),
+            self.update_reference_fn(|f| f.is_read_only),
         )
     }
 
@@ -489,7 +578,91 @@ impl Entity {
             self.struct_type_cfg(),
             self.struct_ident_cfg_builder(),
             self.struct_ident_cfg(),
+            self.update_reference_fn(|f| !f.is_read_only),
         )
+    }
+
+    fn update_reference_fn(&self, field_filter: impl Fn(&Field) -> bool) -> Option<ItemFn> {
+        self.update_reference_match_expr(field_filter).map(|update_reference_match|
+            parse_quote! {
+                fn update_reference<V: value::RosValue>(&mut self, ref_type: ReferenceType, old_value: &V, new_value: &V)->bool{
+                    let old_value_any=old_value as &dyn core::any::Any;
+                    let new_value_any=new_value as &dyn core::any::Any;
+                    #update_reference_match
+                }
+            }
+        )
+    }
+
+    fn update_reference_match_expr(
+        &self,
+        field_filter: impl Fn(&Field) -> bool + Sized,
+    ) -> Option<ExprMatch> {
+        let mut fields_of_type = BTreeMap::new();
+        for (reference_ident, _, field, _) in self
+            .referencing_fields()
+            .filter(|(_, _, f, _)| field_filter(f))
+        {
+            let base_type = self.base_field_type(field);
+            fields_of_type
+                .entry(reference_ident)
+                .or_insert_with(HashMap::new)
+                .entry(base_type.to_token_stream().to_string())
+                .or_insert_with(|| (base_type, Vec::new()))
+                .1
+                .push(field);
+        }
+        let update_reference_fn: Option<ExprMatch> = if fields_of_type.is_empty() {
+            None
+        } else {
+            let mut update_reference_match: ExprMatch = parse_quote! {match ref_type{}};
+            for (reference_type, entries_of_type) in fields_of_type {
+                let mut reference_block: Block = parse_quote!({
+                    let mut modified = false;
+                });
+                for (base_type, fields_of_type) in entries_of_type.values() {
+                    let mut type_block: Block = parse_quote!({});
+
+                    for field in fields_of_type {
+                        let field_name = field.generate_field_name();
+                        if field.is_multiple {
+                            type_block.stmts.push(parse_quote! {
+                                    if self.#field_name.remove(old_value) {
+                                        self.#field_name.insert(new_value.clone());
+                                        modified = true;
+                                    }
+                            });
+                        } else if field.is_optional {
+                            type_block.stmts.push(parse_quote! {
+                                    if Some(old_value)== self.#field_name.as_ref() {
+                                        self.#field_name = Some(new_value.clone());
+                                        modified = true;
+                                    }
+                            });
+                        } else {
+                            type_block.stmts.push(parse_quote! {
+                                    if old_value== &self.#field_name {
+                                        self.#field_name = new_value.clone();
+                                        modified = true;
+                                    }
+                            });
+                        }
+                    }
+                    reference_block.stmts.push(parse_quote! {
+                        if let (Some(old_value),Some(new_value)) = (old_value_any.downcast_ref::<#base_type>(),new_value_any.downcast_ref::<#base_type>())
+                            #type_block
+                    })
+                }
+                let return_statement = Stmt::Expr(parse_quote!(modified), None);
+                reference_block.stmts.push(return_statement);
+                update_reference_match
+                    .arms
+                    .push(parse_quote!(ReferenceType::#reference_type => #reference_block));
+            }
+            update_reference_match.arms.push(parse_quote!(_ => false));
+            Some(update_reference_match)
+        };
+        update_reference_fn
     }
 
     fn create_cfg_enum_entry(&self) -> RosTypeEntry {
@@ -605,26 +778,36 @@ impl Entity {
             .filter(|(f, _)| f.is_read_only)
     }
 
-    fn create_field_types(
-        &self,
-        inline_enums: &mut HashMap<Box<str>, Box<[Box<str>]>>,
-    ) -> (Vec<Type>, Vec<Type>) {
+    fn create_field_types(&self) -> (Vec<Type>, Vec<Type>) {
         let mut struct_field_types = Vec::new();
         let mut builder_field_types = Vec::new();
         for field in self.fields.iter() {
-            let enum_type = if let Some(enum_values) = field.inline_enum.as_ref() {
-                let struct_name = self.struct_name();
-                let enum_name = format!("{struct_name}_{}", field.name);
-                let enum_type = Ident::new(&derive_ident(&enum_name), Span::call_site());
-                inline_enums.insert(enum_name.into_boxed_str(), enum_values.clone());
-                Some(parse_quote!(#enum_type))
-            } else {
-                None
-            };
-            struct_field_types.push(field.generate_struct_field_type(enum_type.clone()));
-            builder_field_types.push(field.generate_builder_type(enum_type));
+            struct_field_types.push(self.struct_field_type(field));
+            builder_field_types.push(self.builder_field_type(field));
         }
         (struct_field_types, builder_field_types)
+    }
+
+    fn builder_field_type(&self, field: &Field) -> Type {
+        field.generate_builder_type(self.enum_field_type(field).map(|(ty, _)| ident2type(ty)))
+    }
+
+    fn struct_field_type(&self, field: &Field) -> Type {
+        field.generate_struct_field_type(self.enum_field_type(field).map(|(ty, _)| ident2type(ty)))
+    }
+    fn base_field_type(&self, field: &Field) -> Type {
+        field.generate_base_field_type(self.enum_field_type(field).map(|(ty, _)| ident2type(ty)))
+    }
+
+    fn enum_field_type(&self, field: &Field) -> Option<(Ident, Box<[Box<str>]>)> {
+        if let Some(enum_values) = field.inline_enum.as_ref() {
+            let struct_name = self.struct_name();
+            let enum_name = format!("{struct_name}_{}", field.name);
+            let enum_type = crate::name2ident(&enum_name);
+            Some((enum_type, enum_values.clone()))
+        } else {
+            None
+        }
     }
 
     fn struct_type_cfg(&self) -> Type {
@@ -633,7 +816,7 @@ impl Entity {
 
     fn struct_ident_cfg(&self) -> Ident {
         let struct_name = self.struct_name();
-        name2ident(&format!("{struct_name}Cfg"))
+        crate::name2ident(&format!("{struct_name}Cfg"))
     }
 
     fn struct_ident_cfg_builder(&self) -> Type {
@@ -649,7 +832,7 @@ impl Entity {
     fn struct_status_ident(&self) -> Ident {
         let struct_name = self.struct_name();
         let string = format!("{struct_name}State");
-        name2ident(&string)
+        crate::name2ident(&string)
     }
 
     fn struct_ident_builder_status(&self) -> Type {
@@ -662,7 +845,7 @@ impl Entity {
     }
 
     fn struct_ident(&self) -> Ident {
-        name2ident(&self.struct_name())
+        crate::name2ident(&self.struct_name())
     }
 
     fn struct_builder(&self) -> Type {
@@ -751,7 +934,8 @@ impl Entity {
         }
     }
 
-    fn generate_id_builder_external(&self, id_field: &Field, id_builder_type: &Type) -> Item {
+    fn generate_id_builder_external(&self, id_field: &Field) -> Item {
+        let id_builder_type = self.builder_field_type(id_field);
         let field_name = id_field.generate_field_name();
         let builder_name = self.id_struct_builder_ident(id_field);
         let data_name = self.struct_ident_cfg_builder();
@@ -957,23 +1141,16 @@ impl Entity {
 
     fn id_struct_ident_combined(&self, id_field: &Field) -> Ident {
         let struct_name = self.struct_name();
-        name2ident(&format!("{struct_name}By_{}WithState", id_field.name))
+        crate::name2ident(&format!("{struct_name}By_{}WithState", id_field.name))
     }
 }
 
 fn name2type(name: &str) -> Type {
-    ident2type(name2ident(name))
+    ident2type(crate::name2ident(name))
 }
 
 fn ident2type(ident: Ident) -> Type {
     parse_quote!(#ident)
-}
-
-fn name2ident(name: &str) -> Ident {
-    Ident::new(
-        cleanup_field_name(name).to_case(Case::UpperCamel).as_str(),
-        Span::call_site(),
-    )
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Default)]
@@ -1015,12 +1192,25 @@ impl Field {
     }
 
     fn generate_struct_field_type(&self, enum_field_type: Option<Type>) -> Type {
-        self.generate_field_type(enum_field_type, false)
+        let field_type = self.generate_base_field_type(enum_field_type);
+        if self.is_multiple {
+            parse_quote!(std::collections::BTreeSet<#field_type>)
+        } else if self.is_optional {
+            parse_quote!(Option<#field_type>)
+        } else {
+            field_type
+        }
     }
     fn generate_builder_type(&self, enum_field_type: Option<Type>) -> Type {
-        self.generate_field_type(enum_field_type, true)
+        let field_type = self.generate_base_field_type(enum_field_type);
+        if self.is_multiple {
+            parse_quote!(std::collections::BTreeSet<#field_type>)
+        } else {
+            parse_quote!(Option<#field_type>)
+        }
     }
-    fn generate_field_type(&self, enum_field_type: Option<Type>, for_builder: bool) -> Type {
+
+    fn generate_base_field_type(&self, enum_field_type: Option<Type>) -> Type {
         let field_type = self
             .field_type
             .as_ref()
@@ -1064,15 +1254,8 @@ impl Field {
         } else {
             field_type
         };
-        let field_type = if self.is_rxtx_pair {
+        if self.is_rxtx_pair {
             parse_quote!(value::RxTxPair<#field_type>)
-        } else {
-            field_type
-        };
-        if self.is_multiple {
-            parse_quote!(std::collections::HashSet<#field_type>)
-        } else if self.is_optional || for_builder {
-            parse_quote!(Option<#field_type>)
         } else {
             field_type
         }

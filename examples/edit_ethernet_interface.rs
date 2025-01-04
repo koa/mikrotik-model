@@ -3,8 +3,8 @@ use encoding_rs::mem::decode_latin1;
 use env_logger::{Env, TimestampPrecision};
 use mikrotik_model::ascii::AsciiString;
 use mikrotik_model::generator::Generator;
-use mikrotik_model::model::InterfaceEthernetByDefaultName;
 use mikrotik_model::model::InterfaceEthernetState;
+use mikrotik_model::model::{EthernetSpeed, InterfaceEthernetByDefaultName};
 use mikrotik_model::resource::{KeyedResource, Updatable};
 use mikrotik_model::{Credentials, MikrotikDevice};
 use std::net::{IpAddr, Ipv4Addr};
@@ -59,7 +59,12 @@ async fn main() -> anyhow::Result<()> {
         }
 
         //new_if.0.name = format!("e{:02}", idx + 1).into();
-        //new_if.0.advertise=HashSet::from([EthernetSpeed::_100MBaseTFull, EthernetSpeed::_100MBaseTHalf, EthernetSpeed::_1GBaseTFull]);
+        new_if.data.advertise = [
+            EthernetSpeed::_100MBaseTFull,
+            EthernetSpeed::_100MBaseTHalf,
+            EthernetSpeed::_1GBaseTFull,
+        ]
+        .into();
         generator.append_mutation(&new_if.calculate_update(interface))?;
     }
     println!("{cfg}");

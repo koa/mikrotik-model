@@ -1,0 +1,14 @@
+/routing/ospf/instance
+domain-id: o
+domain-tag: o;u32
+in-filter: o; ref=>routing-filter
+mpls-te-address: o
+mpls-te-area: o
+originate-default: o; enum=always,if-installed,never
+out-filter-chain: o; ref=>routing-filter
+out-filter-select: o; ref=>routing-filter-select
+redistribute: mu; enum=bgp,connected,copy,dhcp,fantasy,modem,ospf,rip,static,vpn
+router-id: o
+version: enum=2,3
+vrf: ref=>routing-table
+use-dn: bool

@@ -4,7 +4,7 @@ use ipnet::IpNet;
 use log::warn;
 use mac_address::MacAddress;
 use std::borrow::Cow;
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::fmt::{Debug, Formatter, Write};
 use std::hash::Hash;
 use std::net::IpAddr;
@@ -70,7 +70,7 @@ impl<V: Clone> Clone for ParseRosValueResult<V> {
 }
 impl<V: Copy> Copy for ParseRosValueResult<V> {}
 
-pub trait RosValue: Sized {
+pub trait RosValue: Sized + 'static {
     fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self>;
     fn encode_ros(&self) -> Cow<[u8]>;
 }
@@ -233,30 +233,61 @@ impl<V: RosValue> RosValue for Option<V> {
 }
 impl<V: RosValue + Hash + Eq> RosValue for HashSet<V> {
     fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
-        if value.is_empty() {
-            ParseRosValueResult::Value(HashSet::new())
-        } else {
-            let mut result = HashSet::new();
-            for value in value.split(|ch| *ch == b',').map(V::parse_ros) {
-                match value {
-                    ParseRosValueResult::None => {}
-                    ParseRosValueResult::Value(v) => {
-                        result.insert(v);
-                    }
-                    ParseRosValueResult::Invalid => return ParseRosValueResult::Invalid,
-                }
-            }
-            ParseRosValueResult::Value(result)
+        let mut result = HashSet::new();
+        match parse_ros_multiple(value, |v| {
+            result.insert(v);
+        }) {
+            Ok(_) => ParseRosValueResult::Value(result),
+            Err(_) => ParseRosValueResult::Invalid,
         }
     }
 
     fn encode_ros(&self) -> Cow<[u8]> {
-        let mut ret = Vec::new();
-        for value in self {
-            ret.extend_from_slice(value.encode_ros().as_ref());
-        }
-        ret.into()
+        encode_ros_multiple(self.iter())
     }
+}
+impl<V: RosValue + Ord + Eq> RosValue for BTreeSet<V> {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
+        let mut result = BTreeSet::new();
+        match parse_ros_multiple(value, |v| {
+            result.insert(v);
+        }) {
+            Ok(_) => ParseRosValueResult::Value(result),
+            Err(_) => ParseRosValueResult::Invalid,
+        }
+    }
+
+    fn encode_ros(&self) -> Cow<[u8]> {
+        encode_ros_multiple(self.iter())
+    }
+}
+
+fn parse_ros_multiple<V: RosValue>(value: &[u8], mut appender: impl FnMut(V)) -> Result<(), ()> {
+    if !(value.is_empty()) {
+        for value in value.split(|ch| *ch == b',').map(V::parse_ros) {
+            match value {
+                ParseRosValueResult::None => {}
+                ParseRosValueResult::Value(v) => {
+                    appender(v);
+                }
+                ParseRosValueResult::Invalid => return Err(()),
+            }
+        }
+    }
+    Ok(())
+}
+
+fn encode_ros_multiple<'a>(
+    values: impl Iterator<Item = &'a (impl RosValue + 'a)>,
+) -> Cow<'static, [u8]> {
+    let mut ret = Vec::new();
+    for value in values {
+        if !ret.is_empty() {
+            ret.push(b',');
+        }
+        ret.extend_from_slice(value.encode_ros().as_ref());
+    }
+    ret.into()
 }
 #[derive(Debug, Clone, PartialEq)]
 pub enum Auto<V: RosValue> {
