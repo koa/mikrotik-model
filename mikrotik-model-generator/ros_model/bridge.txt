@@ -1,6 +1,6 @@
 /interface/bridge/port
 .id: id;ro
-.nextid: id;ro
+.nextid: ro
 broadcast-flood: bool
 edge: enum=auto,no,no-discover,yes,yes-discover
 interface: ref=>interface

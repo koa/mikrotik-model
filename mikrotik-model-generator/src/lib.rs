@@ -2,11 +2,12 @@ use crate::model::{parse_lines, EnumDescriptions};
 use convert_case::{Case, Casing};
 use lazy_static::lazy_static;
 use proc_macro2::{Ident, Literal, Span};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::{collections::HashSet, vec};
+use syn::__private::ToTokens;
 use syn::{
     __private::quote::format_ident, parse_quote, punctuated::Punctuated, token::Comma, ExprMatch,
-    Item, ItemMod, Variant, Visibility,
+    FieldValue, FieldsNamed, Item, ItemMod, Variant, Visibility,
 };
 
 mod model;
@@ -51,14 +52,10 @@ pub fn generator() -> syn::File {
         items.push(item);
     }
 
-    let mut resource_enum_variants: Punctuated<Variant, Comma> = Punctuated::new();
-    let mut resource_result_enum_variants: Punctuated<Variant, Comma> = Punctuated::new();
-    let mut resource_builder_enum_variants: Punctuated<Variant, Comma> = Punctuated::new();
-    let mut resource_init_match: ExprMatch = parse_quote! {match self{}};
-    let mut append_field_match: ExprMatch = parse_quote! {match self{}};
-    let mut build_match: ExprMatch = parse_quote! {match self{}};
-
     let mut known_references = BTreeMap::new();
+
+    let mut all_generated_types = Vec::new();
+    let mut incoming_chain_edges = HashMap::new();
 
     for content in [
         include_str!("../ros_model/system.txt"),
@@ -74,30 +71,109 @@ pub fn generator() -> syn::File {
             for item in entity_items {
                 items.push(item);
             }
-            for field in enum_fields {
-                let name = field.name;
-                let data_type = field.data;
-                let builder_type = field.builder;
-                resource_enum_variants.push(parse_quote!(#name));
-                resource_result_enum_variants.push(parse_quote!(#name(#data_type)));
-                resource_builder_enum_variants.push(parse_quote!(#name(#builder_type)));
-                resource_init_match.arms.push(
-                    parse_quote! {ResourceType::#name=>ResourceBuilder::#name(Default::default())},
-                );
-                append_field_match
-                    .arms
-                    .push(parse_quote! {Self::#name(builder)=><#builder_type as resource::DeserializeRosBuilder<#data_type>>::append_field(builder, key, value)});
-                build_match
-                    .arms
-                    .push(parse_quote! {Self::#name(builder)=>Resource::#name(<#builder_type as resource::DeserializeRosBuilder<#data_type>>::build(builder)?)});
-            }
+            let mut incoming_references = HashSet::new();
+            let mut outgoing_references = HashSet::new();
             for entry in references {
+                if entry.incoming {
+                    incoming_references.insert(entry.name.clone());
+                } else {
+                    outgoing_references.insert(entry.name.clone());
+                }
                 known_references.insert(entry.name, entry.data);
+            }
+
+            //incoming_references.retain(|e| !outgoing_references.contains(e));
+            for outgoing_ref in outgoing_references.iter() {
+                for incoming_ref in incoming_references.iter() {
+                    incoming_chain_edges
+                        .entry(outgoing_ref.clone())
+                        .or_insert_with(Vec::new)
+                        .push(incoming_ref.clone());
+                }
+            }
+            for field in enum_fields {
+                all_generated_types.push((
+                    field,
+                    incoming_references.clone(),
+                    outgoing_references.clone(),
+                ));
             }
         }
     }
+
+    let path_lengths_of_key = incoming_chain_edges
+        .keys()
+        .map(|reference| {
+            (
+                reference,
+                calculate_path_length(reference, &incoming_chain_edges, &[]),
+            )
+        })
+        .collect::<HashMap<_, _>>();
+    all_generated_types.sort_by_key(|(_, refs, _)| {
+        refs.iter()
+            .map(|r| path_lengths_of_key.get(r).copied().unwrap_or_default() + 1)
+            .max()
+            .unwrap_or_default()
+    });
+
+    let mut resource_enum_variants: Punctuated<Variant, Comma> = Punctuated::new();
+    let mut resource_result_enum_variants: Punctuated<Variant, Comma> = Punctuated::new();
+    let mut resource_builder_enum_variants: Punctuated<Variant, Comma> = Punctuated::new();
+    let mut resource_init_match: ExprMatch = parse_quote! {match self{}};
+    let mut append_field_match: ExprMatch = parse_quote! {match self{}};
+    let mut build_match: ExprMatch = parse_quote! {match self{}};
+    let mut resource2type_match: ExprMatch = parse_quote! {match self{}};
+    let mut data_fields = FieldsNamed {
+        brace_token: Default::default(),
+        named: Default::default(),
+    };
+    let mut data_loader_fields: Punctuated<FieldValue, Comma> = Punctuated::new();
+
+    for (field, incoming_references, outgoing_references) in all_generated_types {
+        let length = incoming_references
+            .iter()
+            .map(|r| path_lengths_of_key.get(r).copied().unwrap_or_default() + 1)
+            .max()
+            .unwrap_or_default();
+        let name = field.type_name;
+        /*println!(
+            "{name}: {}",
+            incoming_references
+                .iter()
+                .map(|r| r.to_token_stream().to_string())
+                .collect::<Vec<String>>()
+                .join(", ")
+        );
+        println!("{name}: {length}");*/
+        let data_type = field.data;
+        let builder_type = field.builder;
+        resource_enum_variants.push(parse_quote!(#name));
+        resource_result_enum_variants.push(parse_quote!(#name(#data_type)));
+        resource_builder_enum_variants.push(parse_quote!(#name(#builder_type)));
+        resource_init_match
+            .arms
+            .push(parse_quote! {ResourceType::#name=>ResourceBuilder::#name(Default::default())});
+        append_field_match
+            .arms
+            .push(parse_quote! {Self::#name(builder)=><#builder_type as resource::DeserializeRosBuilder<#data_type>>::append_field(builder, key, value)});
+        build_match
+            .arms
+            .push(parse_quote! {Self::#name(builder)=>Resource::#name(<#builder_type as resource::DeserializeRosBuilder<#data_type>>::build(builder)?)});
+        resource2type_match
+            .arms
+            .push(parse_quote! {Self::#name(_)=>ResourceType::#name});
+        if field.can_update {
+            let name = field.field_name;
+            data_fields
+                .named
+                .push(parse_quote!(pub #name: Vec<#data_type>));
+            data_loader_fields.push(parse_quote! {#name:crate::util::default_if_missing(<#data_type as resource::KeyedResource>::fetch_all(device).await)?});
+        }
+    }
+
     items.push(parse_quote!(
-        #[derive(Copy,Debug,Clone,PartialEq, Hash)]
+        #[derive(Copy,Debug,Clone,PartialEq, Hash, Eq)]
         pub enum ResourceType {#resource_enum_variants}
     ));
     items.push(parse_quote!(
@@ -113,6 +189,11 @@ pub fn generator() -> syn::File {
             pub fn create_builder(&self)->ResourceBuilder{
                 #resource_init_match
             }
+        }
+    });
+    items.push(parse_quote! {
+        impl Resource {
+            pub fn type_of(&self)->ResourceType{#resource2type_match}
         }
     });
     items.push(parse_quote!(
@@ -140,6 +221,21 @@ pub fn generator() -> syn::File {
         pub enum ReferenceType {#reference_enum_variants}
     ));
 
+    items.push(parse_quote!(
+        #[derive(Debug,Clone,PartialEq, Default)]
+        pub struct Data #data_fields
+    ));
+    items.push(parse_quote!(
+
+        impl Data {
+            pub async fn fetch_from_device(device: &crate::MikrotikDevice)->Result<Self,resource::Error>{
+                Ok(Self{
+                    #data_loader_fields
+                })
+            }
+        }
+    ));
+
     let module = vec![Item::Mod(ItemMod {
         attrs: vec![],
         vis: Visibility::Public(Default::default()),
@@ -157,9 +253,40 @@ pub fn generator() -> syn::File {
     }
 }
 
-fn generate_enums<'a, T: Iterator<Item=(Ident, Box<[Box<str>]>)>>(
+fn calculate_path_length(
+    key: &Ident,
+    chain_links: &HashMap<Ident, Vec<Ident>>,
+    current_path: &[&Ident],
+) -> usize {
+    if current_path.contains(&key) {
+        println!(
+            "Loop: {} -> {}",
+            current_path
+                .iter()
+                .map(|v| v.to_token_stream().to_string())
+                .collect::<Vec<String>>()
+                .join(", "),
+            key.to_token_stream().to_string()
+        );
+        0
+    } else {
+        let next_path = [current_path, &[key]].concat();
+        let mut current_max = 0;
+        if let Some(next_keys) = chain_links.get(key) {
+            for next_key in next_keys.iter() {
+                let candidate = calculate_path_length(next_key, chain_links, &next_path) + 1;
+                if candidate > current_max {
+                    current_max = candidate;
+                }
+            }
+        }
+        current_max
+    }
+}
+
+fn generate_enums<'a, T: Iterator<Item = (Ident, Box<[Box<str>]>)>>(
     enums: T,
-) -> impl Iterator<Item=Item> + use < 'a, T > {
+) -> impl Iterator<Item = Item> + use<'a, T> {
     enums.flat_map(|(name, values)| {
         let mut enum_variants: Punctuated<Variant, Comma> = Punctuated::new();
         let mut parse_match: ExprMatch = parse_quote!(match value {});
@@ -224,6 +351,7 @@ fn derive_ident(value: &str) -> String {
         base
     }
 }
+
 #[cfg(test)]
 mod test {
     use crate::model::{parse_lines, EnumDescriptions};
@@ -267,6 +395,12 @@ mod test {
 fn name2ident(name: &str) -> Ident {
     Ident::new(
         cleanup_field_name(name).to_case(Case::UpperCamel).as_str(),
+        Span::call_site(),
+    )
+}
+fn name2field_ident(name: &str) -> Ident {
+    Ident::new(
+        cleanup_field_name(name).to_case(Case::Snake).as_str(),
         Span::call_site(),
     )
 }

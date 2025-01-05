@@ -1,4 +1,4 @@
-use crate::{cleanup_field_name, generate_enums, KEYWORDS};
+use crate::{cleanup_field_name, generate_enums, name2field_ident, KEYWORDS};
 use convert_case::{Case, Casing};
 use proc_macro2::{Ident, Literal, Span};
 use serde::{Deserialize, Serialize};
@@ -26,9 +26,12 @@ pub struct Entity {
 }
 
 pub struct RosTypeEntry {
-    pub name: Ident,
+    pub type_name: Ident,
+    pub field_name: Ident,
     pub builder: Type,
     pub data: Type,
+    pub can_update: bool,
+    pub can_add: bool,
 }
 pub struct ReferenceEntry {
     pub name: Ident,
@@ -42,40 +45,33 @@ impl Entity {
     pub fn generate_code(
         &self,
     ) -> (
-        impl IntoIterator<Item=Item>,
-        impl IntoIterator<Item=RosTypeEntry>,
-        impl IntoIterator<Item=ReferenceEntry>,
+        impl IntoIterator<Item = Item>,
+        impl IntoIterator<Item = RosTypeEntry>,
+        impl IntoIterator<Item = ReferenceEntry>,
     ) {
-        let (struct_field_types, builder_field_types) = self.create_field_types();
         let mut items: Vec<Item> = Vec::with_capacity(50);
         let mut enum_entries: Vec<RosTypeEntry> = Vec::with_capacity(10);
         let references = self.collect_references();
 
-        let has_cfg_struct = self
-            .modifiable_fields_iterator(&struct_field_types)
-            .next()
-            .is_some();
-        let has_readonly_fields = self
-            .read_only_fields_iterator(&struct_field_types)
-            .next()
-            .is_some();
+        let has_cfg_struct = self.modifiable_fields_iterator().next().is_some();
+        let has_readonly_fields = self.read_only_fields_iterator().next().is_some();
 
         if has_cfg_struct {
-            items.push(self.create_cfg_struct(&struct_field_types));
-            items.push(self.create_cfg_builder_struct(&builder_field_types));
+            items.push(self.create_cfg_struct());
+            items.push(self.create_cfg_builder_struct());
             enum_entries.push(self.create_cfg_enum_entry());
             items.push(self.create_deserialize_for_cfg_struct());
             items.push(self.generate_ros_resource_for_cfg());
             items.push(self.create_deserialize_builder_for_cfg());
-            items.push(self.create_cfg_resource(&struct_field_types));
+            items.push(self.create_cfg_resource());
             let mut cfg_struct_items = Vec::new();
             if self.is_single {
                 items.push(self.single_resource_cfg());
                 items.push(self.updateable_cfg());
             } else {
                 if self.can_add {
-                    cfg_struct_items.push(self.create_constructor(&struct_field_types));
-                    items.push(self.create_createable_impl(&struct_field_types));
+                    cfg_struct_items.push(self.create_constructor());
+                    items.push(self.create_createable_impl());
                 }
                 for id_field in self.fields.iter().filter(|f| f.is_key) {
                     items.push(self.generate_deserialize_for_id(id_field));
@@ -111,8 +107,8 @@ impl Entity {
             }
         };
         if has_readonly_fields {
-            items.push(self.create_status_struct(&struct_field_types));
-            items.push(self.create_status_builder_struct(&builder_field_types));
+            items.push(self.create_status_struct());
+            items.push(self.create_status_builder_struct());
             items.push(self.create_deserialize_for_status_struct());
             items.push(self.create_ros_resource_for_status());
             items.push(self.create_deserialize_builder_for_status());
@@ -135,7 +131,7 @@ impl Entity {
         )
     }
 
-    fn collect_enum_field_types(&self) -> impl Iterator<Item=(Ident, Box<[Box<str>]>)> + use < '_ > {
+    fn collect_enum_field_types(&self) -> impl Iterator<Item = (Ident, Box<[Box<str>]>)> + use<'_> {
         self.fields
             .iter()
             .filter_map(|field| self.enum_field_type(field))
@@ -153,38 +149,38 @@ impl Entity {
             .collect()
     }
 
-    fn referencing_fields(&self) -> impl Iterator<Item=(Ident, bool, &Field, Type)> {
+    fn referencing_fields(&self) -> impl Iterator<Item = (Ident, bool, &Field, Type)> {
         self.fields
             .iter()
             .filter_map(|field| match &field.reference {
                 Reference::None => None,
                 Reference::IsReference(r) => Some((
                     crate::name2ident(r.as_ref()),
-                    true,
+                    false,
                     field,
                     self.base_field_type(field),
                 )),
                 Reference::RefereesTo(r) => Some((
                     crate::name2ident(r.as_ref()),
-                    false,
+                    true,
                     field,
                     self.base_field_type(field),
                 )),
             })
     }
 
-    fn create_cfg_builder_struct(&self, builder_field_types: &[Type]) -> Item {
+    fn create_cfg_builder_struct(&self) -> Item {
         let struct_name = self.struct_ident_cfg_builder();
-        let fields = self.modifiable_field_declarations(builder_field_types);
+        let fields = self.modifiable_field_declarations(|f| self.builder_field_type(f));
         parse_quote! {
             #[derive(Debug, Clone, PartialEq, Default)]
             pub struct #struct_name #fields
         }
     }
 
-    fn create_cfg_struct(&self, struct_field_types: &[Type]) -> Item {
+    fn create_cfg_struct(&self) -> Item {
         let struct_name = self.struct_type_cfg();
-        let fields = self.modifiable_field_declarations(struct_field_types);
+        let fields = self.modifiable_field_declarations(|f| self.struct_field_type(f));
         parse_quote! {
             #[derive(Debug, Clone, PartialEq)]
             pub struct #struct_name #fields
@@ -443,6 +439,10 @@ impl Entity {
         let struct_name = self.struct_name();
         crate::name2ident(&format!("{struct_name}By_{}", id_field.name))
     }
+    fn id_struct_ident_field(&self, id_field: &Field) -> Ident {
+        let struct_name = self.struct_name();
+        crate::name2field_ident(&format!("{struct_name}By_{}", id_field.name))
+    }
 
     fn id_struct_builder_ident(&self, id_field: &Field) -> Type {
         let struct_name = self.struct_name();
@@ -462,8 +462,8 @@ impl Entity {
         )
     }
 
-    fn create_status_struct(&self, field_types: &[Type]) -> Item {
-        let fields_named_status = self.create_status_fields(field_types);
+    fn create_status_struct(&self) -> Item {
+        let fields_named_status = self.create_status_fields(|f| self.struct_field_type(f));
         let struct_ident_status = self.struct_status_type();
         parse_quote! {
             #[derive(Debug, Clone, PartialEq)]
@@ -471,9 +471,9 @@ impl Entity {
         }
     }
 
-    fn create_createable_impl(&self, field_types: &[Type]) -> Item {
+    fn create_createable_impl(&self) -> Item {
         let struct_ident_cfg = self.struct_type_cfg();
-        let create_values_array = self.modifiable_field_creators(field_types);
+        let create_values_array = self.modifiable_field_creators();
         let item = parse_quote! {
             impl resource::Creatable for #struct_ident_cfg{
                 fn calculate_create(&self) -> resource::ResourceMutation<'_> {
@@ -488,12 +488,13 @@ impl Entity {
         item
     }
 
-    fn create_constructor(&self, field_types: &[Type]) -> ImplItem {
+    fn create_constructor(&self) -> ImplItem {
         let mut params: Punctuated<FnArg, Comma> = Default::default();
         let mut fields_named: Punctuated<FieldValue, Token![,]> = Punctuated::new();
 
-        for (field, field_type) in self.modifiable_fields_iterator(field_types) {
+        for field in self.modifiable_fields_iterator() {
             let field_name = field.generate_field_name();
+            let field_type = self.struct_field_type(field);
             if field.is_optional || field.is_multiple {
                 fields_named.push(FieldValue {
                     attrs: vec![],
@@ -539,9 +540,9 @@ impl Entity {
         item
     }
 
-    fn create_cfg_resource(&self, field_types: &[Type]) -> Item {
+    fn create_cfg_resource(&self) -> Item {
         let struct_ident_cfg = self.struct_type_cfg();
-        let changed_values_array = self.modifiable_field_updaters(field_types);
+        let changed_values_array = self.modifiable_field_updaters();
         parse_quote! {
             impl resource::CfgResource for #struct_ident_cfg {
                 #[allow(clippy::needless_lifetimes)]
@@ -666,45 +667,58 @@ impl Entity {
     }
 
     fn create_cfg_enum_entry(&self) -> RosTypeEntry {
-        let struct_ident = self.struct_ident_cfg();
+        let type_name = self.struct_ident_cfg();
         let builder = self.struct_ident_cfg_builder();
         let data = self.struct_type_cfg();
+        let field_name = self.struct_ident_cfg_field();
+
         RosTypeEntry {
-            name: struct_ident,
+            type_name,
             builder,
             data,
+            can_update: false,
+            can_add: self.can_add,
+            field_name,
         }
     }
     fn create_status_enum_entry(&self) -> RosTypeEntry {
-        let struct_ident = self.struct_status_ident();
+        let type_name = self.struct_status_ident();
         let builder = self.struct_ident_builder_status();
         let data = self.struct_status_type();
+        let field_name = self.struct_status_ident_field();
         RosTypeEntry {
-            name: struct_ident,
+            type_name,
+            field_name,
             builder,
             data,
+            can_update: false,
+            can_add: false,
         }
     }
     fn create_enum_entry(&self) -> RosTypeEntry {
-        let struct_ident = self.struct_ident();
+        let type_name = self.struct_ident();
         let builder = self.struct_builder();
         let data = self.struct_type();
         RosTypeEntry {
-            name: struct_ident,
+            type_name,
+            field_name: name2field_ident(&self.struct_name()),
             builder,
             data,
+            can_update: false,
+            can_add: false,
         }
     }
 
-    fn modifiable_field_creators(&self, field_types: &[Type]) -> ExprArray {
+    fn modifiable_field_creators(&self) -> ExprArray {
         let mut create_values_array = ExprArray {
             attrs: vec![],
             bracket_token: Default::default(),
             elems: Default::default(),
         };
-        for (field, field_type) in self.modifiable_fields_iterator(field_types) {
+        for field in self.modifiable_fields_iterator() {
             let field_key = Literal::byte_string(field.name.as_bytes());
             let field_name = field.generate_field_name();
+            let field_type = self.struct_field_type(field);
             create_values_array.elems.push(parse_quote! {
                 value::KeyValuePair {
                     key: #field_key,
@@ -715,13 +729,13 @@ impl Entity {
         create_values_array
     }
 
-    fn modifiable_field_updaters(&self, field_types: &[Type]) -> ExprArray {
+    fn modifiable_field_updaters(&self) -> ExprArray {
         let mut changed_values_array = ExprArray {
             attrs: vec![],
             bracket_token: Default::default(),
             elems: Default::default(),
         };
-        for (field, _) in self.modifiable_fields_iterator(field_types) {
+        for field in self.modifiable_fields_iterator() {
             changed_values_array
                 .elems
                 .push(field.compare_and_set_snippet());
@@ -729,13 +743,14 @@ impl Entity {
         changed_values_array
     }
 
-    fn modifiable_field_declarations(&self, field_types: &[Type]) -> FieldsNamed {
+    fn modifiable_field_declarations(&self, type_builder: impl Fn(&Field) -> Type) -> FieldsNamed {
         let mut fields_named_cfg = FieldsNamed {
             brace_token: Default::default(),
             named: Default::default(),
         };
-        for (f, field_type) in self.modifiable_fields_iterator(field_types) {
+        for f in self.modifiable_fields_iterator() {
             let field_name = f.generate_field_name();
+            let field_type = type_builder(f);
             fields_named_cfg
                 .named
                 .push(parse_quote!(pub #field_name: #field_type));
@@ -743,23 +758,18 @@ impl Entity {
         fields_named_cfg
     }
 
-    fn modifiable_fields_iterator<'a>(
-        &'a self,
-        field_types: &'a [Type],
-    ) -> impl Iterator<Item=(&'a Field, &'a Type)> {
-        self.fields
-            .iter()
-            .zip(field_types.iter())
-            .filter(|(f, _)| !f.is_read_only)
+    fn modifiable_fields_iterator(&self) -> impl Iterator<Item = &Field> {
+        self.fields.iter().filter(|f| !f.is_read_only)
     }
 
-    fn create_status_fields(&self, field_types: &[Type]) -> FieldsNamed {
+    fn create_status_fields(&self, type_builder: impl Fn(&Field) -> Type) -> FieldsNamed {
         let mut fields_named_status = FieldsNamed {
             brace_token: Default::default(),
             named: Default::default(),
         };
-        for (field, field_type) in self.read_only_fields_iterator(field_types) {
+        for field in self.read_only_fields_iterator() {
             let field_name = field.generate_field_name();
+            let field_type = type_builder(field);
             let field_def = parse_quote!(
                 pub #field_name: #field_type
             );
@@ -768,24 +778,8 @@ impl Entity {
         fields_named_status
     }
 
-    fn read_only_fields_iterator<'a>(
-        &'a self,
-        field_types: &'a [Type],
-    ) -> impl Iterator<Item=(&'a Field, &'a Type)> {
-        self.fields
-            .iter()
-            .zip(field_types.iter())
-            .filter(|(f, _)| f.is_read_only)
-    }
-
-    fn create_field_types(&self) -> (Vec<Type>, Vec<Type>) {
-        let mut struct_field_types = Vec::new();
-        let mut builder_field_types = Vec::new();
-        for field in self.fields.iter() {
-            struct_field_types.push(self.struct_field_type(field));
-            builder_field_types.push(self.builder_field_type(field));
-        }
-        (struct_field_types, builder_field_types)
+    fn read_only_fields_iterator(&self) -> impl Iterator<Item = &Field> {
+        self.fields.iter().filter(|f| f.is_read_only)
     }
 
     fn builder_field_type(&self, field: &Field) -> Type {
@@ -818,6 +812,10 @@ impl Entity {
         let struct_name = self.struct_name();
         crate::name2ident(&format!("{struct_name}Cfg"))
     }
+    fn struct_ident_cfg_field(&self) -> Ident {
+        let struct_name = self.struct_name();
+        crate::name2field_ident(&format!("{struct_name}Cfg"))
+    }
 
     fn struct_ident_cfg_builder(&self) -> Type {
         let struct_name = self.struct_name();
@@ -831,8 +829,11 @@ impl Entity {
 
     fn struct_status_ident(&self) -> Ident {
         let struct_name = self.struct_name();
-        let string = format!("{struct_name}State");
-        crate::name2ident(&string)
+        crate::name2ident(&format!("{struct_name}State"))
+    }
+    fn struct_status_ident_field(&self) -> Ident {
+        let struct_name = self.struct_name();
+        crate::name2field_ident(&format!("{struct_name}State"))
     }
 
     fn struct_ident_builder_status(&self) -> Type {
@@ -868,7 +869,7 @@ impl Entity {
         )
     }
 
-    fn generate_deserialize_for_builder<'a, F: Fn() -> I, I: Iterator<Item=&'a Field>>(
+    fn generate_deserialize_for_builder<'a, F: Fn() -> I, I: Iterator<Item = &'a Field>>(
         builder_type: Type,
         ty: Type,
         fields: F,
@@ -1027,9 +1028,9 @@ impl Entity {
         }
     }
 
-    fn create_status_builder_struct(&self, builder_field_types: &[Type]) -> Item {
+    fn create_status_builder_struct(&self) -> Item {
         let struct_name = self.struct_ident_builder_status();
-        let fields = self.create_status_fields(builder_field_types);
+        let fields = self.create_status_fields(|f| self.builder_field_type(f));
         parse_quote! {
             #[derive(Debug, Clone, PartialEq, Default)]
             pub struct #struct_name #fields
@@ -1125,23 +1126,33 @@ impl Entity {
 
     fn create_id_enum_entry(&self, id_field: &Field) -> RosTypeEntry {
         RosTypeEntry {
-            name: self.id_struct_ident(id_field),
+            type_name: self.id_struct_ident(id_field),
+            field_name: self.id_struct_ident_field(id_field),
             builder: self.id_struct_builder_ident(id_field),
             data: self.id_struct_type(id_field),
+            can_update: true,
+            can_add: false,
         }
     }
 
     fn create_id_enum_entry_combined(&self, id_field: &Field) -> RosTypeEntry {
         RosTypeEntry {
-            name: self.id_struct_ident_combined(id_field),
+            type_name: self.id_struct_ident_combined(id_field),
+            field_name: self.id_struct_ident_combined_field(id_field),
             builder: self.builder_tuples_for_id_combined(id_field),
             data: self.data_tuples_for_id_combined(id_field),
+            can_update: false,
+            can_add: false,
         }
     }
 
     fn id_struct_ident_combined(&self, id_field: &Field) -> Ident {
         let struct_name = self.struct_name();
         crate::name2ident(&format!("{struct_name}By_{}WithState", id_field.name))
+    }
+    fn id_struct_ident_combined_field(&self, id_field: &Field) -> Ident {
+        let struct_name = self.struct_name();
+        crate::name2field_ident(&format!("{struct_name}By_{}WithState", id_field.name))
     }
 }
 
@@ -1171,15 +1182,21 @@ pub struct Field {
     pub has_unlimited: bool,
     pub has_disabled: bool,
     pub is_rxtx_pair: bool,
+    pub keep_if_none: bool,
 }
 
 impl Field {
     fn compare_and_set_snippet(&self) -> Expr {
         let field_name = self.generate_field_name();
-
         let attribute_name = self.attribute_name();
+        let keep_if_none = self.is_optional && self.keep_if_none;
+        let cmp: Expr = if keep_if_none {
+            parse_quote!(self.#field_name == before.#field_name || self.#field_name.is_none())
+        } else {
+            parse_quote!(self.#field_name == before.#field_name)
+        };
         let compare_and_set_snippet = parse_quote! {
-           if self.#field_name == before.#field_name {
+           if #cmp {
                 None
             } else {
                 Some(value::KeyValuePair {
@@ -1287,7 +1304,7 @@ pub enum Reference {
     RefereesTo(Box<str>),
 }
 
-pub fn parse_lines<'a>(lines: impl Iterator<Item=&'a str>) -> Vec<Entity> {
+pub fn parse_lines<'a>(lines: impl Iterator<Item = &'a str>) -> Vec<Entity> {
     let mut collected_entities = Vec::new();
     let mut current_entity = None;
     for line in lines {
@@ -1378,6 +1395,7 @@ fn parse_field_line(line: &str) -> Option<Field> {
                     "unlimited" => field.has_unlimited = true,
                     "rxtxpair" => field.is_rxtx_pair = true,
                     "disabled" => field.has_disabled = true,
+                    "k" => field.keep_if_none = true,
                     name => field.field_type = Some(name.into()),
                 }
             }

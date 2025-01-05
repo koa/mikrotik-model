@@ -2,7 +2,6 @@ use encoding_rs::mem::decode_latin1;
 use log::{debug, error};
 
 use crate::{
-    ascii::AsciiString,
     model::{ReferenceType, Resource, ResourceType},
     value::{KeyValuePair, RosValue},
     MikrotikDevice,
@@ -10,7 +9,7 @@ use crate::{
 use mikrotik_api::prelude::{ParsedMessage, TrapCategory, TrapResult};
 use std::fmt::{Debug, Display, Formatter};
 use thiserror::Error;
-use tokio_stream::{Stream, StreamExt};
+use tokio_stream::{FromStream, Stream, StreamExt};
 
 #[derive(Debug, Error, Clone)]
 pub enum ResourceAccessError {
@@ -47,9 +46,9 @@ pub trait DeserializeRosResource: Sized {
 
     fn update_reference<V: RosValue + 'static>(
         &mut self,
-        ref_type: ReferenceType,
-        old_value: &V,
-        new_value: &V,
+        _ref_type: ReferenceType,
+        _old_value: &V,
+        _new_value: &V,
     ) -> bool {
         false
     }
@@ -108,6 +107,7 @@ impl Display for TrapResponse {
 pub async fn stream_resource<R: DeserializeRosResource + RosResource>(
     device: &MikrotikDevice,
 ) -> impl Stream<Item = SentenceResult<R>> {
+    println!("Fetch: {}", decode_latin1(R::path()));
     device
         .send_simple_command(&[b"/", R::path(), b"/print"], R::resource_type())
         .await
@@ -156,9 +156,9 @@ pub trait KeyedResource: DeserializeRosResource + RosResource {
     type Key: RosValue;
     fn key_name() -> &'static [u8];
     fn key_value(&self) -> &Self::Key;
-    fn fetch_all(
+    fn fetch_all<T: FromStream<Self> + Send>(
         device: &MikrotikDevice,
-    ) -> impl std::future::Future<Output = Result<Box<[Self]>, Error>> + Send
+    ) -> impl std::future::Future<Output = Result<T, Error>>
     where
         <Self as KeyedResource>::Key: Sync,
         Self: Send,
@@ -167,7 +167,7 @@ pub trait KeyedResource: DeserializeRosResource + RosResource {
             stream_resource::<Self>(device)
                 .await
                 .map(|entry| value_or_error(entry))
-                .collect::<Result<Box<[_]>, _>>()
+                .collect::<Result<T, _>>()
                 .await
         }
     }

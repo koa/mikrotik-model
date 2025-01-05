@@ -1,5 +1,5 @@
 /interface/ethernet
-.id:ro;id
+.id:ro
 default-name: ro;id
 advertise: mu;EthernetSpeed
 arp: enum=enabled, disabled, local-proxy-arp, proxy-arp, reply-only; default=enabled
@@ -15,10 +15,10 @@ tx-flow-control: o;auto;OnOff
 rx-flow-control: o;auto;OnOff
 full-duplex: o;bool
 l2mtu:u16
-mac-address: MacAddress
+mac-address: o;k; MacAddress
 mdix-enable:o;bool
 mtu:u16
-name: id;ref=interface
+name: ref=interface
 orig-mac-address: ro;MacAddress
 passthrough-interface: o
 poe-out: o;enum=off, auto-on, forced-on
@@ -214,8 +214,8 @@ installation: enum=any, indoor, outdoor
 interworking-profile: EnabledDisabled
 keepalive-frames: EnabledDisabled
 l2mtu: u16
-mac-address: MacAddress
-master-interface
+mac-address: o;k;MacAddress
+master-interface: o;ref=>interface
 max-station-count: u16
 mode: enum=station,station-wds,ap-bridge,bridge,alignment-only,nstreme-dual-slave,wds-slave,station-pseudobridge,station-pseudobridge-clone,station-bridge
 mtu: u16
@@ -244,7 +244,7 @@ secondary-frequency: u32
 security-profile
 skip-dfs-channels
 ssid
-station-bridge-clone-mac: MacAddress
+station-bridge-clone-mac: o;MacAddress
 station-roaming: EnabledDisabled
 supported-rates-a/g: mu;enum=6Mbps,9Mbps,12Mbps,18Mbps,24Mbps,36Mbps,48Mbps,54Mbps
 supported-rates-b: mu;enum=1Mbps,2Mbps,5.5Mbps,11Mbps
@@ -271,7 +271,7 @@ interface-type: enum=Atheros AR9300,none
 running: bool
 
 /interface/vlan
-.id:id
+.id:ro
 arp: enum=disabled,enabled,local-proxy-arp, proxy-arp, reply-only
 arp-timeout: auto;u16
 comment: o
@@ -282,9 +282,9 @@ loop-protect: enum=default, off, on
 loop-protect-disable-time: Duration
 loop-protect-send-interval: Duration
 loop-protect-status: enum=on, off, disable
-mac-address: MacAddress
+mac-address: o;k;MacAddress
 mtu: u16
-name:id
+name:id,ref=interface
 running: bool
 use-service-tag: bool
 vlan-id: u16

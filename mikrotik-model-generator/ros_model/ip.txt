@@ -56,7 +56,7 @@ modem:o;ro;bool
 ospf:o;ro;bool
 pref-src:o;ro;IpAddr
 rip:o;ro;bool
-routing-table:o;ref=routing-table
+routing-table:o;ref=>routing-table
 scope:u8
 static:o;ro;bool
 suppress-hw-offload:o;bool

@@ -3,10 +3,12 @@ use crate::resource::SentenceResult;
 use serde::Deserialize;
 
 pub mod ascii;
+pub mod config_set;
 pub mod error;
 pub mod generator;
 pub mod hwconfig;
 pub mod resource;
+mod util;
 pub mod value;
 
 include!(concat!(env!("OUT_DIR"), "/mikrotik-model.rs"));
