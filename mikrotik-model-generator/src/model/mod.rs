@@ -3,9 +3,9 @@ use convert_case::{Case, Casing};
 use proc_macro2::{Ident, Literal, Span};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
-use syn::Stmt;
-use syn::__private::ToTokens;
 use syn::{
+    Stmt,
+    __private::ToTokens,
     parse_quote,
     punctuated::Punctuated,
     token::{Colon, Comma},
@@ -20,6 +20,7 @@ pub struct Model {
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct Entity {
     pub path: Box<[Box<str>]>,
+    pub key_field: Option<Box<str>>,
     pub fields: Vec<Field>,
     pub is_single: bool,
     pub can_add: bool,
@@ -42,6 +43,103 @@ pub struct ReferenceEntry {
 }
 
 impl Entity {
+    pub fn parse_lines<'a>(lines: impl Iterator<Item = &'a str>) -> Vec<Self> {
+        let mut collected_entities = Vec::new();
+        let mut current_entity = None;
+        for line in lines {
+            let line = line.split('#').next().unwrap();
+            if let Some(name) = line.strip_prefix("/") {
+                let entity = if let Some((path, params)) = name.split_once(':') {
+                    let path = parse_path(path);
+                    let mut entity = Entity {
+                        path,
+                        key_field: None,
+                        fields: vec![],
+                        is_single: false,
+                        can_add: false,
+                    };
+                    for param in params.split(';') {
+                        if let Some((key, value)) = param.split_once('=') {
+                            match key.trim() {
+                                "id" => entity.key_field = Some(value.trim().into()),
+                                &_ => {
+                                    panic!("Unknown param: {param}")
+                                }
+                            }
+                        } else {
+                            match param.trim() {
+                                "can-add" => entity.can_add = true,
+                                "is-single" => entity.is_single = true,
+                                "" => {}
+                                _ => panic!("Unknown param: {param}"),
+                            }
+                        }
+                    }
+                    entity
+                } else {
+                    let path = parse_path(name);
+                    Entity {
+                        path,
+                        key_field: None,
+                        fields: vec![],
+                        is_single: false,
+                        can_add: false,
+                    }
+                };
+                if let Some(entity) = current_entity.replace(entity) {
+                    collected_entities.push(entity);
+                }
+            } else if let Some(name) = line.strip_prefix("1/") {
+                let path = parse_path(name);
+                if let Some(entity) = current_entity.replace(Entity {
+                    path,
+                    key_field: None,
+                    fields: vec![],
+                    is_single: true,
+                    can_add: false,
+                }) {
+                    collected_entities.push(entity);
+                }
+            } else if let Some(name) = line.strip_prefix("*/") {
+                let path = parse_path(name);
+                if let Some(entity) = current_entity.replace(Entity {
+                    path,
+                    key_field: None,
+                    fields: vec![],
+                    is_single: false,
+                    can_add: true,
+                }) {
+                    collected_entities.push(entity);
+                }
+            } else if let Some(entity) = current_entity.as_mut() {
+                if let Some(field) = Field::parse_field_line(line) {
+                    entity.fields.push(field);
+                }
+            }
+        }
+        if let Some(entity) = current_entity.take() {
+            collected_entities.push(entity);
+        }
+        collected_entities
+    }
+    pub fn write_entity_lines<W: std::fmt::Write>(&self, writer: &mut W) -> std::fmt::Result {
+        write!(writer, "/{}:", self.path.join("/"))?;
+        if let Some(key) = &self.key_field {
+            write!(writer, "id={key};")?;
+        }
+        if self.can_add {
+            write!(writer, "can-add;")?;
+        }
+        if self.is_single {
+            write!(writer, "is-single;")?;
+        }
+        writer.write_char('\n')?;
+        for field in &self.fields {
+            field.write_field_line(writer)?;
+        }
+        writer.write_char('\n')?;
+        Ok(())
+    }
     pub fn generate_code(
         &self,
     ) -> (
@@ -60,7 +158,8 @@ impl Entity {
             items.push(self.create_cfg_struct());
             items.push(self.create_cfg_builder_struct());
             enum_entries.push(self.create_cfg_enum_entry());
-            items.push(self.create_deserialize_for_cfg_struct());
+            items.push(self.generate_has_reference_for_cfg_struct());
+            items.push(self.generate_deserialize_for_cfg_struct());
             items.push(self.generate_ros_resource_for_cfg());
             items.push(self.create_deserialize_builder_for_cfg());
             items.push(self.create_cfg_resource());
@@ -74,6 +173,7 @@ impl Entity {
                     items.push(self.create_createable_impl());
                 }
                 for id_field in self.fields.iter().filter(|f| f.is_key) {
+                    items.push(self.generate_has_reference_for_id(id_field));
                     items.push(self.generate_deserialize_for_id(id_field));
                     items.push(self.generate_ros_resource_for_id(id_field));
                     enum_entries.push(self.create_id_enum_entry(id_field));
@@ -91,6 +191,7 @@ impl Entity {
                         items.push(self.generate_cfg_for_id_internal(id_field));
                     }
                     if has_readonly_fields {
+                        items.push(self.generate_has_reference_for_id_combined(id_field));
                         items.push(self.generate_deserialize_for_id_combined(id_field));
                         items.push(self.generate_ros_for_id_combined(id_field));
                         items.push(self.generate_deserialize_builder_for_id_combined(id_field));
@@ -109,7 +210,8 @@ impl Entity {
         if has_readonly_fields {
             items.push(self.create_status_struct());
             items.push(self.create_status_builder_struct());
-            items.push(self.create_deserialize_for_status_struct());
+            items.push(self.generate_has_reference_for_status_struct());
+            items.push(self.generate_deserialize_for_status_struct());
             items.push(self.create_ros_resource_for_status());
             items.push(self.create_deserialize_builder_for_status());
             enum_entries.push(self.create_status_enum_entry());
@@ -118,6 +220,7 @@ impl Entity {
             enum_entries.push(self.create_enum_entry());
             items.push(self.generate_combined_struct());
             items.push(self.generate_combined_builder_struct());
+            items.push(self.generate_has_reference_for_combined_struct());
             items.push(self.generate_deserialize_for_combined_struct());
             items.push(self.generate_combined_deserialize_builder());
             items.push(self.generate_ros_for_combined_struct());
@@ -139,33 +242,23 @@ impl Entity {
 
     fn collect_references(&self) -> Box<[ReferenceEntry]> {
         self.referencing_fields()
-            .map(|(name, incoming, field, field_type)| ReferenceEntry {
+            .map(|(name, incoming, field)| ReferenceEntry {
                 name,
                 field_name: field.name.clone(),
                 field_ident: field.generate_field_name(),
                 incoming,
-                data: field_type.clone(),
+                data: self.base_field_type(field),
             })
             .collect()
     }
 
-    fn referencing_fields(&self) -> impl Iterator<Item = (Ident, bool, &Field, Type)> {
+    fn referencing_fields(&self) -> impl Iterator<Item = (Ident, bool, &Field)> {
         self.fields
             .iter()
             .filter_map(|field| match &field.reference {
                 Reference::None => None,
-                Reference::IsReference(r) => Some((
-                    crate::name2ident(r.as_ref()),
-                    false,
-                    field,
-                    self.base_field_type(field),
-                )),
-                Reference::RefereesTo(r) => Some((
-                    crate::name2ident(r.as_ref()),
-                    true,
-                    field,
-                    self.base_field_type(field),
-                )),
+                Reference::IsReference(r) => Some((crate::name2ident(r.as_ref()), false, field)),
+                Reference::RefereesTo(r) => Some((crate::name2ident(r.as_ref()), true, field)),
             })
     }
 
@@ -204,6 +297,12 @@ impl Entity {
             self.struct_type(),
             self.struct_builder(),
             self.struct_ident(),
+            None,
+        )
+    }
+    fn generate_has_reference_for_combined_struct(&self) -> Item {
+        Self::generate_has_reference(
+            self.struct_type(),
             Some(parse_quote! {
                 fn update_reference<V: value::RosValue>(&mut self,ref_type: ReferenceType,old_value: &V,new_value: &V) -> bool {
                     self.cfg.update_reference(ref_type, old_value, new_value)|
@@ -252,6 +351,12 @@ impl Entity {
             self.data_tuples_for_id_combined(id_field),
             self.builder_tuples_for_id_combined(id_field),
             self.id_struct_ident_combined(id_field),
+            None,
+        )
+    }
+    fn generate_has_reference_for_id_combined(&self, id_field: &Field) -> Item {
+        Self::generate_has_reference(
+            self.data_tuples_for_id_combined(id_field),
             Some(parse_quote! {
                 fn update_reference<V: value::RosValue>(&mut self,ref_type: ReferenceType,old_value: &V,new_value: &V) -> bool {
                     self.0.update_reference(ref_type, old_value, new_value)|
@@ -265,7 +370,7 @@ impl Entity {
         data_type: Type,
         builder_type: Type,
         variant_name: Ident,
-        update_reference_fn: Option<ItemFn>,
+        generate_derived_updates: Option<ItemFn>,
     ) -> Item {
         parse_quote! {
             impl resource::DeserializeRosResource for #data_type {
@@ -280,6 +385,13 @@ impl Entity {
                 fn resource_type()->ResourceType{
                     ResourceType::#variant_name
                 }
+                #generate_derived_updates
+            }
+        }
+    }
+    fn generate_has_reference(data_type: Type, update_reference_fn: Option<ItemFn>) -> Item {
+        parse_quote! {
+            impl resource::FieldUpdateHandler for #data_type {
                 #update_reference_fn
             }
         }
@@ -388,25 +500,50 @@ impl Entity {
         let id_struct_ident = self.id_struct_type(id_field);
         let builder_name = self.id_struct_builder_ident(id_field);
         let ident = self.id_struct_ident(id_field);
+        let update_fn = if id_field.is_read_only {
+            self.generate_derived_updates_body(|f| f == id_field)
+                .map(|block| {
+                    parse_quote! {
+                        fn generate_derived_updates<V: resource::FieldUpdateHandler>(&self,before_value: &Self,handler: &mut V)  {
+                            self.data.generate_derived_updates(&before_value.data,handler);
+                            #block
+                        }
+                    }
+                }).unwrap_or_else(||
+                parse_quote! {
+                        fn generate_derived_updates<V: resource::FieldUpdateHandler>(&self,before_value: &Self,handler: &mut V)  {
+                            self.data.generate_derived_updates(&before_value.data,handler);
+                        }
+                    })
+        } else {
+            parse_quote! {
+                fn generate_derived_updates<V: resource::FieldUpdateHandler>(&self,before_value: &Self,handler: &mut V)  {
+                    self.0.generate_derived_updates(&before_value.0,handler);
+                }
+            }
+        };
+        Self::generate_deserialize(id_struct_ident, builder_name, ident, Some(update_fn))
+    }
+    fn generate_has_reference_for_id(&self, id_field: &Field) -> Item {
+        let id_struct_ident = self.id_struct_type(id_field);
         let update_ref_fn = if id_field.is_read_only {
             self
                 .update_reference_match_expr(|f| f == id_field)
                 .map(|update_reference_match|
                     parse_quote! {
-                    fn update_reference<V: value::RosValue>(&mut self, ref_type: ReferenceType, old_value: &V, new_value: &V)->bool{
-                        let old_value_any=old_value as &dyn core::any::Any;
-                        let new_value_any=new_value as &dyn core::any::Any;
-                        let modified = {#update_reference_match};
-                        modified | self.data.update_reference(ref_type, old_value, new_value)
+                        fn update_reference<V: value::RosValue>(&mut self, ref_type: ReferenceType, old_value: &V, new_value: &V)->bool{
+                            let old_value_any=old_value as &dyn core::any::Any;
+                            let new_value_any=new_value as &dyn core::any::Any;
+                            let modified = {#update_reference_match};
+                            modified | self.data.update_reference(ref_type, old_value, new_value)
+                        }
                     }
-                }
                 ).unwrap_or_else(||
                 parse_quote! {
-                    fn update_reference<V: value::RosValue>(&mut self,ref_type: ReferenceType,old_value: &V,new_value: &V) -> bool {
-                        self.data.update_reference(ref_type, old_value, new_value)
-                    }
-                }
-            )
+                        fn update_reference<V: value::RosValue>(&mut self,ref_type: ReferenceType,old_value: &V,new_value: &V) -> bool {
+                            self.data.update_reference(ref_type, old_value, new_value)
+                        }
+                    })
         } else {
             parse_quote! {
                 fn update_reference<V: value::RosValue>(&mut self,ref_type: ReferenceType,old_value: &V,new_value: &V) -> bool {
@@ -414,7 +551,7 @@ impl Entity {
                 }
             }
         };
-        Self::generate_deserialize(id_struct_ident, builder_name, ident, Some(update_ref_fn))
+        Self::generate_has_reference(id_struct_ident, Some(update_ref_fn))
     }
 
     fn generate_id_struct_external(&self, id_field: &Field) -> Item {
@@ -453,11 +590,17 @@ impl Entity {
         )
     }
 
-    fn create_deserialize_for_status_struct(&self) -> Item {
+    fn generate_deserialize_for_status_struct(&self) -> Item {
         Self::generate_deserialize(
             self.struct_status_type(),
             self.struct_ident_builder_status(),
             self.struct_status_ident(),
+            self.generate_derived_updates(|f| f.is_read_only),
+        )
+    }
+    fn generate_has_reference_for_status_struct(&self) -> Item {
+        Self::generate_has_reference(
+            self.struct_status_type(),
             self.update_reference_fn(|f| f.is_read_only),
         )
     }
@@ -574,12 +717,12 @@ impl Entity {
         Literal::byte_string(self.path.join("/").as_bytes())
     }
 
-    fn create_deserialize_for_cfg_struct(&self) -> Item {
+    fn generate_deserialize_for_cfg_struct(&self) -> Item {
         Self::generate_deserialize(
             self.struct_type_cfg(),
             self.struct_ident_cfg_builder(),
             self.struct_ident_cfg(),
-            self.update_reference_fn(|f| !f.is_read_only),
+            self.generate_derived_updates(|f| !f.is_read_only),
         )
     }
 
@@ -594,15 +737,46 @@ impl Entity {
             }
         )
     }
+    fn generate_derived_updates(&self, field_filter: impl Fn(&Field) -> bool) -> Option<ItemFn> {
+        self.generate_derived_updates_body(field_filter).map(|body|
+            parse_quote! {
+                fn generate_derived_updates<V: resource::FieldUpdateHandler>(&self, before_value: &Self, handler: &mut V) #body
+            }
+        )
+    }
+    fn generate_derived_updates_body(
+        &self,
+        field_filter: impl Fn(&Field) -> bool + Sized,
+    ) -> Option<Block> {
+        let mut body: Block = parse_quote!({});
+        for (reference_name, field) in
+            self.referencing_fields()
+                .filter_map(|(reference_ident, incoming, field)| {
+                    if !incoming && field_filter(field) {
+                        Some((reference_ident, field))
+                    } else {
+                        None
+                    }
+                })
+        {
+            let field_name = field.generate_field_name();
+            body.stmts.push(parse_quote! {
+                if self.#field_name != before_value.#field_name{
+                    handler.update_reference(ReferenceType::#reference_name, &before_value.#field_name, &self.#field_name);
+                }
+            });
+        }
+        Some(body).filter(|b| !b.stmts.is_empty())
+    }
 
     fn update_reference_match_expr(
         &self,
         field_filter: impl Fn(&Field) -> bool + Sized,
     ) -> Option<ExprMatch> {
         let mut fields_of_type = BTreeMap::new();
-        for (reference_ident, _, field, _) in self
+        for (reference_ident, _, field) in self
             .referencing_fields()
-            .filter(|(_, _, f, _)| field_filter(f))
+            .filter(|(_, _, f)| field_filter(f))
         {
             let base_type = self.base_field_type(field);
             fields_of_type
@@ -1152,7 +1326,14 @@ impl Entity {
     }
     fn id_struct_ident_combined_field(&self, id_field: &Field) -> Ident {
         let struct_name = self.struct_name();
-        crate::name2field_ident(&format!("{struct_name}By_{}WithState", id_field.name))
+        name2field_ident(&format!("{struct_name}By_{}WithState", id_field.name))
+    }
+
+    fn generate_has_reference_for_cfg_struct(&self) -> Item {
+        Self::generate_has_reference(
+            self.struct_type_cfg(),
+            self.update_reference_fn(|f| !f.is_read_only),
+        )
     }
 }
 
@@ -1186,6 +1367,130 @@ pub struct Field {
 }
 
 impl Field {
+    fn parse_field_line(line: &str) -> Option<Field> {
+        if let Some((name, definition)) = line.split_once(':') {
+            let mut field = Field {
+                name: name.into(),
+                ..Field::default()
+            };
+            for comp in definition.split(';').map(str::trim) {
+                if let Some((key, value)) = comp.split_once('=') {
+                    let value = value.trim();
+                    match key.trim() {
+                        "enum" => {
+                            field.inline_enum =
+                                Some(value.split(',').map(|s| s.trim().into()).collect());
+                        }
+                        "ref" => {
+                            if let Some(name) = value.strip_prefix(">") {
+                                field.reference = Reference::RefereesTo(name.trim().into());
+                            } else {
+                                field.reference = Reference::IsReference(value.into());
+                            }
+                        }
+                        "default" => {}
+                        _ => {
+                            panic!("Invalid field definition: {definition}");
+                        }
+                    }
+                } else {
+                    match comp {
+                        "id" => field.is_key = true,
+                        "ro" => field.is_read_only = true,
+                        "auto" => field.has_auto = true,
+                        "mu" => field.is_multiple = true,
+                        "range" => field.is_range = true,
+                        "o" => field.is_optional = true,
+                        "hex" => field.is_hex = true,
+                        "none" => field.has_none = true,
+                        "unlimited" => field.has_unlimited = true,
+                        "rxtxpair" => field.is_rxtx_pair = true,
+                        "disabled" => field.has_disabled = true,
+                        "k" => field.keep_if_none = true,
+                        name => {
+                            field.field_type = Some(name.trim())
+                                .filter(|t| !t.is_empty())
+                                .map(|t| t.into())
+                        }
+                    }
+                }
+            }
+            Some(field)
+        } else {
+            Some(line.trim())
+                .filter(|s| !s.is_empty())
+                .map(|name| Field {
+                    name: name.into(),
+                    ..Field::default()
+                })
+        }
+    }
+
+    fn write_field_line<W: std::fmt::Write>(&self, writer: &mut W) -> std::fmt::Result {
+        write!(writer, "{}: ", self.name)?;
+        if self.is_key {
+            write!(writer, "id; ")?;
+        }
+        if self.is_read_only {
+            write!(writer, "ro; ")?;
+        }
+        if self.is_multiple {
+            write!(writer, "mu; ")?;
+        }
+        if self.is_range {
+            write!(writer, "range; ")?;
+        }
+        if self.is_optional {
+            write!(writer, "o; ")?;
+        }
+        if self.is_hex {
+            write!(writer, "hex; ")?;
+        }
+        if self.has_none {
+            write!(writer, "none; ")?;
+        }
+        if self.has_unlimited {
+            write!(writer, "unlimited; ")?;
+        }
+        if self.is_rxtx_pair {
+            write!(writer, "rxtxpair; ")?;
+        }
+        if self.has_disabled {
+            write!(writer, "disabled; ")?;
+        }
+        if self.keep_if_none {
+            write!(writer, "k; ")?;
+        }
+        if self.has_auto {
+            write!(writer, "auto; ")?;
+        }
+        match &self.reference {
+            Reference::None => {}
+            Reference::IsReference(target) => {
+                write!(writer, "ref={}; ", target)?;
+            }
+            Reference::RefereesTo(target) => {
+                write!(writer, "ref=>{}; ", target)?;
+            }
+        }
+        if let Some(enum_values) = &self.inline_enum {
+            write!(writer, "enum= ")?;
+            for (idx, value) in enum_values.iter().enumerate() {
+                if idx > 0 {
+                    write!(writer, ", {}", value)?;
+                } else {
+                    write!(writer, "{}", value)?;
+                }
+            }
+            write!(writer, "; ")?;
+        }
+        if let Some(field_type) = &self.field_type {
+            write!(writer, "{}", field_type)?;
+        }
+        writer.write_char('\n')?;
+        Ok(())
+    }
+
     fn compare_and_set_snippet(&self) -> Expr {
         let field_name = self.generate_field_name();
         let attribute_name = self.attribute_name();
@@ -1304,53 +1609,6 @@ pub enum Reference {
     RefereesTo(Box<str>),
 }
 
-pub fn parse_lines<'a>(lines: impl Iterator<Item = &'a str>) -> Vec<Entity> {
-    let mut collected_entities = Vec::new();
-    let mut current_entity = None;
-    for line in lines {
-        let line = line.split('#').next().unwrap();
-        if let Some(name) = line.strip_prefix("/") {
-            let path = parse_path(name);
-            if let Some(entity) = current_entity.replace(Entity {
-                path,
-                fields: vec![],
-                is_single: false,
-                can_add: false,
-            }) {
-                collected_entities.push(entity);
-            }
-        } else if let Some(name) = line.strip_prefix("1/") {
-            let path = parse_path(name);
-            if let Some(entity) = current_entity.replace(Entity {
-                path,
-                fields: vec![],
-                is_single: true,
-                can_add: false,
-            }) {
-                collected_entities.push(entity);
-            }
-        } else if let Some(name) = line.strip_prefix("*/") {
-            let path = parse_path(name);
-            if let Some(entity) = current_entity.replace(Entity {
-                path,
-                fields: vec![],
-                is_single: false,
-                can_add: true,
-            }) {
-                collected_entities.push(entity);
-            }
-        } else if let Some(entity) = current_entity.as_mut() {
-            if let Some(field) = parse_field_line(line) {
-                entity.fields.push(field);
-            }
-        }
-    }
-    if let Some(entity) = current_entity.take() {
-        collected_entities.push(entity);
-    }
-    collected_entities
-}
-
 fn parse_path(name: &str) -> Box<[Box<str>]> {
     let path: Box<[Box<str>]> = name
         .trim()
@@ -1358,57 +1616,6 @@ fn parse_path(name: &str) -> Box<[Box<str>]> {
         .map(|s| s.to_string().into_boxed_str())
         .collect();
     path
-}
-fn parse_field_line(line: &str) -> Option<Field> {
-    if let Some((name, definition)) = line.split_once(':') {
-        let mut field = Field {
-            name: name.into(),
-            ..Field::default()
-        };
-        for comp in definition.split(';').map(str::trim) {
-            if let Some((key, value)) = comp.split_once('=') {
-                let value = value.trim();
-                match key.trim() {
-                    "enum" => {
-                        field.inline_enum =
-                            Some(value.split(',').map(|s| s.trim().into()).collect());
-                    }
-                    "ref" => {
-                        if let Some(name) = value.strip_prefix(">") {
-                            field.reference = Reference::RefereesTo(name.trim().into());
-                        } else {
-                            field.reference = Reference::IsReference(value.into());
-                        }
-                    }
-                    _ => {}
-                }
-            } else {
-                match comp {
-                    "id" => field.is_key = true,
-                    "ro" => field.is_read_only = true,
-                    "auto" => field.has_auto = true,
-                    "mu" => field.is_multiple = true,
-                    "range" => field.is_range = true,
-                    "o" => field.is_optional = true,
-                    "hex" => field.is_hex = true,
-                    "none" => field.has_none = true,
-                    "unlimited" => field.has_unlimited = true,
-                    "rxtxpair" => field.is_rxtx_pair = true,
-                    "disabled" => field.has_disabled = true,
-                    "k" => field.keep_if_none = true,
-                    name => field.field_type = Some(name.into()),
-                }
-            }
-        }
-        Some(field)
-    } else {
-        Some(line.trim())
-            .filter(|s| !s.is_empty())
-            .map(|name| Field {
-                name: name.into(),
-                ..Field::default()
-            })
-    }
 }
 
 #[cfg(test)]
@@ -1419,7 +1626,7 @@ mod test {
     fn test_entity_parser() {
         let data = include_str!("../../ros_model/system.txt");
         let lines = data.lines();
-        let collected_entities = parse_lines(lines);
+        let collected_entities = Entity::parse_lines(lines);
         println!("{:#?}", collected_entities);
     }
 }

@@ -1,12 +1,17 @@
 use config::{Config, Environment, File};
 use env_logger::{Env, TimestampPrecision};
-use mikrotik_model::generator::Generator;
-use mikrotik_model::hwconfig::DeviceType;
-use mikrotik_model::model::Data;
-use mikrotik_model::resource::{KeyedResource, Updatable};
-use mikrotik_model::{Credentials, MikrotikDevice};
-use std::collections::HashMap;
-use std::net::{IpAddr, Ipv4Addr};
+use mikrotik_model::{
+    generator::Generator,
+    hwconfig::DeviceType,
+    model::{Data, ReferenceType},
+    resource::{DeserializeRosResource, FieldUpdateHandler, KeyedResource, Updatable},
+    value::RosValue,
+    Credentials, MikrotikDevice,
+};
+use std::{
+    collections::HashMap,
+    net::{IpAddr, Ipv4Addr},
+};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -48,6 +53,19 @@ async fn main() -> anyhow::Result<()> {
     for existing_entry in existing_data.iter() {
         if let Some(new_entry) = new_entries.remove(existing_entry.key_value()) {
             generator.append_mutation(&new_entry.calculate_update(existing_entry))?;
+            struct Handler;
+            impl FieldUpdateHandler for Handler {
+                fn update_reference<V: RosValue + 'static>(
+                    &mut self,
+                    ref_type: ReferenceType,
+                    old_value: &V,
+                    new_value: &V,
+                ) -> bool {
+                    println!("Update {ref_type:?}: {old_value:?} -> {new_value:?}");
+                    false
+                }
+            }
+            new_entry.generate_derived_updates(existing_entry, &mut Handler);
         }
     }
     println!("{cfg}");

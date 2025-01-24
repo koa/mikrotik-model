@@ -70,7 +70,7 @@ impl<V: Clone> Clone for ParseRosValueResult<V> {
 }
 impl<V: Copy> Copy for ParseRosValueResult<V> {}
 
-pub trait RosValue: Sized + 'static {
+pub trait RosValue: Sized + Debug + 'static {
     fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self>;
     fn encode_ros(&self) -> Cow<[u8]>;
 }

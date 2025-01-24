@@ -1,4 +1,4 @@
-/interface/ethernet
+/interface/ethernet: id=default-name
 .id:ro
 default-name: ro;id
 advertise: mu;EthernetSpeed
@@ -125,14 +125,14 @@ custom-drop-packet:o;ro;u64
 current-learned:o;ro;u64
 not-learned:o;ro;u64
 
-/interface/ethernet/switch/egress-vlan-tag
+/interface/ethernet/switch/egress-vlan-tag:can-add
 vlan-id:u16
 tagged-ports: mu;ref=>interface
 comment
 disabled: bool
 dynamic: bool
 
-/interface/ethernet/switch/ingress-vlan-translation
+/interface/ethernet/switch/ingress-vlan-translation:can-add
 .nextid
 comment
 customer-pcp
@@ -156,7 +156,7 @@ message
 dynamic:bool
 
 
-/interface/ethernet/switch/vlan
+/interface/ethernet/switch/vlan:can-add
 comment
 disabled:bool
 flood:bool
@@ -270,7 +270,7 @@ default-name: id
 interface-type: enum=Atheros AR9300,none
 running: bool
 
-/interface/vlan
+/interface/vlan:can-add
 .id:ro
 arp: enum=disabled,enabled,local-proxy-arp, proxy-arp, reply-only
 arp-timeout: auto;u16
@@ -284,7 +284,7 @@ loop-protect-send-interval: Duration
 loop-protect-status: enum=on, off, disable
 mac-address: o;k;MacAddress
 mtu: u16
-name:id,ref=interface
+name:id;ref=interface
 running: bool
 use-service-tag: bool
 vlan-id: u16

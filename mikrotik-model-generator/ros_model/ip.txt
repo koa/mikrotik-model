@@ -10,7 +10,7 @@ dynamic: ro;bool
 slave: ro;bool
 comment: o
 
-/ip/dhcp-client
+*/ip/dhcp-client
 .id: ro;id
 interface: ref=>interface
 add-default-route: YesNo
@@ -31,7 +31,7 @@ dynamic: ro;bool
 dhcp-server: o;ro;IpAddr
 invalid: ro;bool
 
-/ip/route
+*/ip/route
 .id: id
 active: o;ro;bool
 bgp: o;ro;bool

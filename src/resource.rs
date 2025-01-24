@@ -39,11 +39,8 @@ impl Debug for ResourceAccessWarning {
     }
 }
 
-pub trait DeserializeRosResource: Sized {
-    type Builder: DeserializeRosBuilder<Self>;
-    fn unwrap_resource(resource: Resource) -> Option<Self>;
-    fn resource_type() -> ResourceType;
-
+pub trait FieldUpdateHandler {
+    #[inline]
     fn update_reference<V: RosValue + 'static>(
         &mut self,
         _ref_type: ReferenceType,
@@ -51,6 +48,19 @@ pub trait DeserializeRosResource: Sized {
         _new_value: &V,
     ) -> bool {
         false
+    }
+}
+
+pub trait DeserializeRosResource: Sized + FieldUpdateHandler {
+    type Builder: DeserializeRosBuilder<Self>;
+    fn unwrap_resource(resource: Resource) -> Option<Self>;
+    fn resource_type() -> ResourceType;
+    #[inline]
+    fn generate_derived_updates<V: FieldUpdateHandler>(
+        &self,
+        before_value: &Self,
+        handler: &mut V,
+    ) {
     }
 }
 

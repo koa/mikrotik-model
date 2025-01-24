@@ -1,4 +1,4 @@
-use crate::model::{parse_lines, EnumDescriptions};
+use crate::model::{Entity, EnumDescriptions};
 use convert_case::{Case, Casing};
 use lazy_static::lazy_static;
 use proc_macro2::{Ident, Literal, Span};
@@ -10,7 +10,7 @@ use syn::{
     FieldValue, FieldsNamed, Item, ItemMod, Variant, Visibility,
 };
 
-mod model;
+pub mod model;
 lazy_static! {
     static ref KEYWORDS: HashSet<&'static str> = HashSet::from([
         "as", "async", "await", "break", "const", "continue", "crate", "dyn", "else", "enum",
@@ -19,6 +19,20 @@ lazy_static! {
         "true", "type", "union", "unsafe", "use", "where", "while", "abstract", "become", "box",
         "do", "final", "macro", "override", "priv", "try", "typeof", "unsized", "virtual", "yield",
     ]);
+}
+
+const CONTENT_FILES: [&str; 5] = [
+    include_str!("../ros_model/system.txt"),
+    include_str!("../ros_model/interface.txt"),
+    include_str!("../ros_model/bridge.txt"),
+    include_str!("../ros_model/ip.txt"),
+    include_str!("../ros_model/ospf.txt"),
+];
+
+pub fn known_entities() -> impl Iterator<Item = Entity> {
+    CONTENT_FILES
+        .into_iter()
+        .flat_map(|content| Entity::parse_lines(content.lines()))
 }
 
 pub fn generator() -> syn::File {
@@ -57,14 +71,8 @@ pub fn generator() -> syn::File {
     let mut all_generated_types = Vec::new();
     let mut incoming_chain_edges = HashMap::new();
 
-    for content in [
-        include_str!("../ros_model/system.txt"),
-        include_str!("../ros_model/interface.txt"),
-        include_str!("../ros_model/bridge.txt"),
-        include_str!("../ros_model/ip.txt"),
-        include_str!("../ros_model/ospf.txt"),
-    ] {
-        let entries = parse_lines(content.lines());
+    for content in CONTENT_FILES {
+        let entries = Entity::parse_lines(content.lines());
 
         for entity in entries.iter() {
             let (entity_items, enum_fields, references) = entity.generate_code();
@@ -169,6 +177,12 @@ pub fn generator() -> syn::File {
                 .named
                 .push(parse_quote!(pub #name: Vec<#data_type>));
             data_loader_fields.push(parse_quote! {#name:crate::util::default_if_missing(<#data_type as resource::KeyedResource>::fetch_all(device).await)?});
+        } else if field.can_add {
+            let name = field.field_name;
+            data_fields
+                .named
+                .push(parse_quote!(pub #name: Vec<#data_type>));
+            data_loader_fields.push(parse_quote! {#name:Default::default()});
         }
     }
 
@@ -354,8 +368,8 @@ fn derive_ident(value: &str) -> String {
 
 #[cfg(test)]
 mod test {
-    use crate::model::{parse_lines, EnumDescriptions};
-    use crate::{generate_enums, generator, name2ident};
+    use crate::model::{Entity, EnumDescriptions};
+    use crate::{generate_enums, generator, name2ident, CONTENT_FILES};
     use std::fs::File;
     use std::io::read_to_string;
     use syn::__private::ToTokens;
@@ -377,7 +391,7 @@ mod test {
     fn test_read_structs() {
         let file = File::open("ros_model/interface.txt").unwrap();
         let content = read_to_string(file).unwrap();
-        let entiries = parse_lines(content.lines());
+        let entiries = Entity::parse_lines(content.lines());
         let items = entiries.iter().flat_map(|e| e.generate_code().0).collect();
         let f = syn::File {
             shebang: None,
@@ -389,6 +403,26 @@ mod test {
     #[test]
     fn test_call_generate() {
         generator();
+    }
+
+    #[test]
+    fn test_serialize_deserialize() {
+        let all_entities: Vec<_> = CONTENT_FILES
+            .iter()
+            .flat_map(|&content| Entity::parse_lines(content.lines()).into_iter())
+            .collect();
+        let mut temp_content = String::new();
+        for entity in all_entities.iter() {
+            entity
+                .write_entity_lines(&mut temp_content)
+                .expect("Cannot write file");
+        }
+        let parsed_content = Entity::parse_lines(temp_content.lines());
+
+        /*for (all, parsed) in all_entities.iter().zip(parsed_content.iter()) {
+            assert_eq!(all, parsed);
+        }*/
+        assert_eq!(all_entities, parsed_content);
     }
 }
 

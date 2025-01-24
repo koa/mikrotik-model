@@ -1,0 +1,19 @@
+[package]
+name = "inspect-device"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1.43.0", features = ["rt", "rt-multi-thread", "macros"] }
+anyhow = "1.0.95"
+env_logger = "0.11.6"
+clap = { version = "4.5.26", features = ["derive"] }
+mikrotik-api={version="0.1.0", git="https://github.com/koa/mikrotik-api"}
+encoding_rs = "0.8.35"
+tokio-stream = "0.1.17"
+mikrotik-model-generator={path="../mikrotik-model-generator"}
+ron = "0.8.1"
+log = "0.4.22"
+regex = "1.11.1"
+lazy_static = "1.5.0"
+convert_case = "0.6.0"
