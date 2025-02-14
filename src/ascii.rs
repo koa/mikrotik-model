@@ -4,7 +4,7 @@ use std::fmt::{Debug, Display, Formatter, Write};
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub struct AsciiStringRef<'a>(pub &'a [u8]);
 
-#[derive(Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Eq, PartialEq, Hash, Ord, PartialOrd, Default)]
 pub struct AsciiString(pub Box<[u8]>);
 
 impl Debug for AsciiStringRef<'_> {
@@ -49,3 +49,23 @@ impl From<&[u8]> for AsciiString {
         AsciiString(Box::from(value))
     }
 }
+impl<const N: usize> From<&[u8; N]> for AsciiString {
+    fn from(value: &[u8; N]) -> Self {
+        AsciiString(Box::from(value.as_slice()))
+    }
+}
+impl From<String> for AsciiString {
+    fn from(value: String) -> Self {
+        AsciiString(Box::from(value.into_bytes()))
+    }
+}
+/*impl<I: IntoIterator<Item = u8>> From<I> for AsciiString {
+    fn from(value: I) -> Self {
+        AsciiString(value.into_iter().collect())
+    }
+}
+impl<'a, I: IntoIterator<Item = &'a u8>> From<I> for AsciiString {
+    fn from(value: I) -> Self {
+        AsciiString(value.into_iter().copied().collect())
+    }
+}*/

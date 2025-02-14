@@ -1,0 +1,487 @@
+/interface/wifi:can-add;id=default-name
+aaa: o;ref=wifi-aaa
+aaa.called-format:o;
+aaa.calling-format: o;
+aaa.interim-update: o;disabled; Duration
+aaa.mac-caching: o;disabled; Duration
+aaa.nas-identifier:o;
+aaa.password-format: o;
+aaa.username-format: o;
+arp: o;disabled; enum= enabled, local-proxy-arp, proxy-arp, reply-only;
+arp-timeout: o;auto;
+channel: o;ref=wifi-channel
+channel.band: o;WifiChannelBand;
+channel.frequency: o;u16
+channel.reselect-interval:o;Duration
+channel.secondary-frequency: o;disabled; u32
+channel.skip-dfs-channels: o;disabled; WifiSkipDfsChannels;
+channel.width: o;WifiChannelWidth;
+comment: 
+configuration: o;ref=>wifi-configuration
+configuration.antenna-gain: o;u8
+configuration.beacon-interval:o;Duration
+configuration.chains: mu; u8
+configuration.country: o; WifiCountry
+configuration.distance: o;u32
+configuration.dtim-period: o;u8
+configuration.hide-ssid: o;bool
+configuration.installation: o;IndoorOutdoor;
+configuration.manager: o;WifiManagement;
+configuration.mode: o;WifiMode;
+configuration.multicast-enhance: o;EnabledDisabled;
+configuration.qos-classifier:o;QosClassifier;
+configuration.ssid: o
+configuration.station-roaming: o;bool
+configuration.tx-chains: mu;u8
+configuration.tx-power: o;u8
+datapath: o;ref=>wifi-datapath;
+datapath.bridge: o;ref=>interface;
+datapath.bridge-cost: o;u32
+datapath.bridge-horizon: o;none;
+datapath.client-isolation: o;bool
+datapath.interface-list: o;ref=>interface-list;
+datapath.vlan-id: o; none;u16
+disable-running-check: bool
+disabled: bool
+interworking: o;ref=wifi-interworking
+interworking.3gpp-info: o;
+interworking.authentication-types: o;WifiAuthenticationType;
+interworking.connection-capabilities: o;u32
+interworking.domain-names: o;
+interworking.esr: o;bool
+interworking.hessid: o;
+interworking.hotspot20: o;bool
+interworking.hotspot20-dgaf: o;bool
+interworking.internet:o; bool
+interworking.ipv4-availability: o;InterworkingIpv4Availability;
+interworking.ipv6-availability: o;InterworkingIpv6Availability;
+interworking.network-type: o;InterworkingNetworkType;
+interworking.operational-classes: o;u32
+interworking.operator-names: o;
+interworking.realms: o;
+interworking.roaming-ois:o;
+interworking.uesa: o;bool
+interworking.venue: o; InterworkingVenue;
+interworking.venue-names: mu
+interworking.wan-at-capacity: o;bool
+interworking.wan-downlink: o;u32
+interworking.wan-downlink-load: o;u32
+interworking.wan-measurement-duration: o;u32
+interworking.wan-status:o;InterworkingWanStatus;
+interworking.wan-symmetric: o;bool
+interworking.wan-uplink: o;u32
+interworking.wan-uplink-load: o;u32
+l2mtu: u16
+mac-address: o;k;MacAddress
+master-interface: o;ref=>interface
+mtu: u16
+name: ref=interface
+radio-mac: o;k;MacAddress
+security: o; ref=>wifi-security
+security.authentication-types: o;mu;WifiAuthenticationTypes
+security.connect-group: o
+security.connect-priority: o;u32
+security.dh-groups: o
+security.disable-pmkid: o;bool
+security.eap-accounting: o;bool
+security.eap-anonymous-identity:o
+security.eap-certificate-mode:o;WifiSecurityEapCertificateMode;
+security.eap-methods: o;WifiSecurityEapMode;
+security.eap-password: o
+security.eap-tls-certificate:o
+security.eap-username: o
+security.encryption: o
+security.ft: o;bool
+security.ft-mobility-domain: o;hex; u16
+security.ft-nas-identifier: o
+security.ft-over-ds: o;bool
+security.ft-preserve-vlanid: o;bool
+security.ft-r0-key-lifetime: o
+security.ft-reassociation-deadline:o
+security.group-encryption:o;WifiSecurityGroupEncryption;
+security.group-key-update: o
+security.management-encryption: o;WifiSecurityManagementEncryption;
+security.management-protection: o;WifiSecurityManagementProtection;
+security.multi-passphrase-group: o
+security.owe-transition-interface: o;auto;
+security.passphrase: o
+security.sae-anti-clogging-threshold: o;disabled;
+security.sae-max-failure-rate: o;disabled;
+security.sae-pwe: o;WifiSecuritySaePwe;
+security.wps: o;WifiSecurityWps;
+steering: o;
+steering.neighbor-group:o;
+steering.rrm: o;bool
+steering.wnm: o;bool
+dynamic: ro; bool
+inactive: ro; bool
+master: ro; bool; ref=>interface
+bound: ro; bool
+default-name: ro; id
+running: ro; bool
+about: ro; 
+
+/interface/wifi/aaa:can-add;id=name
+called-format: o
+calling-format: o
+comment: 
+disabled: bool
+interim-update: o;disabled;
+mac-caching: o;disabled;
+name: ref=wifi-aaa
+nas-identifier: o
+password-format: o
+username-format: o
+about: ro; 
+
+/interface/wifi/access-list:can-add
+action: o; enum= accept, query-radius, reject;
+allow-signal-out-of-range: o
+client-isolation: o; bool
+comment: 
+disabled: o; bool
+interface: o; none; ref=>interface;
+mac-address: o;MacAddress
+mac-address-mask: o;MacAddress
+multi-passphrase-group: o
+passphrase: o
+radius-accounting: o; bool
+signal-range: o; range-dot; i8
+ssid-regexp: o
+time: o;
+vlan-id: o; none; u16
+last-logged-in: ro; 
+last-logged-out: ro; 
+match-count: ro; 
+about: ro; 
+
+/interface/wifi/cap:is-single;
+caps-man-addresses: mu;IpAddr
+caps-man-certificate-common-names: mu
+caps-man-names: mu
+certificate: mu; none;
+discovery-interfaces: none; ref=>interface; 
+enabled: enum= yes, no; 
+lock-to-caps-man: o; bool
+slaves-datapath: o; ref=>wifi-datapath;
+slaves-static: o; bool
+current-caps-man-identity: ro; 
+locked-caps-man-common-name: ro; 
+requested-certificate: ro; 
+current-caps-man-address: ro; 
+
+/interface/wifi/capsman:is-single;
+ca-certificate: o; none; auto;
+certificate: o; auto;
+enabled: enum= yes, no; 
+interfaces: mu; none; ref=>interface;
+package-path: 
+require-peer-certificate: bool
+upgrade-policy: enum= require-same-version, suggest-same-version, none;
+generated-ca-certificate: ro; 
+generated-certificate: ro; 
+
+/interface/wifi/capsman/remote-cap:
+address: ro; 
+version: ro; 
+state: ro; 
+base-mac: ro; MacAddress
+board-name: ro; 
+identity: ro; 
+serial: ro; 
+common-name: ro; 
+about: ro; 
+
+/interface/wifi/channel:can-add;
+band: o; WifiChannelBand;
+comment: 
+disabled: bool
+frequency: o; mu; range; u16
+name: ref=wifi-channel
+reselect-interval: o; range-dot; Duration
+secondary-frequency: mu; disabled; u32
+skip-dfs-channels: o; disabled; WifiSkipDfsChannels;
+width: o; WifiChannelWidth;
+about: ro; 
+
+/interface/wifi/configuration:can-add;id=name
+aaa: o; ref=>wifi-aaa
+aaa.called-format: o
+aaa.calling-format: o
+aaa.interim-update: o; enum=disabled;
+aaa.mac-caching: o;enum=disabled;
+aaa.nas-identifier: o
+aaa.password-format: o
+aaa.username-format: o
+antenna-gain: o;u8
+beacon-interval: o;Duration
+chains: mu;u8
+channel: o;ref=>wifi-channel
+channel.band: o;WifiChannelBand;
+channel.frequency: mu;range;u16
+channel.reselect-interval: o;Duration
+channel.secondary-frequency: o;disabled; u32
+channel.skip-dfs-channels: o;disabled; WifiSkipDfsChannels;
+channel.width: o; WifiChannelWidth;
+comment: 
+country: o;WifiCountry
+datapath: ref=>wifi-datapath;
+datapath.bridge: o; ref=>interface
+datapath.bridge-cost: o;u32
+datapath.bridge-horizon: o;none;
+datapath.client-isolation: o;bool
+datapath.interface-list: o;none;ref=>interface-list
+datapath.vlan-id: o;none; u16
+disabled: bool
+distance: o;u32
+dtim-period: o;u8
+hide-ssid: o;bool
+installation: o;IndoorOutdoor;
+interworking: o;ref=>wifi-interworking
+interworking.3gpp-info: mu
+interworking.authentication-types: mu;WifiAuthenticationType;
+interworking.connection-capabilities: mu;u32
+interworking.domain-names: mu
+interworking.esr: o;bool
+interworking.hessid: o;MacAddress
+interworking.hotspot20: o;bool
+interworking.hotspot20-dgaf: o;bool
+interworking.internet: o;bool
+interworking.ipv4-availability: o;InterworkingIpv4Availability;
+interworking.ipv6-availability: o;InterworkingIpv6Availability;
+interworking.network-type: o;InterworkingNetworkType;
+interworking.operational-classes: mu;u32
+interworking.operator-names: mu
+interworking.realms: mu
+interworking.roaming-ois: mu
+interworking.uesa: o;bool
+interworking.venue: o; InterworkingVenue;
+interworking.venue-names: 
+interworking.wan-at-capacity: bool
+interworking.wan-downlink: u32
+interworking.wan-downlink-load: u32
+interworking.wan-measurement-duration: u32
+interworking.wan-status:InterworkingWanStatus;
+interworking.wan-symmetric: bool
+interworking.wan-uplink: u32
+interworking.wan-uplink-load: u32
+manager: WifiManagement;
+mode: WifiMode;
+multicast-enhance: EnabledDisabled;
+name: ref=wifi-configuration
+qos-classifier:QosClassifier;
+security: ref=>wifi-security
+security.authentication-types: 
+security.connect-group: 
+security.connect-priority: u32
+security.dh-groups: 
+security.disable-pmkid: bool
+security.eap-accounting: bool
+security.eap-anonymous-identity: 
+security.eap-certificate-mode:WifiSecurityEapCertificateMode;
+security.eap-methods: WifiSecurityEapMode;
+security.eap-password: 
+security.eap-tls-certificate: 
+security.eap-username: 
+security.encryption: o;mu;WifiSecurityGroupEncryption
+security.ft: bool
+security.ft-mobility-domain: hex; u16
+security.ft-nas-identifier: 
+security.ft-over-ds: bool
+security.ft-preserve-vlanid: bool
+security.ft-r0-key-lifetime: 
+security.ft-reassociation-deadline: 
+security.group-encryption:WifiSecurityGroupEncryption;
+security.group-key-update: 
+security.management-encryption:WifiSecurityManagementEncryption;
+security.management-protection: WifiSecurityManagementProtection;
+security.multi-passphrase-group: 
+security.owe-transition-interface: auto; 
+security.passphrase: 
+security.sae-anti-clogging-threshold: disabled; 
+security.sae-max-failure-rate: disabled; 
+security.sae-pwe: WifiSecuritySaePwe;
+security.wps: WifiSecurityWps;
+ssid: 
+station-roaming: bool
+steering: 
+steering.neighbor-group: 
+steering.rrm: bool
+steering.wnm: bool
+tx-chains: 
+tx-power: u8
+about: ro; 
+
+/interface/wifi/datapath:can-add;id=name
+bridge: o; none; ref=> interface
+bridge-cost: o; u32
+bridge-horizon: none; 
+client-isolation: bool
+comment: 
+disabled: bool
+interface-list: o; none; ref=>interface-list
+name: ref=wifi-datapath
+vlan-id: o; none; u16
+about: ro; 
+
+/interface/wifi/interworking:can-add;
+3gpp-info: o
+authentication-types: mu; WifiAuthenticationType;
+comment: 
+connection-capabilities: mu; u32
+disabled: bool
+domain-names: mu
+esr: o; bool
+hessid: o; MacAddress
+hotspot20: o; bool
+hotspot20-dgaf: o; bool
+internet: o; bool
+ipv4-availability: o; InterworkingIpv4Availability;
+ipv6-availability: o; InterworkingIpv6Availability;
+name: ref=wifi-interworking
+network-type: o; InterworkingNetworkType;
+operational-classes: mu; u32
+operator-names: mu
+realms: mu
+roaming-ois:  mu
+uesa: o; bool
+venue: o; InterworkingVenue;
+venue-names: mu
+wan-at-capacity: o; bool
+wan-downlink: o; u32
+wan-downlink-load: o; u32
+wan-measurement-duration: o; u32
+wan-status: o; InterworkingWanStatus;
+wan-symmetric: o; bool
+wan-uplink: o; u32
+wan-uplink-load: o; u32
+about: ro; 
+
+/interface/wifi/provisioning:can-add;
+action: enum= create-disabled, create-dynamic-enabled, create-enabled, none;
+address-ranges: mu
+comment: 
+common-name-regexp: o
+disabled: bool
+identity-regexp: o
+master-configuration: o;ref=>wifi-configuration
+name-format: o
+radio-mac: o;MacAddress
+slave-configurations: o;mu;ref=>wifi-configuration
+slave-name-format: o
+supported-bands: WifiChannelBand;
+about: ro; 
+
+/interface/wifi/radio:
+about: ro; 
+hw-caps: ro; 
+current-country: ro; WifiCountry
+interface: ro; 
+current-channels: ro; 
+hw-type: ro; 
+min-antenna-gain: ro; 
+ciphers: ro; 
+local: ro; 
+rx-chains: ro; 
+bands: ro; 
+current-gopclasses: ro; 
+radio-mac: ro; MacAddress
+current-max-reg-power: ro; 
+max-interfaces: ro; 
+max-vlans: ro; u16
+countries: ro; 
+5g-channels: ro; 
+max-station-interfaces: ro; 
+cap: ro; 
+max-peers: ro; 
+tx-chains: ro; 
+afc-deployment: ro; 
+2g-channels: ro; 
+
+/interface/wifi/radio/settings:is-single;
+external-antenna: bool
+wifi-band: enum= 2.4GHz, 5GHz; 
+
+/interface/wifi/registration-table:
+about: ro; 
+auth-type: ro; 
+packets: ro; 
+uptime: ro; 
+vlan-id: ro; 
+rx-rate: ro; 
+tx-bits-per-second: ro; 
+comment: ro; 
+tx-rate: ro; 
+ssid: ro; 
+authorized: ro; 
+band: ro; 
+bytes: ro; 
+rx-bits-per-second: ro; 
+mac-address: ro; MacAddress
+last-activity: ro; 
+signal: ro; 
+interface: ro; 
+
+/interface/wifi/security:can-add;
+authentication-types: o;mu;WifiAuthenticationTypes
+comment: 
+connect-group: o
+connect-priority: o; u32
+dh-groups: o;mu;enum=19,20,21
+disable-pmkid: o; bool
+disabled: bool
+eap-accounting: o;bool
+eap-anonymous-identity: o
+eap-certificate-mode:o; WifiSecurityEapCertificateMode;
+eap-methods: o;mu;WifiSecurityEapMode;
+eap-password: o
+eap-tls-certificate: o; ref=>tls-certificate
+eap-username: o
+encryption: o;mu;WifiSecurityGroupEncryption
+ft: o; bool
+ft-mobility-domain: o; hex; u16
+ft-nas-identifier: o
+ft-over-ds:o; bool
+ft-preserve-vlanid: o;bool
+ft-r0-key-lifetime: o; Duration
+ft-reassociation-deadline: o; Duration
+group-encryption: o; WifiSecurityGroupEncryption;
+group-key-update: o; Duration
+management-encryption: o; WifiSecurityManagementEncryption;
+management-protection: o; WifiSecurityManagementProtection;
+multi-passphrase-group: o
+name: ref=wifi-security
+owe-transition-interface: o; auto; ref=>interface
+passphrase: o
+sae-anti-clogging-threshold: o; disabled; u16
+sae-max-failure-rate: o; disabled; u16
+sae-pwe: o; WifiSecuritySaePwe;
+wps: o; WifiSecurityWps;
+about: ro; 
+
+/interface/wifi/security/multi-passphrase:can-add;
+comment: 
+disabled: bool
+expires: u8
+group: ref=wifi-multi-passphrase
+isolation: bool
+passphrase: 
+vlan-id: u16
+about: ro; 
+expired: ro; 
+
+/interface/wifi/steering:can-add;
+comment: 
+disabled: bool
+name: ref=wifi-steering
+neighbor-group: o
+rrm: o; bool
+wnm: o; bool
+about: ro; 
+
+/interface/wifi/steering/neighbor-group:
+comment: 
+name: ro; ref=wifi-neighbor-group
+about: ro; 
+bssids: ro; 
+

@@ -1,0 +1,39 @@
+/interface/vxlan:can-add;
+allow-fast-path: bool
+arp: disabled; enum= enabled, local-proxy-arp, proxy-arp, reply-only; 
+arp-timeout: auto; 
+comment: 
+disabled: bool
+dont-fragment: disabled; enum= enabled, inherit; 
+group: 
+interface: ref=>interface; 
+local-address: 
+loop-protect: enum= default, off, on; 
+loop-protect-disable-time: 
+loop-protect-send-interval: 
+mac-address: 
+max-fdb-size: u16
+mtu: u16
+name: 
+port: u16
+vni: u32
+vrf: 
+vteps-ip-version: enum= ipv4, ipv6; 
+running: ro; 
+loop-protect-status: ro; 
+about: ro; 
+l2mtu: ro; 
+
+/interface/vxlan/fdb:
+mac-address: ro; 
+interface: ro; 
+about: ro; 
+remote-ip: ro; 
+
+/interface/vxlan/vteps:can-add;
+comment: 
+interface: ref=>interface; 
+port: u16
+remote-ip: 
+about: ro; 
+

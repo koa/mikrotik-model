@@ -8,6 +8,7 @@ use std::collections::{BTreeSet, HashSet};
 use std::fmt::{Debug, Formatter, Write};
 use std::hash::Hash;
 use std::net::IpAddr;
+use std::ops::Range;
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -314,6 +315,87 @@ impl<V: RosValue> RosValue for Auto<V> {
         }
     }
 }
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+pub enum PossibleRangeDash<V: RosValue> {
+    Range { start: V, end: V },
+    Single(V),
+}
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+pub enum PossibleRangeDot<V: RosValue> {
+    Range { start: V, end: V },
+    Single(V),
+}
+impl<V: RosValue + Clone + PartialEq> RosValue for PossibleRangeDash<V> {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
+        let mut parts = value.splitn(2, |ch| *ch == b'-');
+        if let Some(first_part) = parts.next() {
+            if let Some(second_part) = parts.next() {
+                match (V::parse_ros(first_part), V::parse_ros(second_part)) {
+                    (ParseRosValueResult::Value(start), ParseRosValueResult::Value(end)) => {
+                        ParseRosValueResult::Value(PossibleRangeDash::Range { start, end })
+                    }
+                    (ParseRosValueResult::Invalid, _) | (_, ParseRosValueResult::Invalid) => {
+                        ParseRosValueResult::Invalid
+                    }
+                    _ => ParseRosValueResult::None,
+                }
+            } else {
+                let both_values = V::parse_ros(first_part);
+                both_values.map(|v| PossibleRangeDash::Single(v))
+            }
+        } else {
+            ParseRosValueResult::None
+        }
+    }
+
+    fn encode_ros(&self) -> Cow<[u8]> {
+        match self {
+            PossibleRangeDash::Range { start, end } => {
+                [start.encode_ros().as_ref(), b"-", end.encode_ros().as_ref()]
+                    .concat()
+                    .into()
+            }
+            PossibleRangeDash::Single(value) => value.encode_ros(),
+        }
+    }
+}
+impl<V: RosValue + Clone + PartialEq> RosValue for PossibleRangeDot<V> {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
+        if let Some((pos, _)) = value
+            .windows(2)
+            .enumerate()
+            .find(|(_, chunk)| *chunk == b"..")
+        {
+            let first_part = &value[0..pos];
+            let second_part = &value[pos + 2..];
+            match (V::parse_ros(first_part), V::parse_ros(second_part)) {
+                (ParseRosValueResult::Value(start), ParseRosValueResult::Value(end)) => {
+                    ParseRosValueResult::Value(PossibleRangeDot::Range { start, end })
+                }
+                (ParseRosValueResult::Invalid, _) | (_, ParseRosValueResult::Invalid) => {
+                    ParseRosValueResult::Invalid
+                }
+                _ => ParseRosValueResult::None,
+            }
+        } else {
+            V::parse_ros(value).map(|v| PossibleRangeDot::Single(v))
+        }
+    }
+
+    fn encode_ros(&self) -> Cow<[u8]> {
+        match self {
+            PossibleRangeDot::Range { start, end } => [
+                start.encode_ros().as_ref(),
+                b"..",
+                end.encode_ros().as_ref(),
+            ]
+            .concat()
+            .into(),
+            PossibleRangeDot::Single(value) => value.encode_ros(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct RxTxPair<V: RosValue> {
     pub rx: V,
@@ -350,7 +432,15 @@ impl<V: RosValue> RosValue for RxTxPair<V> {
         .into()
     }
 }
-#[derive(Debug, Clone, PartialEq)]
+impl<V: Default + RosValue> Default for RxTxPair<V> {
+    fn default() -> Self {
+        Self {
+            rx: V::default(),
+            tx: V::default(),
+        }
+    }
+}
+#[derive(Debug, Clone, PartialEq, Ord, Eq, PartialOrd, Hash)]
 pub enum HasNone<V: RosValue> {
     NoneValue,
     Value(V),
@@ -375,8 +465,9 @@ impl<V: RosValue> RosValue for HasNone<V> {
         }
     }
 }
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum HasUnlimited<V: RosValue> {
+    #[default]
     Unlimited,
     Value(V),
 }
@@ -400,7 +491,7 @@ impl<V: RosValue> RosValue for HasUnlimited<V> {
         }
     }
 }
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Ord, Eq, Hash, PartialOrd)]
 pub enum HasDisabled<V: RosValue> {
     Disabled,
     Value(V),

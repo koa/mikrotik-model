@@ -3,6 +3,7 @@ use convert_case::{Case, Casing};
 use lazy_static::lazy_static;
 use proc_macro2::{Ident, Literal, Span};
 use std::collections::{BTreeMap, HashMap};
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::{collections::HashSet, vec};
 use syn::__private::ToTokens;
 use syn::{
@@ -21,18 +22,34 @@ lazy_static! {
     ]);
 }
 
-const CONTENT_FILES: [&str; 5] = [
+const CONTENT_FILES: [&str; 7] = [
     include_str!("../ros_model/system.txt"),
     include_str!("../ros_model/interface.txt"),
     include_str!("../ros_model/bridge.txt"),
     include_str!("../ros_model/ip.txt"),
     include_str!("../ros_model/ospf.txt"),
+    include_str!("../ros_model/interface/Wifi.txt"),
+    include_str!("../ros_model/interface/Vxlan.txt"),
 ];
 
 pub fn known_entities() -> impl Iterator<Item = Entity> {
     CONTENT_FILES
         .into_iter()
         .flat_map(|content| Entity::parse_lines(content.lines()))
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+struct HashableSet<V: Eq + Hash>(HashSet<V>);
+impl<V: Eq + Hash> Hash for HashableSet<V> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        let mut value = 0;
+        for entry in self.0.iter() {
+            let hasher = DefaultHasher::new();
+            entry.hash(state);
+            value = value ^ hasher.finish();
+        }
+        state.write_u64(value);
+    }
 }
 
 pub fn generator() -> syn::File {
@@ -69,7 +86,8 @@ pub fn generator() -> syn::File {
     let mut known_references = BTreeMap::new();
 
     let mut all_generated_types = Vec::new();
-    let mut incoming_chain_edges = HashMap::new();
+    let mut outgoing_chain_edges = HashMap::new();
+    let mut entries_by_incoming_references = HashMap::new();
 
     for content in CONTENT_FILES {
         let entries = Entity::parse_lines(content.lines());
@@ -93,7 +111,7 @@ pub fn generator() -> syn::File {
             //incoming_references.retain(|e| !outgoing_references.contains(e));
             for outgoing_ref in outgoing_references.iter() {
                 for incoming_ref in incoming_references.iter() {
-                    incoming_chain_edges
+                    outgoing_chain_edges
                         .entry(outgoing_ref.clone())
                         .or_insert_with(Vec::new)
                         .push(incoming_ref.clone());
@@ -106,15 +124,31 @@ pub fn generator() -> syn::File {
                     outgoing_references.clone(),
                 ));
             }
+            entries_by_incoming_references
+                .entry(HashableSet(incoming_references))
+                .or_insert_with(Vec::new)
+                .push(entity.path.clone());
+        }
+    }
+    for (references, paths) in entries_by_incoming_references {
+        let deps = references
+            .0
+            .iter()
+            .map(|id| id.to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        println!("{deps}");
+        for path in paths {
+            println!(" - {path:?}");
         }
     }
 
-    let path_lengths_of_key = incoming_chain_edges
+    let path_lengths_of_key = outgoing_chain_edges
         .keys()
         .map(|reference| {
             (
                 reference,
-                calculate_path_length(reference, &incoming_chain_edges, &[]),
+                calculate_path_length(reference, &outgoing_chain_edges, &[]),
             )
         })
         .collect::<HashMap<_, _>>();
@@ -273,14 +307,15 @@ fn calculate_path_length(
     current_path: &[&Ident],
 ) -> usize {
     if current_path.contains(&key) {
+        let stream = key.to_token_stream();
         println!(
-            "Loop: {} -> {}",
+            "Loop2: {} -> {}",
             current_path
                 .iter()
                 .map(|v| v.to_token_stream().to_string())
                 .collect::<Vec<String>>()
                 .join(", "),
-            key.to_token_stream().to_string()
+            stream
         );
         0
     } else {
@@ -350,7 +385,7 @@ fn generate_enums<'a, T: Iterator<Item = (Ident, Box<[Box<str>]>)>>(
     )
 }
 fn cleanup_field_name(name: &str) -> String {
-    name.replace(['.', '/'], "_")
+    name.replace(['.', '/', '+'], "_")
 }
 
 fn derive_ident(value: &str) -> String {

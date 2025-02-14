@@ -9,8 +9,8 @@ use syn::{
     parse_quote,
     punctuated::Punctuated,
     token::{Colon, Comma},
-    Block, Expr, ExprArray, ExprMatch, ExprStruct, FieldValue, FieldsNamed, FnArg, ImplItem, Item,
-    ItemFn, ItemImpl, Member, Path, PathSegment, Token, Type, TypePath,
+    Block, Expr, ExprArray, ExprField, ExprMatch, ExprStruct, FieldValue, FieldsNamed, FnArg,
+    ImplItem, Item, ItemFn, ItemImpl, Member, Path, PathSegment, Token, Type, TypePath,
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -24,6 +24,7 @@ pub struct Entity {
     pub fields: Vec<Field>,
     pub is_single: bool,
     pub can_add: bool,
+    pub no_default: bool,
 }
 
 pub struct RosTypeEntry {
@@ -57,6 +58,7 @@ impl Entity {
                         fields: vec![],
                         is_single: false,
                         can_add: false,
+                        no_default: false,
                     };
                     for param in params.split(';') {
                         if let Some((key, value)) = param.split_once('=') {
@@ -70,6 +72,7 @@ impl Entity {
                             match param.trim() {
                                 "can-add" => entity.can_add = true,
                                 "is-single" => entity.is_single = true,
+                                "no-default" => entity.no_default = true,
                                 "" => {}
                                 _ => panic!("Unknown param: {param}"),
                             }
@@ -84,6 +87,7 @@ impl Entity {
                         fields: vec![],
                         is_single: false,
                         can_add: false,
+                        no_default: false,
                     }
                 };
                 if let Some(entity) = current_entity.replace(entity) {
@@ -97,6 +101,7 @@ impl Entity {
                     fields: vec![],
                     is_single: true,
                     can_add: false,
+                    no_default: false,
                 }) {
                     collected_entities.push(entity);
                 }
@@ -108,6 +113,7 @@ impl Entity {
                     fields: vec![],
                     is_single: false,
                     can_add: true,
+                    no_default: false,
                 }) {
                     collected_entities.push(entity);
                 }
@@ -163,6 +169,9 @@ impl Entity {
             items.push(self.generate_ros_resource_for_cfg());
             items.push(self.create_deserialize_builder_for_cfg());
             items.push(self.create_cfg_resource());
+            if !self.no_default {
+                //items.push(self.generate_default_for_cfg());
+            }
             let mut cfg_struct_items = Vec::new();
             if self.is_single {
                 items.push(self.single_resource_cfg());
@@ -183,12 +192,15 @@ impl Entity {
                         items.push(self.generate_deserialize_builder_for_id_external(id_field));
                         items.push(self.generate_keyed_for_id_external(id_field));
                         items.push(self.generate_cfg_for_id_external(id_field));
+                        items.push(self.generate_set_for_id_external(id_field));
+                        items.push(self.generate_updateable_id_external(id_field));
                     } else {
                         items.push(self.generate_id_struct_internal(id_field));
                         items.push(self.generate_id_builder_internal(id_field));
                         items.push(self.generate_deserialize_builder_for_id_internal(id_field));
                         items.push(self.generate_keyed_for_id_internal(id_field));
                         items.push(self.generate_cfg_for_id_internal(id_field));
+                        items.push(self.generate_updateable_id_internal(id_field));
                     }
                     if has_readonly_fields {
                         items.push(self.generate_has_reference_for_id_combined(id_field));
@@ -224,6 +236,9 @@ impl Entity {
             items.push(self.generate_deserialize_for_combined_struct());
             items.push(self.generate_combined_deserialize_builder());
             items.push(self.generate_ros_for_combined_struct());
+            if self.is_single {
+                items.push(self.create_combined_single_impl());
+            }
         }
         (
             generate_enums(self.collect_enum_field_types())
@@ -411,7 +426,7 @@ impl Entity {
 
     fn generate_cfg_for_id_internal(&self, id_field: &Field) -> Item {
         let id_struct_ident = self.id_struct_type(id_field);
-        let item = parse_quote! {
+        parse_quote! {
             impl resource::CfgResource for #id_struct_ident {
                 #[allow(clippy::needless_lifetimes)]
                 fn changed_values<'a, 'b>(
@@ -421,10 +436,30 @@ impl Entity {
                     self.0.changed_values(&before.0)
                 }
             }
-        };
-        item
+        }
     }
+    fn generate_updateable_id_internal(&self, id_field: &Field) -> Item {
+        let id_struct_ident = self.id_struct_type(id_field);
+        let field_name = id_field.attribute_name();
+        let id_field_name = id_field.generate_field_name();
 
+        let path = self.generate_path();
+        parse_quote! {
+            impl resource::Updatable for #id_struct_ident {
+                type From=#id_struct_ident;
+                fn calculate_update<'a>(&'a self, from: &'a Self) -> resource::ResourceMutation<'a> {
+                    resource::ResourceMutation {
+                        resource: #path,
+                        operation: resource::ResourceMutationOperation::UpdateByKey(value::KeyValuePair {
+                            key: #field_name,
+                            value: value::RosValue::encode_ros(&from.0.#id_field_name),
+                        }),
+                        fields: resource::CfgResource::changed_values(self,from).collect(),
+                    }
+                }
+            }
+        }
+    }
     fn generate_keyed_for_id_internal(&self, id_field: &Field) -> Item {
         let id_field_type = self.struct_field_type(id_field);
         let id_struct_ident = self.id_struct_type(id_field);
@@ -451,17 +486,15 @@ impl Entity {
         let id_struct_ident = self.id_struct_type(id_field);
         let struct_ident_cfg = self.struct_type_cfg();
 
-        let item = parse_quote! {
+        parse_quote! {
             #[derive(Debug, Clone, PartialEq)]
             pub struct #id_struct_ident(pub #struct_ident_cfg);
-        };
-        item
+        }
     }
 
     fn generate_cfg_for_id_external(&self, id_field: &Field) -> Item {
         let id_struct_ident = self.id_struct_type(id_field);
-
-        let item = parse_quote! {
+        parse_quote! {
             impl resource::CfgResource for #id_struct_ident {
                 #[allow(clippy::needless_lifetimes)]
                 fn changed_values<'a, 'b>(
@@ -471,10 +504,63 @@ impl Entity {
                     self.data.changed_values(&before.data)
                 }
             }
-        };
-        item
+        }
     }
+    fn generate_set_for_id_external(&self, id_field: &Field) -> Item {
+        let id_struct_ident = self.id_struct_type(id_field);
+        let struct_ident = self.struct_ident_cfg();
+        let status_ident = self.struct_status_ident();
+        let changed_values_array = self.modifiable_field_updaters(&Some(parse_quote!(data)));
 
+        parse_quote! {
+            impl resource::SetResource<#id_struct_ident> for #struct_ident {
+                #[allow(clippy::needless_lifetimes)]
+                fn changed_values<'a, 'b>(
+                    &'a self,
+                    before: &'b #id_struct_ident,
+                ) -> impl Iterator<Item = value::KeyValuePair<'a>> {
+                    #changed_values_array.into_iter().flatten()
+                }
+            }
+        }
+    }
+    fn generate_updateable_id_external(&self, id_field: &Field) -> Item {
+        let id_struct_ident = self.id_struct_type(id_field);
+        let cfg_ident = self.struct_ident_cfg();
+        let path = self.generate_path();
+        let key = id_field.attribute_name();
+        let key_name = id_field.generate_field_name();
+        /*parse_quote! {
+            impl resource::Updatable for #id_struct_ident {
+                type From=#cfg_ident;
+                fn calculate_update<'a>(&'a self, from: &'a #cfg_ident) -> resource::ResourceMutation<'a> {
+                    resource::ResourceMutation {
+                        resource: #path,
+                        operation: resource::ResourceMutationOperation::UpdateByKey(value::KeyValuePair {
+                            key: #key,
+                            value: value::RosValue::encode_ros(&self.#key_name),
+                        }),
+                        fields: resource::SetResource::changed_values(from,self).collect(),
+                    }
+                }
+            }
+        }*/
+        parse_quote! {
+            impl resource::Updatable for #id_struct_ident {
+                type From=#id_struct_ident;
+                fn calculate_update<'a>(&'a self, from: &'a #id_struct_ident) -> resource::ResourceMutation<'a> {
+                    resource::ResourceMutation {
+                        resource: #path,
+                        operation: resource::ResourceMutationOperation::UpdateByKey(value::KeyValuePair {
+                            key: #key,
+                            value: value::RosValue::encode_ros(&self.#key_name),
+                        }),
+                        fields: resource::CfgResource::changed_values(self,from).collect(),
+                    }
+                }
+            }
+        }
+    }
     fn generate_keyed_for_id_external(&self, id_field: &Field) -> Item {
         let id_field_type = self.struct_field_type(id_field);
         let field_name = id_field.attribute_name();
@@ -661,8 +747,9 @@ impl Entity {
 
     fn updateable_cfg(&self) -> Item {
         let struct_ident_cfg = self.struct_type_cfg();
-        let item = parse_quote! {
+        parse_quote! {
             impl resource::Updatable for #struct_ident_cfg {
+                type From = #struct_ident_cfg;
                 fn calculate_update<'a>(&'a self, from: &'a Self) -> resource::ResourceMutation<'a> {
                     resource::ResourceMutation {
                         resource: <#struct_ident_cfg as resource::RosResource>::path(),
@@ -671,21 +758,19 @@ impl Entity {
                     }
                 }
             }
-        };
-        item
+        }
     }
 
     fn single_resource_cfg(&self) -> Item {
         let struct_ident_cfg = self.struct_type_cfg();
-        let item = parse_quote! {
+        parse_quote! {
             impl resource::SingleResource for #struct_ident_cfg {}
-        };
-        item
+        }
     }
 
     fn create_cfg_resource(&self) -> Item {
         let struct_ident_cfg = self.struct_type_cfg();
-        let changed_values_array = self.modifiable_field_updaters();
+        let changed_values_array = self.modifiable_field_updaters(&None);
         parse_quote! {
             impl resource::CfgResource for #struct_ident_cfg {
                 #[allow(clippy::needless_lifetimes)]
@@ -801,12 +886,23 @@ impl Entity {
                     for field in fields_of_type {
                         let field_name = field.generate_field_name();
                         if field.is_multiple {
-                            type_block.stmts.push(parse_quote! {
-                                    if self.#field_name.remove(old_value) {
-                                        self.#field_name.insert(new_value.clone());
-                                        modified = true;
+                            if field.is_optional {
+                                type_block.stmts.push(parse_quote! {
+                                    if let Some(values)=self.#field_name.as_mut(){
+                                        if values.remove(old_value) {
+                                            values.insert(new_value.clone());
+                                            modified = true;
+                                        }
                                     }
-                            });
+                                });
+                            } else {
+                                type_block.stmts.push(parse_quote! {
+                                        if self.#field_name.remove(old_value) {
+                                            self.#field_name.insert(new_value.clone());
+                                            modified = true;
+                                        }
+                                });
+                            }
                         } else if field.is_optional {
                             type_block.stmts.push(parse_quote! {
                                     if Some(old_value)== self.#field_name.as_ref() {
@@ -903,7 +999,7 @@ impl Entity {
         create_values_array
     }
 
-    fn modifiable_field_updaters(&self) -> ExprArray {
+    fn modifiable_field_updaters(&self, sub_field: &Option<Ident>) -> ExprArray {
         let mut changed_values_array = ExprArray {
             attrs: vec![],
             bracket_token: Default::default(),
@@ -912,7 +1008,7 @@ impl Entity {
         for field in self.modifiable_fields_iterator() {
             changed_values_array
                 .elems
-                .push(field.compare_and_set_snippet());
+                .push(field.compare_and_set_snippet(sub_field));
         }
         changed_values_array
     }
@@ -1335,6 +1431,22 @@ impl Entity {
             self.update_reference_fn(|f| !f.is_read_only),
         )
     }
+
+    fn create_combined_single_impl(&self) -> Item {
+        let struct_ident = self.struct_type();
+        parse_quote! {
+            impl resource::SingleResource for #struct_ident {}
+        }
+    }
+
+    fn generate_default_for_cfg(&self) -> Item {
+        let cfg_name = self.struct_ident_cfg();
+        parse_quote! {
+            impl Default for #cfg_name {
+
+            }
+        }
+    }
 }
 
 fn name2type(name: &str) -> Type {
@@ -1353,7 +1465,8 @@ pub struct Field {
     pub is_key: bool,
     pub has_auto: bool,
     pub is_set: bool,
-    pub is_range: bool,
+    pub is_range_dot: bool,
+    pub is_range_dash: bool,
     pub is_optional: bool,
     pub is_read_only: bool,
     pub is_multiple: bool,
@@ -1364,6 +1477,7 @@ pub struct Field {
     pub has_disabled: bool,
     pub is_rxtx_pair: bool,
     pub keep_if_none: bool,
+    pub default: Option<Box<str>>,
 }
 
 impl Field {
@@ -1379,8 +1493,9 @@ impl Field {
                     match key.trim() {
                         "enum" => {
                             field.inline_enum =
-                                Some(value.split(',').map(|s| s.trim().into()).collect());
+                                Some(value.split(',').map(|s| s.trim().into()).collect())
                         }
+
                         "ref" => {
                             if let Some(name) = value.strip_prefix(">") {
                                 field.reference = Reference::RefereesTo(name.trim().into());
@@ -1388,10 +1503,8 @@ impl Field {
                                 field.reference = Reference::IsReference(value.into());
                             }
                         }
-                        "default" => {}
-                        _ => {
-                            panic!("Invalid field definition: {definition}");
-                        }
+                        "default" => field.default = Some(value.trim().into()),
+                        _ => panic!("Invalid field definition: {definition}"),
                     }
                 } else {
                     match comp {
@@ -1399,7 +1512,8 @@ impl Field {
                         "ro" => field.is_read_only = true,
                         "auto" => field.has_auto = true,
                         "mu" => field.is_multiple = true,
-                        "range" => field.is_range = true,
+                        "range" => field.is_range_dash = true,
+                        "range-dot" => field.is_range_dot = true,
                         "o" => field.is_optional = true,
                         "hex" => field.is_hex = true,
                         "none" => field.has_none = true,
@@ -1437,8 +1551,11 @@ impl Field {
         if self.is_multiple {
             write!(writer, "mu; ")?;
         }
-        if self.is_range {
+        if self.is_range_dash {
             write!(writer, "range; ")?;
+        }
+        if self.is_range_dot {
+            write!(writer, "range-dot; ")?;
         }
         if self.is_optional {
             write!(writer, "o; ")?;
@@ -1491,14 +1608,19 @@ impl Field {
         Ok(())
     }
 
-    fn compare_and_set_snippet(&self) -> Expr {
+    fn compare_and_set_snippet(&self, sub_field: &Option<Ident>) -> Expr {
         let field_name = self.generate_field_name();
         let attribute_name = self.attribute_name();
         let keep_if_none = self.is_optional && self.keep_if_none;
-        let cmp: Expr = if keep_if_none {
-            parse_quote!(self.#field_name == before.#field_name || self.#field_name.is_none())
+        let field_ref: ExprField = if let Some(field) = sub_field {
+            parse_quote!(before.#field.#field_name)
         } else {
-            parse_quote!(self.#field_name == before.#field_name)
+            parse_quote!(before.#field_name)
+        };
+        let cmp: Expr = if keep_if_none {
+            parse_quote!(self.#field_name == #field_ref || self.#field_name.is_none())
+        } else {
+            parse_quote!(self.#field_name == #field_ref)
         };
         let compare_and_set_snippet = parse_quote! {
            if #cmp {
@@ -1515,21 +1637,45 @@ impl Field {
 
     fn generate_struct_field_type(&self, enum_field_type: Option<Type>) -> Type {
         let field_type = self.generate_base_field_type(enum_field_type);
-        if self.is_multiple {
+        let field_type = if self.is_range_dash {
+            parse_quote!(value::PossibleRangeDash<#field_type>)
+        } else {
+            field_type
+        };
+        let field_type = if self.is_range_dot {
+            parse_quote!(value::PossibleRangeDot<#field_type>)
+        } else {
+            field_type
+        };
+        let field_type = if self.is_multiple {
             parse_quote!(std::collections::BTreeSet<#field_type>)
-        } else if self.is_optional {
+        } else {
+            field_type
+        };
+        if self.is_optional {
             parse_quote!(Option<#field_type>)
         } else {
             field_type
         }
     }
     fn generate_builder_type(&self, enum_field_type: Option<Type>) -> Type {
-        let field_type = self.generate_base_field_type(enum_field_type);
+        let field_type = self.generate_struct_field_type(enum_field_type);
+        if self.is_optional || self.is_multiple {
+            field_type
+        } else {
+            parse_quote!(Option<#field_type>)
+        }
+        /*let field_type = self.generate_base_field_type(enum_field_type);
+        let field_type = if self.is_range {
+            parse_quote!(value::PossibleRange<#field_type>)
+        } else {
+            field_type
+        };
         if self.is_multiple {
             parse_quote!(std::collections::BTreeSet<#field_type>)
         } else {
             parse_quote!(Option<#field_type>)
-        }
+        }*/
     }
 
     fn generate_base_field_type(&self, enum_field_type: Option<Type>) -> Type {
@@ -1589,7 +1735,14 @@ impl Field {
 
     fn generate_field_name(&self) -> Ident {
         let field_name = cleanup_field_name(self.name.as_ref()).to_case(Case::Snake);
-        let field_name = if KEYWORDS.contains(field_name.as_str()) {
+
+        let field_name = if KEYWORDS.contains(field_name.as_str())
+            || field_name
+                .chars()
+                .next()
+                .map(|ch| ch.is_numeric())
+                .unwrap_or(true)
+        {
             format!("_{field_name}")
         } else {
             field_name

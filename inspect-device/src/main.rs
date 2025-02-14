@@ -91,25 +91,35 @@ async fn main() -> anyhow::Result<()> {
         } else {
             Box::new(path[0..2].as_ref())
         };
-        let name = if let [primary,secondary] = &group_path[..] {
-            format!("{}/{}",primary.as_ref().to_case(Case::Kebab),secondary.as_ref().to_case(Case::UpperCamel))
-        }else if let [primary]=&group_path[..] {
-            format!("{}/{}",primary.as_ref().to_case(Case::Kebab),primary.as_ref().to_case(Case::UpperCamel))
-        }else{
+        let name = if let [primary, secondary] = &group_path[..] {
+            format!(
+                "{}/{}",
+                primary.as_ref().to_case(Case::Kebab),
+                secondary.as_ref().to_case(Case::UpperCamel)
+            )
+        } else if let [primary] = &group_path[..] {
+            format!(
+                "{}/{}",
+                primary.as_ref().to_case(Case::Kebab),
+                primary.as_ref().to_case(Case::UpperCamel)
+            )
+        } else {
             "empty".to_owned()
         };
-        entries_by_group
-            .entry(name)
-            .or_insert(Vec::new())
-            .push(e);
+        entries_by_group.entry(name).or_insert(Vec::new()).push(e);
     });
-    let mut entity_list_file = File::create("../mikrotik-model-generator/ros_model/entities.txt")?;
+    let base_dir = Path::new("target/ros_model");
+    if !base_dir.exists() {
+        create_dir_all(base_dir)?;
+    }
+    
+    let mut entity_list_file = File::create( "target/ros_model/entities.txt")?;
     for (filename, entries) in entries_by_group {
         write!(&mut entity_list_file, "{filename}.txt\n")?;
-        let path = format!("../mikrotik-model-generator/ros_model/{filename}.txt");
+        let path = format!("target/ros_model/{filename}.txt");
         let path = Path::new(&path);
-        if let Some(parent)=path.parent(){
-            if !parent.exists(){
+        if let Some(parent) = path.parent() {
+            if !parent.exists() {
                 create_dir_all(parent)?;
             }
         }
@@ -225,9 +235,10 @@ async fn process_entry<'a>(
             fields: vec![],
             is_single: false,
             can_add,
+            no_default: false,
         });
     if !can_remove && !can_find && !can_add {
-        entity.is_single=true;
+        entity.is_single = true;
     }
     let mut existing_fields = entity
         .fields
@@ -279,7 +290,10 @@ async fn process_entry<'a>(
     while let Some(mut sentence) = stream.next().await {
         let is_child = sentence.remove("type").flatten().as_deref() == Some("child");
         let is_arg = sentence.remove("node-type").flatten().as_deref() == Some("arg");
-        let name = sentence.remove("name").flatten().filter(|n| n.as_ref() != "numbers");
+        let name = sentence
+            .remove("name")
+            .flatten()
+            .filter(|n| n.as_ref() != "numbers");
         if is_child && is_arg {
             if let Some(name) = name {
                 ro_fields.remove(&name);
@@ -304,7 +318,8 @@ async fn process_entry<'a>(
             is_key: false,
             has_auto: false,
             is_set: false,
-            is_range: false,
+            is_range_dot: false,
+            is_range_dash: false,
             is_optional: false,
             is_read_only: true,
             is_multiple: false,
@@ -315,6 +330,7 @@ async fn process_entry<'a>(
             has_disabled: false,
             is_rxtx_pair: false,
             keep_if_none: false,
+            default: None,
         });
     }
     entity.fields = fields;
@@ -352,8 +368,8 @@ async fn guess_field(
     let mut example_values = Vec::new();
     let mut number_type = None;
     let mut symbols = HashSet::new();
-    let mut any_value_allowed =false;
-    let mut has_star=false;
+    let mut any_value_allowed = false;
+    let mut has_star = false;
     while let Some(mut sentence) = stream.next().await {
         match sentence.remove("type").flatten().as_deref() {
             Some("completion") => {
@@ -378,8 +394,8 @@ async fn guess_field(
                                 number_type = Some(("i64", false));
                             }
                         }
-                        "<value>"=> any_value_allowed =true,
-                        "*" => has_star=true,
+                        "<value>" => any_value_allowed = true,
+                        "*" => has_star = true,
                         &_ => {}
                     }
                 }
@@ -465,7 +481,8 @@ async fn guess_field(
             is_key: false,
             has_auto: false,
             is_set: false,
-            is_range: false,
+            is_range_dot: false,
+            is_range_dash: false,
             is_optional: false,
             is_read_only: false,
             is_multiple: false,
@@ -476,8 +493,9 @@ async fn guess_field(
             has_disabled: false,
             is_rxtx_pair: false,
             keep_if_none: false,
+            default: None,
         });
-    field.is_read_only=false;
+    field.is_read_only = false;
     if let Some((field_type, is_hex)) = number_type {
         field.field_type = Some(Box::from(field_type));
         field.is_hex = is_hex;
@@ -501,7 +519,7 @@ async fn guess_field(
         }
     }
     //if!symbols.is_empty(){
-        //println!("{field_name}: {symbols:?}");
+    //println!("{field_name}: {symbols:?}");
     //}
     if symbols.contains("Interface") {
         if enum_values.is_empty() {
@@ -513,11 +531,15 @@ async fn guess_field(
     if symbols.contains("Rx") {
         field.is_rxtx_pair = true;
     }
-    if number_type.is_none() && !enum_values.is_empty() && symbols.is_empty() && !any_value_allowed {
-        if enum_values.len()==2 && enum_values[0].as_ref()=="no" && enum_values[1].as_ref()=="yes" {
-            field.field_type=Some("bool".into());
-        }else {
-            if has_star{
+    if number_type.is_none() && !enum_values.is_empty() && symbols.is_empty() && !any_value_allowed
+    {
+        if enum_values.len() == 2
+            && enum_values[0].as_ref() == "no"
+            && enum_values[1].as_ref() == "yes"
+        {
+            field.field_type = Some("bool".into());
+        } else {
+            if has_star {
                 println!("{field_name}: Enum with star: {enum_values:?}");
             }
             field.inline_enum = Some(enum_values.into_boxed_slice());

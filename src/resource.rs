@@ -64,6 +64,11 @@ pub trait DeserializeRosResource: Sized + FieldUpdateHandler {
     }
 }
 
+pub trait CompositeRosResource: Sized + DeserializeRosResource {
+    type ReadOnlyData: DeserializeRosResource;
+    type ReadWriteData: DeserializeRosResource + Updatable;
+}
+
 pub trait DeserializeRosBuilder<R: DeserializeRosResource> {
     type Context: Send + Sync + Debug;
     fn init(context: &Self::Context) -> Self;
@@ -87,6 +92,8 @@ pub enum Error {
     //Fatal(FatalResponse),
     #[error("Trap from device: {0}")]
     Trap(TrapResponse),
+    #[error("Cannot fetch single item")]
+    ErrorFetchingSingleItem,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash)]
@@ -216,6 +223,11 @@ pub trait CfgResource: DeserializeRosResource {
     fn changed_values<'a, 'b>(&'a self, before: &'b Self)
         -> impl Iterator<Item = KeyValuePair<'a>>;
 }
+pub trait SetResource<Base: RosResource>: FieldUpdateHandler {
+    #[allow(clippy::needless_lifetimes)]
+    fn changed_values<'a, 'b>(&'a self, before: &'b Base)
+        -> impl Iterator<Item = KeyValuePair<'a>>;
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ResourceMutation<'a> {
@@ -232,10 +244,12 @@ pub enum ResourceMutationOperation<'a> {
 }
 
 pub trait Updatable {
-    fn calculate_update<'a>(&'a self, from: &'a Self) -> ResourceMutation<'a>;
+    type From: RosResource;
+    fn calculate_update<'a>(&'a self, from: &'a Self::From) -> ResourceMutation<'a>;
 }
 
-impl<R: KeyedResource + CfgResource + RosResource> Updatable for R {
+/*impl<R: KeyedResource + CfgResource + RosResource> Updatable for R {
+    type From = R;
     fn calculate_update<'a>(&'a self, from: &'a Self) -> ResourceMutation<'a> {
         ResourceMutation {
             resource: R::path(),
@@ -246,7 +260,21 @@ impl<R: KeyedResource + CfgResource + RosResource> Updatable for R {
             fields: self.changed_values(from).collect(),
         }
     }
-}
+}*/
+/*impl<R: SetResource + KeyedResource> Updatable for R {
+    type From = R::Cfg;
+
+    fn calculate_update<'a>(&'a self, from: &'a R::Cfg) -> ResourceMutation<'a> {
+        ResourceMutation {
+            resource: R::Cfg::path(),
+            operation: ResourceMutationOperation::UpdateByKey(KeyValuePair {
+                key: R::key_name(),
+                value: self.key_value().encode_ros(),
+            }),
+            fields: self.changed_values(from).collect(),
+        }
+    }
+}*/
 
 pub trait Creatable: CfgResource {
     fn calculate_create(&self) -> ResourceMutation<'_>;

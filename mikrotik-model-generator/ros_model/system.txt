@@ -1,4 +1,4 @@
-1/system/resource
+/system/resource:is-single;no-default
 
 architecture-name: ro;enum=arm, arm64, mipsbe, tile,x86,mmips
 board-name:ro
@@ -19,7 +19,7 @@ total-memory: ro;u64
 version:ro
 write-sect-total: ro;u64
 
-1/system/identity
+/system/identity:is-single;no-default
 name
 
 1/system/routerboard
@@ -31,7 +31,7 @@ current-firmware: ro
 factory-firmware: ro
 routerboard: ro;bool
 
-1/system/routerboard/settings
+/system/routerboard/settings:is-single;no-default
 auto-upgrade: bool
 baud-rate: o;u32
 boot-delay: o;Duration
