@@ -1,14 +1,15 @@
-use crate::ascii::AsciiString;
-use crate::model::InterfaceWifiByDefaultName;
-use crate::model::{
-    Data, EthernetSpeed, InterfaceEthernetArp, InterfaceEthernetByDefaultName,
-    InterfaceEthernetCfg, InterfaceEthernetComboMode, InterfaceEthernetFecMode,
-    InterfaceEthernetLoopProtect, InterfaceEthernetSfpRateSelect, InterfaceWifiCfg, OnOff,
+use crate::model::InterfaceEthernetPoeOut;
+use crate::{
+    ascii::AsciiString,
+    model::{
+        Data, EthernetSpeed, InterfaceEthernetArp, InterfaceEthernetByDefaultName,
+        InterfaceEthernetCfg, InterfaceEthernetComboMode, InterfaceEthernetFecMode,
+        InterfaceEthernetLoopProtect, InterfaceEthernetSfpRateSelect, InterfaceWifiByDefaultName,
+        InterfaceWifiCfg, OnOff,
+    },
+    value::{Auto, HasUnlimited, RxTxPair},
 };
-use crate::value::{Auto, HasUnlimited, RxTxPair};
-use crate::value::{HasDisabled, HasNone};
-use std::iter::repeat_n;
-use std::time::Duration;
+use std::{iter::repeat_n, time::Duration};
 
 #[derive(Debug, Copy, Clone, PartialEq, Hash)]
 pub enum DeviceType {
@@ -16,58 +17,47 @@ pub enum DeviceType {
     CRS326_24G_2Splus,
     CCR1009_7G_1C_1Splus,
     CRS354_48G_4Splus_2Qplus,
+    C52iG_5HaxD2HaxD,
 }
 impl DeviceType {
-    pub fn ethernet_port_count(&self) -> usize {
-        match self {
-            DeviceType::RB750Gr3 => 5,
-            DeviceType::CRS326_24G_2Splus => 24,
-            DeviceType::CCR1009_7G_1C_1Splus => 7,
-            DeviceType::CRS354_48G_4Splus_2Qplus => 49,
-        }
-    }
-    pub fn combo_port_count(&self) -> usize {
-        match self {
-            DeviceType::RB750Gr3 => 0,
-            DeviceType::CRS326_24G_2Splus => 0,
-            DeviceType::CCR1009_7G_1C_1Splus => 1,
-            DeviceType::CRS354_48G_4Splus_2Qplus => 0,
-        }
-    }
-    pub fn sfp_sfpplus_port_count(&self) -> usize {
-        match self {
-            DeviceType::RB750Gr3 => 0,
-            DeviceType::CRS326_24G_2Splus => 2,
-            DeviceType::CCR1009_7G_1C_1Splus => 1,
-            DeviceType::CRS354_48G_4Splus_2Qplus => 4,
-        }
-    }
     pub fn device_type_name(&self) -> &'static str {
         match self {
             DeviceType::RB750Gr3 => "RB750Gr3",
             DeviceType::CRS326_24G_2Splus => "CRS326-24G-2S+",
             DeviceType::CCR1009_7G_1C_1Splus => "CCR1009-7G-1C-1S+",
             DeviceType::CRS354_48G_4Splus_2Qplus => "CRS354-48G-4S+2Q+",
+            DeviceType::C52iG_5HaxD2HaxD => "C52iG-5HaxD2HaxD",
         }
     }
 
     fn build_ethernet_ports(&self) -> Vec<InterfaceEthernetByDefaultName> {
         match self {
             DeviceType::RB750Gr3 => repeat_n(
-                generate_ethernet(EthernetNamePattern::Ether, &ADVERTISE_1G, 1596),
+                generate_ethernet(EthernetNamePattern::Ether, &ADVERTISE_1G, 1596, false),
                 5,
             )
             .enumerate()
             .map(|(idx, generator)| generator(idx + 1))
             .collect(),
+            DeviceType::C52iG_5HaxD2HaxD => repeat_n(
+                generate_ethernet(EthernetNamePattern::Ether, &ADVERTISE_1G, 1568, true),
+                1,
+            )
+            .chain(repeat_n(
+                generate_ethernet(EthernetNamePattern::Ether, &ADVERTISE_1G, 1568, false),
+                4,
+            ))
+            .enumerate()
+            .map(|(idx, generator)| generator(idx + 1))
+            .collect(),
             DeviceType::CRS326_24G_2Splus => repeat_n(
-                generate_ethernet(EthernetNamePattern::Ether, &ADVERTISE_1G, 1592),
+                generate_ethernet(EthernetNamePattern::Ether, &ADVERTISE_1G, 1592, false),
                 24,
             )
             .enumerate()
             .chain(
                 repeat_n(
-                    generate_ethernet(EthernetNamePattern::SfpSfpPlus, &ADVERTISE_10G, 1592),
+                    generate_ethernet(EthernetNamePattern::SfpSfpPlus, &ADVERTISE_10G, 1592, false),
                     2,
                 )
                 .enumerate(),
@@ -75,20 +65,25 @@ impl DeviceType {
             .map(|(idx, generator)| generator(idx + 1))
             .collect(),
             DeviceType::CCR1009_7G_1C_1Splus => repeat_n(
-                generate_ethernet(EthernetNamePattern::Ether, &ADVERTISE_1G_FULL, 1580),
+                generate_ethernet(EthernetNamePattern::Ether, &ADVERTISE_1G_FULL, 1580, false),
                 7,
             )
             .enumerate()
             .chain(
                 repeat_n(
-                    generate_ethernet(EthernetNamePattern::Combo, &ADVERTISE_1G_FULL, 1580),
+                    generate_ethernet(EthernetNamePattern::Combo, &ADVERTISE_1G_FULL, 1580, false),
                     1,
                 )
                 .enumerate(),
             )
             .chain(
                 repeat_n(
-                    generate_ethernet(EthernetNamePattern::SfpSfpPlus, &ADVERTISE_10G_FULL, 1580),
+                    generate_ethernet(
+                        EthernetNamePattern::SfpSfpPlus,
+                        &ADVERTISE_10G_FULL,
+                        1580,
+                        false,
+                    ),
                     1,
                 )
                 .enumerate(),
@@ -96,24 +91,24 @@ impl DeviceType {
             .map(|(idx, generator)| generator(idx + 1))
             .collect(),
             DeviceType::CRS354_48G_4Splus_2Qplus => repeat_n(
-                generate_ethernet(EthernetNamePattern::Ether, &ADVERTISE_1G, 1592),
+                generate_ethernet(EthernetNamePattern::Ether, &ADVERTISE_1G, 1592, false),
                 48,
             )
             .chain(repeat_n(
-                generate_ethernet(EthernetNamePattern::Ether, &ADVERTISE_100M, 1592),
+                generate_ethernet(EthernetNamePattern::Ether, &ADVERTISE_100M, 1592, false),
                 1,
             ))
             .enumerate()
             .chain(
                 repeat_n(
-                    generate_ethernet(EthernetNamePattern::SfpSfpPlus, &ADVERTISE_10G, 1592),
+                    generate_ethernet(EthernetNamePattern::SfpSfpPlus, &ADVERTISE_10G, 1592, false),
                     4,
                 )
                 .enumerate(),
             )
             .chain(
                 repeat_n(
-                    generate_ethernet(EthernetNamePattern::QsfpPlus, &ADVERTISE_10G, 1592),
+                    generate_ethernet(EthernetNamePattern::QsfpPlus, &ADVERTISE_10G, 1592, false),
                     4 * 2,
                 )
                 .enumerate(),
@@ -122,11 +117,26 @@ impl DeviceType {
             .collect(),
         }
     }
+    fn build_wifi_ports(&self) -> Vec<InterfaceWifiByDefaultName> {
+        match self {
+            DeviceType::C52iG_5HaxD2HaxD
+             => repeat_n(generate_wifi(1560), 2)
+                .enumerate()
+                .map(|(idx, generator)| generator(idx + 1))
+                .collect(),
+            DeviceType::CRS326_24G_2Splus
+            | DeviceType::CCR1009_7G_1C_1Splus
+            | DeviceType::RB750Gr3
+            | DeviceType::CRS354_48G_4Splus_2Qplus => Vec::new(),
+        }
+    }
 
     pub fn generate_empty_data(&self) -> Data {
-        let mut data = Data::default();
-        data.interface_ethernet_by_default_name = self.build_ethernet_ports();
-        data
+        Data {
+            interface_ethernet_by_default_name: self.build_ethernet_ports(),
+            interface_wifi_by_default_name: self.build_wifi_ports(),
+            ..Data::default()
+        }
     }
 }
 
@@ -222,6 +232,7 @@ fn generate_ethernet(
     name: EthernetNamePattern,
     speeds: &[EthernetSpeed],
     l_2_mtu: u16,
+    has_poe_out: bool,
 ) -> impl Fn(usize) -> InterfaceEthernetByDefaultName + Clone + use<'_> {
     move |idx| InterfaceEthernetByDefaultName {
         default_name: name.default_name(idx),
@@ -248,8 +259,12 @@ fn generate_ethernet(
             mtu: 1500,
             name: name.short_name(idx),
             passthrough_interface: None,
-            poe_out: None,
-            poe_priority: None,
+            poe_out: if has_poe_out {
+                Some(InterfaceEthernetPoeOut::AutoOn)
+            } else {
+                None
+            },
+            poe_priority: if has_poe_out { Some(10) } else { None },
             sfp_shutdown_temperature: name.default_sfp_shutdown_temperature(),
             sfp_rate_select: name.default_sfp_rate_select(),
             speed: None,
@@ -262,11 +277,12 @@ fn generate_ethernet(
     }
 }
 
-fn generate_wifi() -> impl Fn(usize) -> InterfaceWifiByDefaultName + Clone {
-    |idx| {
-        let default_name = format!("wifi{idx}").into();
+fn generate_wifi(l_2_mtu: u16) -> impl Fn(usize) -> InterfaceWifiByDefaultName + Clone {
+    move |idx| {
+        let default_name: AsciiString = format!("wifi{idx}").into();
+        let name: AsciiString = format!("wifi{idx:02}").into();
         InterfaceWifiByDefaultName {
-            default_name,
+            default_name: Some(default_name),
             data: InterfaceWifiCfg {
                 aaa: None,
                 aaa_called_format: None,
@@ -277,7 +293,7 @@ fn generate_wifi() -> impl Fn(usize) -> InterfaceWifiByDefaultName + Clone {
                 aaa_password_format: None,
                 aaa_username_format: None,
                 arp: None,
-                arp_timeout: None,
+                arp_timeout: Some(Auto::Auto),
                 channel: None,
                 channel_band: None,
                 channel_frequency: None,
@@ -285,7 +301,7 @@ fn generate_wifi() -> impl Fn(usize) -> InterfaceWifiByDefaultName + Clone {
                 channel_secondary_frequency: None,
                 channel_skip_dfs_channels: None,
                 channel_width: None,
-                comment: Default::default(),
+                comment: None,
                 configuration: None,
                 configuration_antenna_gain: None,
                 configuration_beacon_interval: None,
@@ -310,7 +326,7 @@ fn generate_wifi() -> impl Fn(usize) -> InterfaceWifiByDefaultName + Clone {
                 datapath_client_isolation: None,
                 datapath_interface_list: None,
                 datapath_vlan_id: None,
-                disable_running_check: false,
+                disable_running_check: None,
                 disabled: false,
                 interworking: None,
                 interworking_3_gpp_info: None,
@@ -340,11 +356,11 @@ fn generate_wifi() -> impl Fn(usize) -> InterfaceWifiByDefaultName + Clone {
                 interworking_wan_symmetric: None,
                 interworking_wan_uplink: None,
                 interworking_wan_uplink_load: None,
-                l_2_mtu: 0,
-                mac_address: Default::default(),
+                l_2_mtu,
+                mac_address: None,
                 master_interface: None,
-                mtu: 0,
-                name: Default::default(),
+                mtu: None,
+                name,
                 radio_mac: None,
                 security: None,
                 security_authentication_types: Default::default(),

@@ -181,8 +181,16 @@ pub trait KeyedResource: DeserializeRosResource + RosResource {
         Self: Send,
     {
         async {
-            stream_resource::<Self>(device)
+            device
+                .send_command(
+                    &[b"/", Self::path(), b"/print"],
+                    |cmd| cmd.query_is_present(Self::key_name()),
+                    Self::resource_type(),
+                )
                 .await
+                .map(|entry| {
+                    entry.map(|r| Self::unwrap_resource(r).expect("Unexpected result type"))
+                })
                 .map(|entry| value_or_error(entry))
                 .collect::<Result<T, _>>()
                 .await

@@ -14,7 +14,7 @@ pub struct ConfigSet {
 }
 
 impl ConfigSet {
-    pub fn new(device_type: DeviceType) -> ConfigSet {
+    /*pub fn new(device_type: DeviceType) -> ConfigSet {
         let mut configs = Vec::new();
         for idx in 1..=device_type.ethernet_port_count() {
             let default_name = format!("ether{idx}");
@@ -67,5 +67,5 @@ impl ConfigSet {
             ))
         }
         ConfigSet { configs }
-    }
+    }*/
 }

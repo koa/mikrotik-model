@@ -16,7 +16,7 @@ channel.reselect-interval:o;Duration
 channel.secondary-frequency: o;disabled; u32
 channel.skip-dfs-channels: o;disabled; WifiSkipDfsChannels;
 channel.width: o;WifiChannelWidth;
-comment: 
+comment: o
 configuration: o;ref=>wifi-configuration
 configuration.antenna-gain: o;u8
 configuration.beacon-interval:o;Duration
@@ -41,7 +41,7 @@ datapath.bridge-horizon: o;none;
 datapath.client-isolation: o;bool
 datapath.interface-list: o;ref=>interface-list;
 datapath.vlan-id: o; none;u16
-disable-running-check: bool
+disable-running-check: o;bool
 disabled: bool
 interworking: o;ref=wifi-interworking
 interworking.3gpp-info: o;
@@ -74,7 +74,7 @@ interworking.wan-uplink-load: o;u32
 l2mtu: u16
 mac-address: o;k;MacAddress
 master-interface: o;ref=>interface
-mtu: u16
+mtu: o; u16
 name: ref=interface
 radio-mac: o;k;MacAddress
 security: o; ref=>wifi-security
@@ -117,7 +117,7 @@ dynamic: ro; bool
 inactive: ro; bool
 master: ro; bool; ref=>interface
 bound: ro; bool
-default-name: ro; id
+default-name: ro; id; o
 running: ro; bool
 about: ro; 
 
