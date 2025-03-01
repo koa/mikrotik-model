@@ -3,7 +3,7 @@
 architecture-name: ro;enum=arm, arm64, mipsbe, tile,x86,mmips
 board-name:ro
 cpu:ro
-cpu-frequency:u64
+cpu-frequency: o;k;u64
 factory-software:ro
 free-memory:ro;u64
 total-hdd-space: ro;u64

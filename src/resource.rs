@@ -1,13 +1,19 @@
-use encoding_rs::mem::decode_latin1;
-use log::{debug, error};
-
+use crate::ascii::AsciiString;
+use crate::generator::Generator;
+use crate::resource::Error::ResourceAccess;
 use crate::{
     model::{ReferenceType, Resource, ResourceType},
     value::{KeyValuePair, RosValue},
     MikrotikDevice,
 };
-use mikrotik_api::prelude::{ParsedMessage, TrapCategory, TrapResult};
-use std::fmt::{Debug, Display, Formatter};
+use encoding_rs::mem::decode_latin1;
+use log::{debug, error, info};
+use mikrotik_api::prelude::{CommandBuilder, ParsedMessage, TrapCategory, TrapResult};
+use std::any::Any;
+use std::borrow::Cow;
+use std::collections::HashMap;
+use std::fmt::{Debug, Display, Formatter, Write};
+use std::hash::Hash;
 use thiserror::Error;
 use tokio_stream::{FromStream, Stream, StreamExt};
 
@@ -15,6 +21,8 @@ use tokio_stream::{FromStream, Stream, StreamExt};
 pub enum ResourceAccessError {
     #[error("Missing field {}",decode_latin1(.field_name))]
     MissingFieldError { field_name: &'static [u8] },
+    #[error("Undefined field {}",decode_latin1(.field_name))]
+    UndefinedFieldError { field_name: &'static [u8] },
     #[error("Failed to parse field {}: {}",decode_latin1(.field_name),decode_latin1(.value))]
     InvalidValueError {
         field_name: &'static [u8],
@@ -62,6 +70,18 @@ pub trait DeserializeRosResource: Sized + FieldUpdateHandler {
         handler: &mut V,
     ) {
     }
+    /*fn update<R, T: UpdateHandler<R>>(&self, _handler: T) -> Option<R> {
+        None
+    }
+    fn create<R, T: CreateHandler<R>>(&self, _handler: T) -> Option<R> {
+        None
+    }*/
+}
+pub trait UpdateHandler<R> {
+    fn handle_updatable<T: Updatable>(self, value: &T) -> R;
+}
+pub trait CreateHandler<R> {
+    fn handle_creatable<T: Creatable>(self, value: &T) -> R;
 }
 
 pub trait CompositeRosResource: Sized + DeserializeRosResource {
@@ -84,8 +104,11 @@ pub enum AppendFieldResult {
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("Cannot parse result: {0}")]
-    ResourceAccess(#[from] ResourceAccessError),
+    #[error("Cannot parse result: {resource_type:?} {error}")]
+    ResourceAccess {
+        error: ResourceAccessError,
+        resource_type: ResourceType,
+    },
     #[error("Cannot access device: {0}")]
     Device(#[from] mikrotik_api::error::Error),
     //#[error("Fatal error from device: {0}")]
@@ -124,7 +147,7 @@ impl Display for TrapResponse {
 pub async fn stream_resource<R: DeserializeRosResource + RosResource>(
     device: &MikrotikDevice,
 ) -> impl Stream<Item = SentenceResult<R>> {
-    println!("Fetch: {}", decode_latin1(R::path()));
+    //println!("Fetch: {}", decode_latin1(R::path()));
     device
         .send_simple_command(&[b"/", R::path(), b"/print"], R::resource_type())
         .await
@@ -133,6 +156,8 @@ pub async fn stream_resource<R: DeserializeRosResource + RosResource>(
 
 pub trait RosResource: Sized {
     fn path() -> &'static [u8];
+    fn provides_reference(&self) -> impl Iterator<Item = (ReferenceType, Cow<[u8]>)>;
+    fn consumes_reference(&self) -> impl Iterator<Item = (ReferenceType, Cow<[u8]>)>;
 }
 
 pub trait SingleResource: DeserializeRosResource + RosResource {
@@ -159,9 +184,16 @@ fn value_or_error<R: DeserializeRosResource>(entry: SentenceResult<R>) -> Result
             if !warnings.is_empty() {
                 debug!("Warnings on fetch {:?}: {warnings:#?}", R::resource_type())
             }
-            Err(Error::ResourceAccess(
-                errors.first().expect("Error without error").clone(),
-            ))
+            if !errors.is_empty() {
+                info!("Errors from fetch {:?}", R::resource_type());
+                for error in &errors {
+                    info!("- {}", error);
+                }
+            }
+            Err(Error::ResourceAccess {
+                error: errors.first().expect("Error without error").clone(),
+                resource_type: R::resource_type(),
+            })
         }
         SentenceResult::Trap { category, message } => {
             Err(Error::Trap(TrapResponse { category, message }))
@@ -171,8 +203,13 @@ fn value_or_error<R: DeserializeRosResource>(entry: SentenceResult<R>) -> Result
 
 pub trait KeyedResource: DeserializeRosResource + RosResource {
     type Key: RosValue;
+    type Value: DeserializeRosResource + RosResource;
     fn key_name() -> &'static [u8];
     fn key_value(&self) -> &Self::Key;
+    fn value(&self) -> &Self::Value;
+    fn filter(cmd: CommandBuilder) -> CommandBuilder {
+        cmd
+    }
     fn fetch_all<T: FromStream<Self> + Send>(
         device: &MikrotikDevice,
     ) -> impl std::future::Future<Output = Result<T, Error>>
@@ -184,7 +221,7 @@ pub trait KeyedResource: DeserializeRosResource + RosResource {
             device
                 .send_command(
                     &[b"/", Self::path(), b"/print"],
-                    |cmd| cmd.query_is_present(Self::key_name()),
+                    |cmd| Self::filter(cmd.query_is_present(Self::key_name())),
                     Self::resource_type(),
                 )
                 .await
@@ -209,7 +246,7 @@ pub trait KeyedResource: DeserializeRosResource + RosResource {
                 match device
                     .send_command(
                         &[b"/", Self::path(), b"/print"],
-                        |cmd| cmd.query_equal(Self::key_name(), key.encode_ros()),
+                        |cmd| Self::filter(cmd.query_equal(Self::key_name(), key.encode_ros())),
                         Self::resource_type(),
                     )
                     .await
@@ -242,6 +279,8 @@ pub struct ResourceMutation<'a> {
     pub resource: &'static [u8],
     pub operation: ResourceMutationOperation<'a>,
     pub fields: Box<[KeyValuePair<'a>]>,
+    pub depends: Box<[(ReferenceType, Cow<'a, [u8]>)]>,
+    pub provides: Box<[(ReferenceType, Cow<'a, [u8]>)]>,
 }
 #[derive(Debug, Clone, PartialEq)]
 pub enum ResourceMutationOperation<'a> {
@@ -251,9 +290,12 @@ pub enum ResourceMutationOperation<'a> {
     UpdateByKey(KeyValuePair<'a>),
 }
 
-pub trait Updatable {
+pub trait Updatable: DeserializeRosResource {
     type From: RosResource;
     fn calculate_update<'a>(&'a self, from: &'a Self::From) -> ResourceMutation<'a>;
+    fn update<R, T: UpdateHandler<R>>(&self, handler: T) -> Option<R> {
+        Some(handler.handle_updatable(self))
+    }
 }
 
 /*impl<R: KeyedResource + CfgResource + RosResource> Updatable for R {
@@ -286,8 +328,10 @@ pub trait Updatable {
 
 pub trait Creatable: CfgResource {
     fn calculate_create(&self) -> ResourceMutation<'_>;
+    fn create<R, T: CreateHandler<R>>(&self, handler: T) -> Option<R> {
+        Some(handler.handle_creatable(self))
+    }
 }
-
 #[derive(Debug)]
 pub enum SentenceResult<R> {
     Row {
@@ -351,7 +395,7 @@ impl ParsedMessage for SentenceResult<Resource> {
                     warnings: warnings.into_boxed_slice(),
                 },
                 Err(field_name) => {
-                    errors.push(ResourceAccessError::MissingFieldError { field_name });
+                    errors.push(ResourceAccessError::UndefinedFieldError { field_name });
                     SentenceResult::Error {
                         errors: errors.into_boxed_slice(),
                         warnings: warnings.into_boxed_slice(),
@@ -437,6 +481,78 @@ impl<R: DeserializeRosResource + Send + 'static> ParsedMessage for SentenceResul
         SentenceResult::Trap {
             category: result.category,
             message: Box::from(result.message),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct UpdatePairing<'a, 'b, Current: KeyedResource, Target: KeyedResource> {
+    pub orphaned_entries: Box<[&'a mut Current]>,
+    pub matched_entries: Box<[(&'a mut Current, &'b Target)]>,
+    pub new_entries: Box<[&'b Target]>,
+}
+
+impl<'b, Target, Current> UpdatePairing<'b, 'b, Target, Current>
+where
+    Target: KeyedResource,
+    Current: KeyedResource + Updatable<From = Target>,
+    Current::Value: 'static + Sized,
+{
+    pub fn generate_updates(&self) -> impl Iterator<Item = ResourceMutation> {
+        self.orphaned_entries
+            .iter()
+            .map(|entry| {
+                let value = entry.key_value().encode_ros();
+                let key = Current::key_name();
+                ResourceMutation {
+                    resource: Current::path(),
+                    operation: ResourceMutationOperation::RemoveByKey(KeyValuePair { key, value }),
+                    fields: Box::new([]),
+                    depends: Default::default(),
+                    provides: Default::default(),
+                }
+            })
+            .chain(
+                self.matched_entries
+                    .iter()
+                    .map(|(original, target)| target.calculate_update(original)),
+            ) /*.chain(self.new_entries.iter().map(|entry|{
+                  ResourceMutation{
+                      resource: Current::path(),
+                      operation: ResourceMutationOperation::Add,
+                      fields: Box::new([]),
+                      depends: entry.consumes_reference().filter(|(_,v)|!v.is_empty()).collect(),
+                      provides: entry.provides_reference().filter(|(_,v)|!v.is_empty()).collect(),
+                  }
+              }))*/
+    }
+}
+impl<'a, 'b, Target: KeyedResource, Current: KeyedResource + Updatable<From = Target>>
+    UpdatePairing<'a, 'b, Current, Target>
+where
+    <Target as KeyedResource>::Key: PartialEq<<Current as KeyedResource>::Key>,
+{
+    pub fn match_updates_by_key(current: &'a mut [Current], target: &'b [Target]) -> Self {
+        let mut orphans = Vec::with_capacity(current.len());
+        let mut matched = Vec::with_capacity(current.len().max(target.len()));
+        let mut target_refs = target.iter().collect::<Vec<_>>();
+        for c in current {
+            let key = c.key_value();
+            if let Some((found_idx, _)) = target_refs
+                .iter()
+                .enumerate()
+                .find(|(_, t)| t.key_value() == key)
+            {
+                let t = target_refs.remove(found_idx);
+                matched.push((c, t));
+            } else {
+                orphans.push(c);
+            }
+        }
+        UpdatePairing {
+            orphaned_entries: orphans.into_boxed_slice(),
+            matched_entries: matched.into_boxed_slice(),
+            new_entries: target_refs.into_boxed_slice(),
         }
     }
 }

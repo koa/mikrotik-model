@@ -19,7 +19,7 @@ frame-types: VlanFrameTypes
 ingress-filtering:bool
 learn:auto;YesNo
 horizon:o;none;u32
-point-to-point: auto;bool
+point-to-point: auto;YesNo
 restricted-role:bool
 trusted:bool
 hw: ro;bool
@@ -51,55 +51,56 @@ designated-cost: ro;o;u32
 mvrp-registrar-state: enum=normal,fixed
 mvrp-applicant-state: enum=normal-participant,non-participant
 
-*/interface/bridge
-.id:ro;id
-name:id;ref=interface
-mac-address: MacAddress
-add-dhcp-option82: o;bool
-admin-mac: o;MacAddress
+/interface/bridge:can-add;
+add-dhcp-option82: o; bool
+admin-mac: o; MacAddress
 ageing-time: Duration
-arp:enum=enabled,disabled,local-proxy-arp,proxy-arp,reply-only
-arp-timeout: auto;u32
+arp: disabled; enum= enabled, local-proxy-arp, proxy-arp, reply-only;
+arp-timeout: auto; u32
 auto-mac: bool
-comment: o
+comment: o;
 dhcp-snooping: bool
-disabled:bool
-ether-type:o;enum=0x9100,0x8100,0x88a8
-fast-forward:bool
-forward-delay: Duration
-forward-reserved-addresses: o;bool
-frame-types:o;VlanFrameTypes
+disabled: bool
+ether-type: o; enum= 0x8100, 0x88a8, 0x9100;
+fast-forward: bool
+forward-delay: o; Duration
+forward-reserved-addresses: o; bool
+frame-types: o; VlanFrameTypes
 igmp-snooping: bool
-igmp_version: o;enum=2,3
-ingress-filtering: o;bool
-l2mtu: u16
-last-member-interval:o;Duration
-last-member-query-count:o;u32
-max-hops: o;u8
-max-learned-entries: auto;unlimited;u32
-max-message-age: Duration
-membership-interval: o;Duration
-mid-version:o;enum=1,2
-mtu: auto;u16
-multicast-querier: o;YesNo
-multicast-router: o;enum=disabled, permanent, temporary-query
-port-cost-mode: enum=long,short
-priority: hex;u16
-protocol-mode: enum=rstp,none,stp,mstp
-pvid: o;u16
-querier-interval: o;Duration
-query-interval: o;Duration
-query-response-interval: o;Duration
-region-name:o
-region-revision:o;u8
-startup-query-count:o;u32
-startup-query-interval:o;Duration
-transmit-hold-count:u8
-vlan-filtering: bool
+igmp-version: o; enum= 2, 3;
+ingress-filtering: o; bool
+last-member-interval: o; Duration
+last-member-query-count: o; u32
+max-hops: o; u8
+max-learned-entries: unlimited; auto; u32
+max-message-age: o; Duration
+membership-interval: o; Duration
+mld-version: o; enum= 1, 2;
+mtu: auto; u16
+multicast-querier: o; bool
+multicast-router: o; disabled; enum= permanent, temporary-query;
 mvrp: bool
-
-actual-mtu: ro;u16
-running: ro;bool
+name: id; ref=interface;
+port-cost-mode: enum= short, long;
+priority: o; hex; u16
+protocol-mode: none; enum= mstp, rstp, stp;
+pvid: o; u16
+querier-interval: o; Duration
+query-interval: o; Duration
+query-response-interval: o; Duration
+region-name: o;
+region-revision: o; u16
+startup-query-count: o; u32
+startup-query-interval: o; Duration
+transmit-hold-count: o; u8
+vlan-filtering: bool
+l2mtu: o;k;u16
+mac-address: MacAddress
+actual-mtu: ro; u16
+running: ro; bool
+mid-version: o; enum= 1, 2;
+.id: id; ro;
+about: ro;
 
 */interface/bridge/vlan
 .id: id
@@ -111,5 +112,5 @@ disabled: bool
 dynamic: ro;bool
 tagged: mu;ref=>interface
 untagged: mu;ref=>interface
-vlan-ids: mu;u16
+vlan-ids: mu;range;u16
 mvrp-forbidden: mu;ref=>interface

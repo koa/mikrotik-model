@@ -7,8 +7,8 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use std::{collections::HashSet, vec};
 use syn::__private::ToTokens;
 use syn::{
-    __private::quote::format_ident, parse_quote, punctuated::Punctuated, token::Comma, ExprMatch,
-    FieldValue, FieldsNamed, Item, ItemMod, Variant, Visibility,
+    parse_quote, punctuated::Punctuated, token::Comma, ExprMatch, FieldValue, FieldsNamed, Item,
+    Variant,
 };
 
 pub mod model;
@@ -217,11 +217,17 @@ pub fn generator() -> syn::File {
                 .named
                 .push(parse_quote!(pub #name: Vec<#data_type>));
             data_loader_fields.push(parse_quote! {#name:Default::default()});
+        } else if field.is_single {
+            let name = field.field_name;
+            data_fields.named.push(parse_quote!(pub #name: #data_type));
+            data_loader_fields.push(
+                parse_quote! {#name:<#data_type as resource::SingleResource>::fetch(device).await?.ok_or(resource::Error::ErrorFetchingSingleItem)?},
+            );
         }
     }
 
     items.push(parse_quote!(
-        #[derive(Copy,Debug,Clone,PartialEq, Hash, Eq)]
+        #[derive(Copy,Debug,Clone,PartialEq, Hash, Eq, enum_iterator::Sequence)]
         pub enum ResourceType {#resource_enum_variants}
     ));
     items.push(parse_quote!(
@@ -265,7 +271,7 @@ pub fn generator() -> syn::File {
         reference_enum_variants.push(parse_quote!(#name));
     }
     items.push(parse_quote!(
-        #[derive(Copy,Debug,Clone,PartialEq, Hash)]
+        #[derive(Copy,Debug,Clone,PartialEq, Hash, Eq)]
         pub enum ReferenceType {#reference_enum_variants}
     ));
 
@@ -284,7 +290,7 @@ pub fn generator() -> syn::File {
         }
     ));
 
-    let module = vec![Item::Mod(ItemMod {
+    /*let module = vec![Item::Mod(ItemMod {
         attrs: vec![],
         vis: Visibility::Public(Default::default()),
         unsafety: None,
@@ -292,12 +298,12 @@ pub fn generator() -> syn::File {
         ident: format_ident!("model"),
         content: Some((Default::default(), items)),
         semi: None,
-    })];
+    })];*/
 
     syn::File {
         shebang: None,
         attrs: vec![],
-        items: module,
+        items,
     }
 }
 

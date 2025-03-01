@@ -119,8 +119,7 @@ impl DeviceType {
     }
     fn build_wifi_ports(&self) -> Vec<InterfaceWifiByDefaultName> {
         match self {
-            DeviceType::C52iG_5HaxD2HaxD
-             => repeat_n(generate_wifi(1560), 2)
+            DeviceType::C52iG_5HaxD2HaxD => repeat_n(generate_wifi(1560), 2)
                 .enumerate()
                 .map(|(idx, generator)| generator(idx + 1))
                 .collect(),
@@ -280,7 +279,7 @@ fn generate_ethernet(
 fn generate_wifi(l_2_mtu: u16) -> impl Fn(usize) -> InterfaceWifiByDefaultName + Clone {
     move |idx| {
         let default_name: AsciiString = format!("wifi{idx}").into();
-        let name: AsciiString = format!("wifi{idx:02}").into();
+        let name: AsciiString = format!("wi{idx:02}").into();
         InterfaceWifiByDefaultName {
             default_name: Some(default_name),
             data: InterfaceWifiCfg {

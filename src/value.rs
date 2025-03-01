@@ -1,16 +1,17 @@
 use crate::ascii::AsciiString;
 use encoding_rs::mem::{decode_latin1, encode_latin1_lossy};
 use ipnet::IpNet;
-use log::warn;
+use log::{error, warn};
 use mac_address::MacAddress;
-use std::borrow::Cow;
-use std::collections::{BTreeSet, HashSet};
-use std::fmt::{Debug, Formatter, Write};
-use std::hash::Hash;
-use std::net::IpAddr;
-use std::ops::Range;
-use std::str::FromStr;
-use std::time::Duration;
+use std::{
+    borrow::Cow,
+    collections::{BTreeSet, HashSet},
+    fmt::{Debug, Formatter, Write},
+    hash::Hash,
+    net::IpAddr,
+    str::FromStr,
+    time::Duration,
+};
 
 pub enum ParseRosValueResult<V> {
     None,
@@ -107,14 +108,15 @@ macro_rules! parameter_value_impl {
                     } else {
                         match <$t>::from_str(String::from_utf8_lossy(value).as_ref()) {
                             Ok(v) => ParseRosValueResult::Value(v),
-                            Err(_) => ParseRosValueResult::Invalid,
+                            Err(e) => {
+                                error!("Cannot parse {}: {e}",String::from_utf8_lossy(value));
+                                ParseRosValueResult::Invalid},
                         }
                     }
                 }
 
                 fn encode_ros(&self) -> Cow<[u8]> {
                     Cow::Owned(self.to_string().as_bytes().into())
-
                 }
             }
         )*}
@@ -548,6 +550,21 @@ impl RosValue for IpNet {
 
     fn encode_ros(&self) -> Cow<[u8]> {
         Vec::from(encode_latin1_lossy(&format!("{}", self))).into()
+    }
+}
+#[derive(Debug, Clone, PartialEq, Default, Copy)]
+pub struct Id(u16);
+impl RosValue for Id {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
+        if let Some(number) = value.strip_prefix(b"*") {
+            u16::parse_ros(number).map(Id)
+        } else {
+            ParseRosValueResult::Invalid
+        }
+    }
+
+    fn encode_ros(&self) -> Cow<[u8]> {
+        [b"*", self.0.encode_ros().as_ref()].concat().into()
     }
 }
 

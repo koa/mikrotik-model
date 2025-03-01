@@ -7,12 +7,11 @@ pub mod config_set;
 pub mod error;
 pub mod generator;
 pub mod hwconfig;
+pub mod model;
 pub mod repository;
 pub mod resource;
 mod util;
 pub mod value;
-
-include!(concat!(env!("OUT_DIR"), "/mikrotik-model.rs"));
 
 #[derive(Deserialize, Debug)]
 pub struct Credentials {

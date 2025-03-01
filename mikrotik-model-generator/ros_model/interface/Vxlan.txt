@@ -1,20 +1,20 @@
 /interface/vxlan:can-add;
 allow-fast-path: bool
-arp: disabled; enum= enabled, local-proxy-arp, proxy-arp, reply-only; 
-arp-timeout: auto; 
-comment: 
+arp: enum=disabled, enabled, local-proxy-arp, proxy-arp, reply-only;
+arp-timeout: o; auto; Duration
+comment: o
 disabled: bool
-dont-fragment: disabled; enum= enabled, inherit; 
-group: 
-interface: ref=>interface; 
-local-address: 
+dont-fragment: enum= disabled, enabled, inherit;
+group: o; IpAddr
+interface: o; ref=>interface;
+local-address: o; IpAddr
 loop-protect: enum= default, off, on; 
-loop-protect-disable-time: 
-loop-protect-send-interval: 
-mac-address: 
+loop-protect-disable-time: Duration
+loop-protect-send-interval: Duration
+mac-address: o;k;MacAddress
 max-fdb-size: u16
 mtu: u16
-name: 
+name: id
 port: u16
 vni: u32
 vrf: 
@@ -31,9 +31,10 @@ about: ro;
 remote-ip: ro; 
 
 /interface/vxlan/vteps:can-add;
-comment: 
+.id: ro;id;Id
+comment: o
 interface: ref=>interface; 
 port: u16
-remote-ip: 
+remote-ip: IpAddr
 about: ro; 
 

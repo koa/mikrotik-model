@@ -34,6 +34,7 @@ pub struct RosTypeEntry {
     pub data: Type,
     pub can_update: bool,
     pub can_add: bool,
+    pub is_single: bool,
 }
 pub struct ReferenceEntry {
     pub name: Ident,
@@ -303,6 +304,12 @@ impl Entity {
                 fn path()->&'static [u8]{
                     #path
                 }
+                fn provides_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<[u8]>)>{
+                    self.cfg.provides_reference().chain(self.status.provides_reference())
+                }
+                fn consumes_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<[u8]>)>{
+                    self.cfg.consumes_reference().chain(self.status.consumes_reference())
+                }
             }
         }
     }
@@ -344,10 +351,12 @@ impl Entity {
         let id_field_type = self.struct_field_type(id_field);
         let field_name = id_field.attribute_name();
         let struct_ident_status = self.struct_status_type();
+        let struct_ident_cfg = self.struct_ident_cfg();
         let id_struct_ident = self.id_struct_type(id_field);
         let item = parse_quote! {
             impl resource::KeyedResource for (#id_struct_ident, #struct_ident_status) {
                 type Key = #id_field_type;
+                type Value = #struct_ident_cfg;
 
                 fn key_name() -> &'static [u8] {
                     #field_name
@@ -355,6 +364,9 @@ impl Entity {
 
                 fn key_value(&self) -> &#id_field_type {
                     self.0.key_value()
+                }
+                fn value(&self) -> &Self::Value{
+                    self.0.value()
                 }
             }
         };
@@ -455,6 +467,8 @@ impl Entity {
                             value: value::RosValue::encode_ros(&from.0.#id_field_name),
                         }),
                         fields: resource::CfgResource::changed_values(self,from).collect(),
+                        depends: <#id_struct_ident as resource::RosResource>::consumes_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
+                        provides: <#id_struct_ident as resource::RosResource>::provides_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                     }
                 }
             }
@@ -463,12 +477,14 @@ impl Entity {
     fn generate_keyed_for_id_internal(&self, id_field: &Field) -> Item {
         let id_field_type = self.struct_field_type(id_field);
         let id_struct_ident = self.id_struct_type(id_field);
+        let struct_ident = self.struct_ident_cfg();
         let field_name = id_field.attribute_name();
         let id_field_name = id_field.generate_field_name();
 
         let item = parse_quote! {
             impl resource::KeyedResource for #id_struct_ident {
                 type Key = #id_field_type;
+                type Value=#struct_ident;
 
                 fn key_name() -> &'static [u8] {
                     #field_name
@@ -476,6 +492,10 @@ impl Entity {
 
                 fn key_value(&self) -> &#id_field_type {
                     &self.0.#id_field_name
+                }
+
+                fn value(&self) -> &Self::Value{
+                    &self.0
                 }
             }
         };
@@ -556,6 +576,8 @@ impl Entity {
                             value: value::RosValue::encode_ros(&self.#key_name),
                         }),
                         fields: resource::CfgResource::changed_values(self,from).collect(),
+                        depends: <#id_struct_ident as resource::RosResource>::consumes_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
+                        provides: <#id_struct_ident as resource::RosResource>::provides_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                     }
                 }
             }
@@ -566,10 +588,26 @@ impl Entity {
         let field_name = id_field.attribute_name();
         let id_field_name = id_field.generate_field_name();
         let id_struct_ident = self.id_struct_type(id_field);
+        let struct_ident = self.struct_ident_cfg();
+        let has_dynamic = self.fields.iter().any(|f| {
+            f.name.as_ref() == "dynamic"
+                && f.field_type.as_deref() == Some("bool")
+                && f.is_read_only
+        });
+        let filter: Option<Stmt> = if has_dynamic {
+            Some(parse_quote! {
+                fn filter(cmd: mikrotik_api::prelude::CommandBuilder) -> mikrotik_api::prelude::CommandBuilder {
+                    cmd.query_equal(b"dynamic",b"false")
+                }
+            })
+        } else {
+            None
+        };
 
         parse_quote! {
             impl resource::KeyedResource for #id_struct_ident {
                 type Key = #id_field_type;
+                type Value = #struct_ident;
 
                 fn key_name() -> &'static [u8] {
                     #field_name
@@ -578,6 +616,12 @@ impl Entity {
                 fn key_value(&self) -> &#id_field_type {
                     &self.#id_field_name
                 }
+
+                fn value(&self) -> &Self::Value{
+                    &self.data
+                }
+
+                #filter
             }
         }
     }
@@ -710,6 +754,8 @@ impl Entity {
                         resource: <#struct_ident_cfg as resource::RosResource>::path(),
                         operation: resource::ResourceMutationOperation::Add,
                         fields: Box::new(#create_values_array),
+                        depends: <#struct_ident_cfg as resource::RosResource>::consumes_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
+                        provides: <#struct_ident_cfg as resource::RosResource>::provides_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                     }
                 }
             }
@@ -755,6 +801,8 @@ impl Entity {
                         resource: <#struct_ident_cfg as resource::RosResource>::path(),
                         operation: resource::ResourceMutationOperation::UpdateSingle,
                         fields: resource::CfgResource::changed_values(self,from).collect(),
+                        depends: <#struct_ident_cfg as resource::RosResource>::consumes_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
+                        provides: <#struct_ident_cfg as resource::RosResource>::provides_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                     }
                 }
             }
@@ -785,17 +833,56 @@ impl Entity {
     }
 
     fn generate_ros_resource_for_cfg(&self) -> Item {
-        Self::generate_ros_resource(self.struct_type_cfg(), self.generate_path())
+        self.generate_ros_resource(self.struct_type_cfg(), self.generate_path(), |field| {
+            if field.is_read_only {
+                None
+            } else {
+                let ident = field.generate_field_name();
+                Some(parse_quote!(&self.#ident))
+            }
+        })
     }
 
-    fn generate_ros_resource(struct_ident_cfg: Type, path: Literal) -> Item {
+    fn generate_ros_resource<FG: Fn(&Field) -> Option<Expr>>(
+        &self,
+        struct_ident_cfg: Type,
+        path: Literal,
+        field_gen: FG,
+    ) -> Item {
+        let (provides_array, consumes_array) = self.consume_and_provides(field_gen);
         parse_quote! {
             impl resource::RosResource for #struct_ident_cfg {
                 fn path()->&'static [u8]{
                     #path
                 }
+                fn provides_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<[u8]>)>{
+                    #provides_array.into_iter()
+                }
+                fn consumes_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<[u8]>)>{
+                    #consumes_array.into_iter()
+                }
             }
         }
+    }
+
+    fn consume_and_provides<FG: Fn(&Field) -> Option<Expr>>(
+        &self,
+        field_gen: FG,
+    ) -> (ExprArray, ExprArray) {
+        let mut provides_array: ExprArray = parse_quote!([]);
+        let mut consumes_array: ExprArray = parse_quote!([]);
+        for (name, incoming, field) in self.referencing_fields() {
+            if let Some(field_access) = field_gen(field) {
+                let expr =
+                    parse_quote!((ReferenceType::#name,value::RosValue::encode_ros(#field_access)));
+                if incoming {
+                    consumes_array.elems.push(expr);
+                } else {
+                    provides_array.elems.push(expr);
+                }
+            }
+        }
+        (provides_array, consumes_array)
     }
 
     fn generate_path(&self) -> Literal {
@@ -948,6 +1035,7 @@ impl Entity {
             data,
             can_update: false,
             can_add: self.can_add,
+            is_single: self.is_single,
             field_name,
         }
     }
@@ -963,6 +1051,7 @@ impl Entity {
             data,
             can_update: false,
             can_add: false,
+            is_single: false,
         }
     }
     fn create_enum_entry(&self) -> RosTypeEntry {
@@ -976,6 +1065,7 @@ impl Entity {
             data,
             can_update: false,
             can_add: false,
+            is_single: false,
         }
     }
 
@@ -1158,8 +1248,9 @@ impl Entity {
             };
             append_field_match.arms.push(parse_quote! {
                 (#attribute_name, Some(&value)) => match value::RosValue::parse_ros(value) {
-                    value::ParseRosValueResult::None => {
-                        resource::AppendFieldResult::InvalidValue(#attribute_name)
+                    value::ParseRosValueResult::None =>  {
+                        self.#field_name = Default::default();
+                        resource::AppendFieldResult::Appended
                     }
                     value::ParseRosValueResult::Value(v) => {
                         self.#field_name = #ok_expression;
@@ -1310,11 +1401,26 @@ impl Entity {
     fn create_ros_resource_for_status(&self) -> Item {
         let struct_ident_status = self.struct_status_type();
         let path = self.generate_path();
+        let (provides_array, consumes_array) = self.consume_and_provides(|field| {
+            if field.is_read_only {
+                let name = field.generate_field_name();
+                Some(parse_quote! {&self.#name})
+            } else {
+                None
+            }
+        });
         parse_quote! {
             impl resource::RosResource for #struct_ident_status {
                 fn path()->&'static [u8]{
                     #path
                 }
+                fn provides_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<[u8]>)>{
+                    #provides_array.into_iter()
+                }
+                fn consumes_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<[u8]>)>{
+                    #consumes_array.into_iter()
+                }
+
             }
         }
     }
@@ -1351,12 +1457,48 @@ impl Entity {
     }
 
     fn generate_ros_resource_for_id(&self, id_field: &Field) -> Item {
-        Self::generate_ros_resource(self.id_struct_type(id_field), self.generate_path())
+        let read_only_id = id_field.is_read_only;
+        self.generate_ros_resource(
+            self.id_struct_type(id_field),
+            self.generate_path(),
+            |field| {
+                let ident = field.generate_field_name();
+                if read_only_id {
+                    if field == id_field {
+                        Some(parse_quote!(&self.data_id.#ident))
+                    } else {
+                        if field.is_read_only {
+                            None
+                        } else {
+                            Some(parse_quote!(&self.data.#ident))
+                        }
+                    }
+                } else {
+                    if field.is_read_only {
+                        None
+                    } else {
+                        Some(parse_quote!(&self.0.#ident))
+                    }
+                }
+            },
+        )
     }
 
     fn generate_ros_for_id_combined(&self, id_field: &Field) -> Item {
+        let read_only_id = id_field.is_read_only;
         let data_type = self.data_tuples_for_id_combined(id_field);
-        Self::generate_ros_resource(data_type, self.generate_path())
+        self.generate_ros_resource(data_type, self.generate_path(), |field| {
+            let ident = field.generate_field_name();
+            if field.is_read_only {
+                Some(parse_quote!(&self.1.#ident))
+            } else {
+                if read_only_id {
+                    Some(parse_quote!(&self.0.data.#ident))
+                } else {
+                    Some(parse_quote!(&self.0.0.#ident))
+                }
+            }
+        })
     }
 
     fn generate_combined_builder_struct(&self) -> Item {
@@ -1402,6 +1544,7 @@ impl Entity {
             data: self.id_struct_type(id_field),
             can_update: true,
             can_add: false,
+            is_single: false,
         }
     }
 
@@ -1413,6 +1556,7 @@ impl Entity {
             data: self.data_tuples_for_id_combined(id_field),
             can_update: false,
             can_add: false,
+            is_single: false,
         }
     }
 

@@ -161,7 +161,7 @@ caps-man-certificate-common-names: mu
 caps-man-names: mu
 certificate: mu; none;
 discovery-interfaces: none; ref=>interface; 
-enabled: enum= yes, no; 
+enabled: YesNo 
 lock-to-caps-man: o; bool
 slaves-datapath: o; ref=>wifi-datapath;
 slaves-static: o; bool
@@ -173,7 +173,7 @@ current-caps-man-address: ro;
 /interface/wifi/capsman:is-single;
 ca-certificate: o; none; auto;
 certificate: o; auto;
-enabled: enum= yes, no; 
+enabled: YesNo 
 interfaces: mu; none; ref=>interface;
 package-path: 
 require-peer-certificate: bool
@@ -399,8 +399,8 @@ afc-deployment: ro;
 2g-channels: ro; 
 
 /interface/wifi/radio/settings:is-single;
-external-antenna: bool
-wifi-band: enum= 2.4GHz, 5GHz; 
+external-antenna: o; bool
+wifi-band: o; enum= 2.4GHz, 5GHz;
 
 /interface/wifi/registration-table:
 about: ro; 
@@ -480,8 +480,8 @@ wnm: o; bool
 about: ro; 
 
 /interface/wifi/steering/neighbor-group:
-comment: 
+comment: ro
 name: ro; ref=wifi-neighbor-group
 about: ro; 
-bssids: ro; 
+bssids: ro; mu;MacAddress
 

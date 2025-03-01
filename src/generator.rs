@@ -1,4 +1,4 @@
-use crate::resource::{ResourceMutation, ResourceMutationOperation};
+use crate::resource::{Creatable, CreateHandler, ResourceMutation, ResourceMutationOperation};
 use crate::value::{write_script_string, KeyValuePair};
 use encoding_rs::mem::decode_latin1;
 use std::fmt::Write;
@@ -8,6 +8,13 @@ pub struct Generator<'a, W: Write> {
     target: &'a mut W,
     current_path: Option<&'static [u8]>,
 }
+
+impl<'a, W: Write> CreateHandler<()> for &mut Generator<'a, W> {
+    fn handle_creatable<T: Creatable>(self, value: &T) {
+        Creatable::create(value, self);
+    }
+}
+
 impl<'a, W: Write> Generator<'a, W> {
     pub fn new(target: &'a mut W) -> Self {
         Self {
