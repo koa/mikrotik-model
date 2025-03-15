@@ -30,7 +30,7 @@ impl DeviceType {
         }
     }
 
-    fn build_ethernet_ports(&self) -> Vec<InterfaceEthernetByDefaultName> {
+    pub fn build_ethernet_ports(&self) -> Vec<InterfaceEthernetByDefaultName> {
         match self {
             DeviceType::RB750Gr3 => repeat_n(
                 generate_ethernet(EthernetNamePattern::Ether, &ADVERTISE_1G, 1596, false),
@@ -117,7 +117,7 @@ impl DeviceType {
             .collect(),
         }
     }
-    fn build_wifi_ports(&self) -> Vec<InterfaceWifiByDefaultName> {
+    pub fn build_wifi_ports(&self) -> Vec<InterfaceWifiByDefaultName> {
         match self {
             DeviceType::C52iG_5HaxD2HaxD => repeat_n(generate_wifi(1560), 2)
                 .enumerate()

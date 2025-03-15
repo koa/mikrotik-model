@@ -1,5 +1,5 @@
 use crate::resource::{Creatable, CreateHandler, ResourceMutation, ResourceMutationOperation};
-use crate::value::{write_script_string, KeyValuePair};
+use crate::value::{KeyValuePair, write_script_string};
 use encoding_rs::mem::decode_latin1;
 use std::fmt::Write;
 

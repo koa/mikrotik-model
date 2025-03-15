@@ -1,14 +1,7 @@
 use super::*;
 use crate::value;
-use enum_iterator::{all, Sequence};
-#[allow(clippy::derivable_impls)]
-impl Default for SystemResourceCfg {
-    fn default() -> Self {
-        SystemResourceCfg {
-            cpu_frequency: None,
-        }
-    }
-}
+use std::net::Ipv4Addr;
+
 impl Default for SystemIdentityCfg {
     fn default() -> Self {
         SystemIdentityCfg {
@@ -74,7 +67,7 @@ impl Default for InterfaceWifiCapCfg {
             caps_man_certificate_common_names: Default::default(),
             caps_man_names: Default::default(),
             certificate: Default::default(),
-            discovery_interfaces: value::HasNone::NoneValue,
+            discovery_interfaces: Default::default(),
             enabled: YesNo::No,
             lock_to_caps_man: None,
             slaves_datapath: None,
@@ -109,18 +102,133 @@ impl Default for InterfaceVxlanCfg {
     }
 }
 
-struct DataResourceRefIterator<'a> {
-    data: &'a Data,
-    state: Option<ResourceType>,
+impl Default for InterfaceBridgeCfg {
+    fn default() -> Self {
+        Self {
+            add_dhcp_option_82: None,
+            admin_mac: None,
+            ageing_time: Duration::from_secs(5 * 60),
+            arp: InterfaceBridgeArp::Enabled,
+            arp_timeout: value::Auto::Auto,
+            auto_mac: true,
+            comment: None,
+            dhcp_snooping: false,
+            disabled: false,
+            ether_type: Some(InterfaceBridgeEtherType::_0X8100),
+            fast_forward: true,
+            forward_delay: Some(Duration::from_secs(15)),
+            forward_reserved_addresses: None,
+            frame_types: Some(VlanFrameTypes::AdmitAll),
+            igmp_snooping: false,
+            igmp_version: None,
+            ingress_filtering: Some(true),
+            last_member_interval: None,
+            last_member_query_count: None,
+            max_hops: Some(20),
+            max_learned_entries: value::HasUnlimited::Value(value::Auto::Auto),
+            max_message_age: Some(Duration::from_secs(20)),
+            membership_interval: None,
+            mld_version: None,
+            mtu: value::Auto::Auto,
+            multicast_querier: None,
+            multicast_router: None,
+            mvrp: false,
+            name: Default::default(),
+            port_cost_mode: InterfaceBridgePortCostMode::Long,
+            priority: Some(value::Hex(0x8000)),
+            protocol_mode: InterfaceBridgeProtocolMode::Rstp,
+            pvid: Some(1),
+            querier_interval: None,
+            query_interval: None,
+            query_response_interval: None,
+            region_name: None,
+            region_revision: Some(0),
+            startup_query_count: None,
+            startup_query_interval: None,
+            transmit_hold_count: Some(6),
+            vlan_filtering: false,
+            mac_address: None,
+        }
+    }
 }
 
-impl<'a> Iterator for DataResourceRefIterator<'a> {
-    type Item = Resource;
+impl Default for InterfaceBridgeByName {
+    fn default() -> Self {
+        Self(InterfaceBridgeCfg::default())
+    }
+}
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(resource_type) = self.state.as_ref() {
-            resource_type.next();
+impl Default for InterfaceBridgePortCfg {
+    fn default() -> Self {
+        Self {
+            broadcast_flood: true,
+            edge: InterfaceBridgePortEdge::Auto,
+            interface: Default::default(),
+            bridge: Default::default(),
+            multicast_router: InterfaceBridgePortMulticastRouter::TemporaryQuery,
+            priority: value::Hex(128),
+            restricted_tcn: false,
+            unknown_multicast_flood: true,
+            comment: None,
+            fast_leave: false,
+            tag_stacking: false,
+            unknown_unicast_flood: true,
+            frame_types: VlanFrameTypes::AdmitAll,
+            ingress_filtering: true,
+            learn: value::Auto::Auto,
+            horizon: None,
+            point_to_point: value::Auto::Auto,
+            restricted_role: false,
+            trusted: false,
+            disabled: false,
+            bpdu_guard: false,
+            auto_isolate: false,
+            pvid: 1,
+            hw: None,
         }
-        todo!()
+    }
+}
+impl Default for InterfaceBridgeVlanCfg {
+    fn default() -> Self {
+        Self {
+            bridge: Default::default(),
+            comment: None,
+            disabled: false,
+            tagged: Default::default(),
+            untagged: Default::default(),
+            vlan_ids: Default::default(),
+            mvrp_forbidden: Default::default(),
+        }
+    }
+}
+impl Default for InterfaceVlanCfg {
+    fn default() -> Self {
+        InterfaceVlanCfg {
+            arp: InterfaceVlanArp::Enabled,
+            arp_timeout: value::Auto::Auto,
+            comment: None,
+            disabled: false,
+            interface: Default::default(),
+            l_2_mtu: 1556,
+            loop_protect: InterfaceVlanLoopProtect::Default,
+            loop_protect_disable_time: Duration::from_secs(5 * 60),
+            loop_protect_send_interval: Duration::from_secs(5),
+            loop_protect_status: InterfaceVlanLoopProtectStatus::Off,
+            mac_address: None,
+            mtu: 1500,
+            name: Default::default(),
+            use_service_tag: false,
+            vlan_id: 0,
+            mvrp: None,
+        }
+    }
+}
+impl Default for InterfaceVxlanVtepsCfg {
+    fn default() -> Self {
+        InterfaceVxlanVtepsCfg {
+            comment: None,
+            interface: Default::default(),
+            remote_ip: IpAddr::V4(Ipv4Addr::LOCALHOST),
+        }
     }
 }

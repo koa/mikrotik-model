@@ -3,6 +3,8 @@ use encoding_rs::mem::{decode_latin1, encode_latin1_lossy};
 use ipnet::IpNet;
 use log::{error, warn};
 use mac_address::MacAddress;
+use std::num::ParseIntError;
+use std::ops::Range;
 use std::{
     borrow::Cow,
     collections::{BTreeSet, HashSet},
@@ -124,7 +126,7 @@ macro_rules! parameter_value_impl {
 parameter_value_impl! { isize i8 i16 i32 i64 i128 usize u8 u16 u32 u64 u128 f32 f64 bool}
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
-pub struct Hex<V: Copy + Eq + Hash>(V);
+pub struct Hex<V: Copy + Eq + Hash>(pub V);
 
 macro_rules! hex_value_impl {
         ($($t:ty)*) => {$(
@@ -202,6 +204,25 @@ impl RosValue for Duration {
         Cow::Owned(Vec::from(format!("{}s", self.as_secs()).as_bytes()))
     }
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub struct ClockFrequency(pub u32);
+impl RosValue for ClockFrequency {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
+        if let Some(number) = value.strip_suffix(b"MHz") {
+            match String::from_utf8_lossy(number).as_ref().parse::<u32>() {
+                Ok(v) => ParseRosValueResult::Value(ClockFrequency(v)),
+                Err(_) => ParseRosValueResult::Invalid,
+            }
+        } else {
+            ParseRosValueResult::Invalid
+        }
+    }
+
+    fn encode_ros(&self) -> Cow<[u8]> {
+        Cow::Owned(Vec::from(format!("{}MHz", self.0).as_bytes()))
+    }
+}
+
 impl RosValue for MacAddress {
     fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
         match MacAddress::from_str(String::from_utf8_lossy(value).as_ref()) {
@@ -322,10 +343,26 @@ pub enum PossibleRangeDash<V: RosValue> {
     Range { start: V, end: V },
     Single(V),
 }
+impl<V: RosValue> From<Range<V>> for PossibleRangeDash<V> {
+    fn from(value: Range<V>) -> Self {
+        PossibleRangeDash::Range {
+            start: value.start,
+            end: value.end,
+        }
+    }
+}
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub enum PossibleRangeDot<V: RosValue> {
     Range { start: V, end: V },
     Single(V),
+}
+impl<V: RosValue> From<Range<V>> for PossibleRangeDot<V> {
+    fn from(value: Range<V>) -> Self {
+        PossibleRangeDot::Range {
+            start: value.start,
+            end: value.end,
+        }
+    }
 }
 impl<V: RosValue + Clone + PartialEq> RosValue for PossibleRangeDash<V> {
     fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
@@ -552,8 +589,8 @@ impl RosValue for IpNet {
         Vec::from(encode_latin1_lossy(&format!("{}", self))).into()
     }
 }
-#[derive(Debug, Clone, PartialEq, Default, Copy)]
-pub struct Id(u16);
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub struct Id(pub u16);
 impl RosValue for Id {
     fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
         if let Some(number) = value.strip_prefix(b"*") {
@@ -647,6 +684,15 @@ impl RosValue for IpOrInterface {
 pub struct KeyValuePair<'a> {
     pub key: &'static [u8],
     pub value: Cow<'a, [u8]>,
+}
+
+impl KeyValuePair<'_> {
+    pub fn into_owned(self) -> KeyValuePair<'static> {
+        KeyValuePair {
+            key: self.key,
+            value: Cow::Owned(self.value.into_owned()),
+        }
+    }
 }
 
 pub fn write_script_string(target: &mut impl Write, value: &[u8]) -> core::fmt::Result {

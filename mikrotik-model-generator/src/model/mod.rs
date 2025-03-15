@@ -202,6 +202,9 @@ impl Entity {
                         items.push(self.generate_keyed_for_id_internal(id_field));
                         items.push(self.generate_cfg_for_id_internal(id_field));
                         items.push(self.generate_updateable_id_internal(id_field));
+                        if self.can_add {
+                            items.push(self.generate_creatable_id_internal(id_field));
+                        }
                     }
                     if has_readonly_fields {
                         items.push(self.generate_has_reference_for_id_combined(id_field));
@@ -297,13 +300,18 @@ impl Entity {
     }
 
     fn generate_ros_for_combined_struct(&self) -> Item {
-        let struct_ident = self.struct_type();
+        let struct_type = self.struct_type();
+        let struct_ident = self.struct_ident();
         let path = self.generate_path();
         parse_quote! {
-            impl resource::RosResource for #struct_ident {
+            impl resource::RosResource for #struct_type {
                 fn path()->&'static [u8]{
                     #path
                 }
+                fn create_resource_ref(&self)->ResourceRef{
+                    ResourceRef::#struct_ident(self)
+                }
+
                 fn provides_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<[u8]>)>{
                     self.cfg.provides_reference().chain(self.status.provides_reference())
                 }
@@ -470,6 +478,17 @@ impl Entity {
                         depends: <#id_struct_ident as resource::RosResource>::consumes_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                         provides: <#id_struct_ident as resource::RosResource>::provides_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                     }
+                }
+            }
+        }
+    }
+    fn generate_creatable_id_internal(&self, id_field: &Field) -> Item {
+        let id_struct_ident = self.id_struct_type(id_field);
+        let path = self.generate_path();
+        parse_quote! {
+            impl resource::Creatable for #id_struct_ident {
+                fn calculate_create<'a>(&'a self) -> resource::ResourceMutation<'a> {
+                    self.0.calculate_create()
                 }
             }
         }
@@ -753,7 +772,7 @@ impl Entity {
                     resource::ResourceMutation {
                         resource: <#struct_ident_cfg as resource::RosResource>::path(),
                         operation: resource::ResourceMutationOperation::Add,
-                        fields: Box::new(#create_values_array),
+                        fields: #create_values_array.into_iter().filter(|value::KeyValuePair{key:_,value}|!value.is_empty()).collect(),
                         depends: <#struct_ident_cfg as resource::RosResource>::consumes_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                         provides: <#struct_ident_cfg as resource::RosResource>::provides_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                     }
@@ -833,19 +852,25 @@ impl Entity {
     }
 
     fn generate_ros_resource_for_cfg(&self) -> Item {
-        self.generate_ros_resource(self.struct_type_cfg(), self.generate_path(), |field| {
-            if field.is_read_only {
-                None
-            } else {
-                let ident = field.generate_field_name();
-                Some(parse_quote!(&self.#ident))
-            }
-        })
+        self.generate_ros_resource(
+            self.struct_type_cfg(),
+            self.struct_ident_cfg(),
+            self.generate_path(),
+            |field| {
+                if field.is_read_only {
+                    None
+                } else {
+                    let ident = field.generate_field_name();
+                    Some(parse_quote!(&self.#ident))
+                }
+            },
+        )
     }
 
     fn generate_ros_resource<FG: Fn(&Field) -> Option<Expr>>(
         &self,
         struct_ident_cfg: Type,
+        resource_enum_ident: Ident,
         path: Literal,
         field_gen: FG,
     ) -> Item {
@@ -855,11 +880,15 @@ impl Entity {
                 fn path()->&'static [u8]{
                     #path
                 }
+                fn create_resource_ref(&self)->ResourceRef{
+                    ResourceRef::#resource_enum_ident(self)
+                }
+
                 fn provides_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<[u8]>)>{
-                    #provides_array.into_iter()
+                    #provides_array.into_iter().filter(|(_,value):&(ReferenceType,std::borrow::Cow<[u8]>)|!value.is_empty())
                 }
                 fn consumes_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<[u8]>)>{
-                    #consumes_array.into_iter()
+                    #consumes_array.into_iter().filter(|(_,value):&(ReferenceType,std::borrow::Cow<[u8]>)|!value.is_empty())
                 }
             }
         }
@@ -1400,6 +1429,7 @@ impl Entity {
 
     fn create_ros_resource_for_status(&self) -> Item {
         let struct_ident_status = self.struct_status_type();
+        let ident = self.struct_status_ident();
         let path = self.generate_path();
         let (provides_array, consumes_array) = self.consume_and_provides(|field| {
             if field.is_read_only {
@@ -1413,6 +1443,9 @@ impl Entity {
             impl resource::RosResource for #struct_ident_status {
                 fn path()->&'static [u8]{
                     #path
+                }
+                fn create_resource_ref(&self)->ResourceRef{
+                    ResourceRef::#ident(self)
                 }
                 fn provides_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<[u8]>)>{
                     #provides_array.into_iter()
@@ -1460,6 +1493,7 @@ impl Entity {
         let read_only_id = id_field.is_read_only;
         self.generate_ros_resource(
             self.id_struct_type(id_field),
+            self.id_struct_ident(id_field),
             self.generate_path(),
             |field| {
                 let ident = field.generate_field_name();
@@ -1487,18 +1521,23 @@ impl Entity {
     fn generate_ros_for_id_combined(&self, id_field: &Field) -> Item {
         let read_only_id = id_field.is_read_only;
         let data_type = self.data_tuples_for_id_combined(id_field);
-        self.generate_ros_resource(data_type, self.generate_path(), |field| {
-            let ident = field.generate_field_name();
-            if field.is_read_only {
-                Some(parse_quote!(&self.1.#ident))
-            } else {
-                if read_only_id {
-                    Some(parse_quote!(&self.0.data.#ident))
+        self.generate_ros_resource(
+            data_type,
+            self.id_struct_ident_combined(id_field),
+            self.generate_path(),
+            |field| {
+                let ident = field.generate_field_name();
+                if field.is_read_only {
+                    Some(parse_quote!(&self.1.#ident))
                 } else {
-                    Some(parse_quote!(&self.0.0.#ident))
+                    if read_only_id {
+                        Some(parse_quote!(&self.0.data.#ident))
+                    } else {
+                        Some(parse_quote!(&self.0.0.#ident))
+                    }
                 }
-            }
-        })
+            },
+        )
     }
 
     fn generate_combined_builder_struct(&self) -> Item {

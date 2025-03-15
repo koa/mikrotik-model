@@ -57,7 +57,7 @@ pub fn generator() -> syn::File {
         parse_quote!(
             use crate::{
                 resource,
-                value::{self, IpOrInterface},
+                value::{self, IpOrInterface, ClockFrequency},
                 ascii,
             };
         ),
@@ -161,6 +161,7 @@ pub fn generator() -> syn::File {
 
     let mut resource_enum_variants: Punctuated<Variant, Comma> = Punctuated::new();
     let mut resource_result_enum_variants: Punctuated<Variant, Comma> = Punctuated::new();
+    let mut resource_ref_result_enum_variants: Punctuated<Variant, Comma> = Punctuated::new();
     let mut resource_builder_enum_variants: Punctuated<Variant, Comma> = Punctuated::new();
     let mut resource_init_match: ExprMatch = parse_quote! {match self{}};
     let mut append_field_match: ExprMatch = parse_quote! {match self{}};
@@ -192,6 +193,7 @@ pub fn generator() -> syn::File {
         let builder_type = field.builder;
         resource_enum_variants.push(parse_quote!(#name));
         resource_result_enum_variants.push(parse_quote!(#name(#data_type)));
+        resource_ref_result_enum_variants.push(parse_quote!(#name(&'r #data_type)));
         resource_builder_enum_variants.push(parse_quote!(#name(#builder_type)));
         resource_init_match
             .arms
@@ -233,6 +235,10 @@ pub fn generator() -> syn::File {
     items.push(parse_quote!(
         #[derive(Debug,Clone,PartialEq)]
         pub enum Resource {#resource_result_enum_variants}
+    ));
+    items.push(parse_quote!(
+        #[derive(Debug,Clone,PartialEq)]
+        pub enum ResourceRef<'r> {#resource_ref_result_enum_variants}
     ));
     items.push(parse_quote!(
         #[derive(Debug,Clone,PartialEq)]

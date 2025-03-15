@@ -285,7 +285,7 @@ loop-protect-status: enum=on, off, disable
 mac-address: o;k;MacAddress
 mtu: u16
 name:id;ref=interface
-running: bool
+running: ro;bool
 use-service-tag: bool
 vlan-id: u16
-mvrp: o;bool
+mvrp: k;o;bool

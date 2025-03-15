@@ -5,7 +5,7 @@ use mikrotik_model::model::{InterfaceEthernetCfg, IpAddress};
 use mikrotik_model::model::{ReferenceType, ResourceType};
 use mikrotik_model::resource::{FieldUpdateHandler, RosResource, SentenceResult, SetResource};
 use mikrotik_model::value::{KeyValuePair, RosValue};
-use mikrotik_model::{ascii, Credentials, MikrotikDevice};
+use mikrotik_model::{Credentials, MikrotikDevice, ascii};
 use std::borrow::Cow;
 use std::net::{IpAddr, Ipv4Addr};
 use tokio_stream::StreamExt;

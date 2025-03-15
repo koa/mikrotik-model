@@ -1,6 +1,7 @@
 use config::{Config, Environment, File};
 use env_logger::{Env, TimestampPrecision};
 use mikrotik_model::{
+    Credentials, MikrotikDevice,
     ascii::{self, AsciiString},
     generator::Generator,
     hwconfig::DeviceType,
@@ -9,7 +10,6 @@ use mikrotik_model::{
         DeserializeRosBuilder, FieldUpdateHandler, KeyedResource, SetResource, UpdatePairing,
     },
     value::{KeyValuePair, RosValue},
-    Credentials, MikrotikDevice,
 };
 use std::{
     borrow::Cow,

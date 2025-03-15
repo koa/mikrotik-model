@@ -1,5 +1,5 @@
-use crate::resource::Error;
 use crate::MikrotikDevice;
+use crate::resource::Error;
 
 pub trait CanAddRepository {
     type Item;
@@ -25,16 +25,16 @@ pub trait Repository: Sized {
 
 mod test_repos {
     use super::*;
-    use crate::model::SystemResource;
+    use crate::model::SystemRouterboardSettingsCfg;
     use crate::resource::SingleResource;
-    struct SystemResourcesRepository {
-        data: SystemResource,
+    struct RouterboardSettingsRepository {
+        data: SystemRouterboardSettingsCfg,
     }
 
-    impl Repository for SystemResourcesRepository {
+    impl Repository for RouterboardSettingsRepository {
         async fn fetch(device: &MikrotikDevice) -> Result<Self, Error> {
-            Ok(SystemResourcesRepository {
-                data: SystemResource::fetch(device)
+            Ok(RouterboardSettingsRepository {
+                data: SystemRouterboardSettingsCfg::fetch(device)
                     .await?
                     .ok_or(Error::ErrorFetchingSingleItem)?,
             })

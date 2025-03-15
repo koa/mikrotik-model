@@ -1,5 +1,6 @@
 use crate::ascii::AsciiString;
 use crate::generator::Generator;
+use crate::model::{InterfaceBridgePortById, InterfaceBridgePortCfg};
 use crate::resource::Error::ResourceAccess;
 use crate::{
     model::{ReferenceType, Resource, ResourceType},
@@ -14,16 +15,17 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter, Write};
 use std::hash::Hash;
+use std::iter::Map;
 use thiserror::Error;
 use tokio_stream::{FromStream, Stream, StreamExt};
 
 #[derive(Debug, Error, Clone)]
 pub enum ResourceAccessError {
-    #[error("Missing field {}",decode_latin1(.field_name))]
+    #[error("Missing field {}", decode_latin1(.field_name))]
     MissingFieldError { field_name: &'static [u8] },
-    #[error("Undefined field {}",decode_latin1(.field_name))]
+    #[error("Undefined field {}", decode_latin1(.field_name))]
     UndefinedFieldError { field_name: &'static [u8] },
-    #[error("Failed to parse field {}: {}",decode_latin1(.field_name),decode_latin1(.value))]
+    #[error("Failed to parse field {}: {}", decode_latin1(.field_name), decode_latin1(.value))]
     InvalidValueError {
         field_name: &'static [u8],
         value: Box<[u8]>,
@@ -34,7 +36,7 @@ pub enum ResourceAccessError {
 
 #[derive(Error)]
 pub enum ResourceAccessWarning {
-    #[error("Unexpected field received {}",decode_latin1(.field_name))]
+    #[error("Unexpected field received {}", decode_latin1(.field_name))]
     UnexpectedFieldError { field_name: Box<[u8]> },
 }
 impl Debug for ResourceAccessWarning {
@@ -158,6 +160,7 @@ pub trait RosResource: Sized {
     fn path() -> &'static [u8];
     fn provides_reference(&self) -> impl Iterator<Item = (ReferenceType, Cow<[u8]>)>;
     fn consumes_reference(&self) -> impl Iterator<Item = (ReferenceType, Cow<[u8]>)>;
+    fn create_resource_ref(&self) -> ResourceRef;
 }
 
 pub trait SingleResource: DeserializeRosResource + RosResource {
@@ -266,12 +269,12 @@ pub trait KeyedResource: DeserializeRosResource + RosResource {
 pub trait CfgResource: DeserializeRosResource {
     #[allow(clippy::needless_lifetimes)]
     fn changed_values<'a, 'b>(&'a self, before: &'b Self)
-        -> impl Iterator<Item = KeyValuePair<'a>>;
+    -> impl Iterator<Item = KeyValuePair<'a>>;
 }
 pub trait SetResource<Base: RosResource>: FieldUpdateHandler {
     #[allow(clippy::needless_lifetimes)]
     fn changed_values<'a, 'b>(&'a self, before: &'b Base)
-        -> impl Iterator<Item = KeyValuePair<'a>>;
+    -> impl Iterator<Item = KeyValuePair<'a>>;
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -282,12 +285,56 @@ pub struct ResourceMutation<'a> {
     pub depends: Box<[(ReferenceType, Cow<'a, [u8]>)]>,
     pub provides: Box<[(ReferenceType, Cow<'a, [u8]>)]>,
 }
+
+impl<'a> ResourceMutation<'a> {
+    pub fn into_owned(self) -> ResourceMutation<'static> {
+        let operation = self.operation.into_owned();
+        let fields = self
+            .fields
+            .into_iter()
+            .map(|kv| KeyValuePair::into_owned(kv))
+            .collect();
+        let depends = self
+            .depends
+            .into_iter()
+            .map(|(k, v)| (k, Cow::Owned(v.into_owned())))
+            .collect();
+        let provides = self
+            .provides
+            .into_iter()
+            .map(|(k, v)| (k, Cow::Owned(v.into_owned())))
+            .collect();
+        ResourceMutation {
+            resource: self.resource,
+            operation,
+            fields,
+            depends,
+            provides,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum ResourceMutationOperation<'a> {
     Add,
     RemoveByKey(KeyValuePair<'a>),
     UpdateSingle,
     UpdateByKey(KeyValuePair<'a>),
+}
+
+impl<'a> ResourceMutationOperation<'a> {
+    pub fn into_owned(self) -> ResourceMutationOperation<'static> {
+        match self {
+            ResourceMutationOperation::Add => ResourceMutationOperation::Add,
+            ResourceMutationOperation::RemoveByKey(k) => {
+                ResourceMutationOperation::RemoveByKey(k.into_owned())
+            }
+            ResourceMutationOperation::UpdateSingle => ResourceMutationOperation::UpdateSingle,
+            ResourceMutationOperation::UpdateByKey(k) => {
+                ResourceMutationOperation::UpdateByKey(k.into_owned())
+            }
+        }
+    }
 }
 
 pub trait Updatable: DeserializeRosResource {
@@ -484,23 +531,61 @@ impl<R: DeserializeRosResource + Send + 'static> ParsedMessage for SentenceResul
         }
     }
 }
-
-#[derive(Debug)]
-pub struct UpdatePairing<'a, 'b, Current: KeyedResource, Target: KeyedResource> {
-    pub orphaned_entries: Box<[&'a mut Current]>,
-    pub matched_entries: Box<[(&'a mut Current, &'b Target)]>,
-    pub new_entries: Box<[&'b Target]>,
+use crate::model::ResourceRef;
+#[derive(Debug, Error)]
+pub enum ResourceMutationError<'a> {
+    #[error("cannot insert {entry:?}")]
+    Add { entry: ResourceRef<'a> },
+    #[error("cannot remove {entry:?}")]
+    Remove { entry: ResourceRef<'a> },
 }
 
-impl<'b, Target, Current> UpdatePairing<'b, 'b, Target, Current>
+#[derive(Debug)]
+pub struct UpdatePairing<'c, 't, Current: RosResource, Target: CfgResource + Clone> {
+    pub orphaned_entries: Box<[&'c Current]>,
+    pub matched_entries: Box<[(&'c Current, Cow<'t, Target>)]>,
+    pub new_entries: Box<[Cow<'t, Target>]>,
+}
+
+/*impl<'t, Current, Target> UpdatePairing<'_, 't, Current, Target>
 where
-    Target: KeyedResource,
-    Current: KeyedResource + Updatable<From = Target>,
+    Target: KeyedResource + Clone + CfgResource + Updatable<From = Current>,
+    Current: KeyedResource + Clone,
     Current::Value: 'static + Sized,
 {
-    pub fn generate_updates(&self) -> impl Iterator<Item = ResourceMutation> {
+    pub fn generate_update<'r, 's>(
+        &'s self,
+    ) -> Result<impl Iterator<Item = ResourceMutation<'r>>, ResourceMutationError<Current, Target>>
+    where
+        't: 'r,
+        's: 'r,
+    {
+        if let Some(entry) = self.orphaned_entries.iter().cloned().next().cloned() {
+            Err(ResourceMutationError::Remove { entry })
+        } else if let Some(entry) = self.new_entries.iter().cloned().next().cloned() {
+            Err(ResourceMutationError::Add { entry })
+        } else {
+            Ok(self
+                .matched_entries
+                .iter()
+                .map(|(original, target)| target.calculate_update(*original)))
+        }
+    }
+}*/
+
+impl<'c, 't, Current, Target> UpdatePairing<'c, 't, Current, Target>
+where
+    Target: KeyedResource + Creatable + Updatable<From = Current> + Clone,
+    Current: KeyedResource,
+    Current::Value: 'static + Sized,
+{
+    pub fn generate_remove_update_add<'r>(self) -> impl Iterator<Item = ResourceMutation<'r>>
+    where
+        'c: 'r,
+        't: 'r,
+    {
         self.orphaned_entries
-            .iter()
+            .into_iter()
             .map(|entry| {
                 let value = entry.key_value().encode_ros();
                 let key = Current::key_name();
@@ -514,28 +599,133 @@ where
             })
             .chain(
                 self.matched_entries
-                    .iter()
-                    .map(|(original, target)| target.calculate_update(original)),
-            ) /*.chain(self.new_entries.iter().map(|entry|{
-                  ResourceMutation{
-                      resource: Current::path(),
-                      operation: ResourceMutationOperation::Add,
-                      fields: Box::new([]),
-                      depends: entry.consumes_reference().filter(|(_,v)|!v.is_empty()).collect(),
-                      provides: entry.provides_reference().filter(|(_,v)|!v.is_empty()).collect(),
-                  }
-              }))*/
+                    .into_iter()
+                    .map(|(original, target)| match target {
+                        Cow::Borrowed(t) => t.calculate_update(original),
+                        Cow::Owned(t) => t.calculate_update(original).into_owned(),
+                    }),
+            )
+            .chain(self.new_entries.into_iter().map(|entry| match entry {
+                Cow::Borrowed(entry) => entry.calculate_create(),
+                Cow::Owned(entry) => entry.calculate_create().into_owned(),
+            }))
     }
 }
-impl<'a, 'b, Target: KeyedResource, Current: KeyedResource + Updatable<From = Target>>
+pub fn generate_single_update<'c, 't, 'r, Resource>(
+    current: &'c Resource,
+    target: &'t Resource,
+) -> ResourceMutation<'r>
+where
+    'c: 'r,
+    't: 'r,
+    Resource: SingleResource + CfgResource + Clone,
+{
+    let fields = target
+        .changed_values(current)
+        //.map(|e| e.into_owned())
+        .collect::<Box<[_]>>();
+    let provides = target
+        .provides_reference()
+        //.map(|(k, v)| (k, Cow::Owned(v.into_owned())))
+        .collect();
+    let depends = target
+        .consumes_reference()
+        //.map(|(k, v)| (k, Cow::Owned(v.into_owned())))
+        .collect();
+
+    ResourceMutation {
+        resource: Resource::path(),
+        operation: ResourceMutationOperation::UpdateSingle,
+        fields,
+        depends,
+        provides,
+    }
+}
+
+pub fn generate_add_update_remove_by_id<'c, 't, 'r, Target, Current>(
+    current: &'c [Current],
+    target: impl IntoIterator<Item = impl Into<Cow<'t, Target>>>,
+) -> impl Iterator<Item = ResourceMutation<'r>> + 'r
+where
+    'c: 'r,
+    't: 'r,
+    Current: KeyedResource,
+    <Current as KeyedResource>::Value: 'static,
+    Target: CfgResource + Creatable + Updatable<From = Current> + Clone + 't,
+{
+    todo!();
+    [].into_iter()
+}
+
+pub fn generate_add_update_remove_by_key<'c, 't, 'r, Target, Current>(
+    current: &'c [Current],
+    target: impl IntoIterator<Item = impl Into<Cow<'t, Target>>>,
+) -> impl Iterator<Item = ResourceMutation<'r>> + 'r
+where
+    'c: 'r,
+    't: 'r,
+    Current: KeyedResource,
+    <Current as KeyedResource>::Value: 'static,
+    Target: KeyedResource + CfgResource + Creatable + Updatable<From = Current> + Clone + 't,
+    <Target as KeyedResource>::Key: PartialEq<<Current as KeyedResource>::Key>,
+{
+    UpdatePairing::match_updates_by_key(current, target).generate_remove_update_add()
+}
+pub fn generate_update_by_key<'c, 't, 'r, 'e, Target, Current>(
+    current: &'c [Current],
+    target: impl IntoIterator<Item = &'t Target>,
+) -> Result<impl Iterator<Item = ResourceMutation<'r>> + 'r, ResourceMutationError<'e>>
+where
+    'c: 'r + 'e,
+    't: 'r + 'e,
+    Current: KeyedResource + Debug,
+    <Current as KeyedResource>::Value: 'static,
+    Target: KeyedResource + CfgResource + Updatable<From = Current> + 't + Debug,
+    <Target as KeyedResource>::Key: PartialEq<<Current as KeyedResource>::Key>,
+{
+    let mut target_refs = target.into_iter().collect::<Vec<_>>();
+    let mut matched = Vec::with_capacity(current.len().max(target_refs.len()));
+    for c in current {
+        let key = c.key_value();
+        if let Some((found_idx, _)) = target_refs
+            .iter()
+            .enumerate()
+            .find(|(_, t)| t.key_value() == key)
+        {
+            let t = target_refs.remove(found_idx);
+            matched.push((c, t));
+        } else {
+            return Err(ResourceMutationError::Remove {
+                entry: c.create_resource_ref(),
+            });
+        }
+    }
+    if let Some(entry) = target_refs.into_iter().next() {
+        return Err(ResourceMutationError::Add {
+            entry: entry.create_resource_ref(),
+        });
+    }
+    Ok(matched
+        .into_iter()
+        .map(|(original, target)| target.calculate_update(original)))
+}
+
+impl<'a, 'b, Target: KeyedResource + CfgResource, Current: KeyedResource>
     UpdatePairing<'a, 'b, Current, Target>
 where
     <Target as KeyedResource>::Key: PartialEq<<Current as KeyedResource>::Key>,
+    Target: Clone,
 {
-    pub fn match_updates_by_key(current: &'a mut [Current], target: &'b [Target]) -> Self {
+    pub fn match_updates_by_key(
+        current: &'a [Current],
+        target: impl IntoIterator<Item = impl Into<Cow<'b, Target>>>,
+    ) -> Self {
         let mut orphans = Vec::with_capacity(current.len());
-        let mut matched = Vec::with_capacity(current.len().max(target.len()));
-        let mut target_refs = target.iter().collect::<Vec<_>>();
+        let mut target_refs = target
+            .into_iter()
+            .map(|t| Into::into(t))
+            .collect::<Vec<_>>();
+        let mut matched = Vec::with_capacity(current.len().max(target_refs.len()));
         for c in current {
             let key = c.key_value();
             if let Some((found_idx, _)) = target_refs
@@ -554,5 +744,45 @@ where
             matched_entries: matched.into_boxed_slice(),
             new_entries: target_refs.into_boxed_slice(),
         }
+    }
+}
+impl<'c, 't, Resource> UpdatePairing<'c, 't, Resource, Resource>
+where
+    Resource: SingleResource + CfgResource + Clone,
+{
+    pub fn create_pair(current: &'c Resource, target: &'t Resource) -> Self {
+        UpdatePairing {
+            orphaned_entries: Box::new([]),
+            matched_entries: Box::new([(current, Cow::Borrowed(target))]),
+            new_entries: Box::new([]),
+        }
+    }
+    pub fn generate_single_update<'r>(self) -> impl Iterator<Item = ResourceMutation<'r>>
+    where
+        'c: 'r,
+        't: 'r,
+    {
+        self.matched_entries.into_iter().map(|(original, target)| {
+            let fields = target
+                .changed_values(original)
+                .map(|e| e.into_owned())
+                .collect::<Box<[_]>>();
+            let provides = target
+                .provides_reference()
+                .map(|(k, v)| (k, Cow::Owned(v.into_owned())))
+                .collect();
+            let depends = target
+                .consumes_reference()
+                .map(|(k, v)| (k, Cow::Owned(v.into_owned())))
+                .collect();
+
+            ResourceMutation {
+                resource: Resource::path(),
+                operation: ResourceMutationOperation::UpdateSingle,
+                fields,
+                depends,
+                provides,
+            }
+        })
     }
 }

@@ -1,12 +1,12 @@
 use config::{Config, Environment, File};
 use env_logger::{Env, TimestampPrecision};
 use mikrotik_model::{
+    Credentials, MikrotikDevice,
     generator::Generator,
     hwconfig::DeviceType,
     model::{Data, ReferenceType},
     resource::{DeserializeRosResource, FieldUpdateHandler, KeyedResource, Updatable},
     value::RosValue,
-    Credentials, MikrotikDevice,
 };
 use std::{
     collections::HashMap,

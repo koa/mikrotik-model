@@ -1,5 +1,5 @@
-/interface/bridge/port: id=bridge,interface
-.id: id;ro
+/interface/bridge/port: can-add
+.id: id;ro;Id
 .nextid: ro
 broadcast-flood: bool
 edge: enum=auto,no,no-discover,yes,yes-discover
@@ -22,21 +22,21 @@ horizon:o;none;u32
 point-to-point: auto;YesNo
 restricted-role:bool
 trusted:bool
-hw: ro;bool
+hw: k;o;bool
 disabled: bool
 port-number: ro;o;u16
 bpdu-guard: bool
 auto-isolate: bool
-role: o;enum=designated-port,root-port,alternate,backup,disabled-port
+role: ro; o;enum=designated-port,root-port,alternate,backup,disabled-port
 pvid: u16
-status: enum=in-bridge, inactive
+status: ro; enum=in-bridge, inactive
 edge-port: ro;o;bool
 edge-port-discovery: ro;o;bool
 external-fdb: ro;o;bool
 external-fdb-status: ro;o;bool
 forwarding: ro;o;bool
 hw-offload-group:ro;o
-hw-offload: o;bool
+hw-offload: ro; o;bool
 learning: ro;o;bool
 point-to-point-port: ro;o;bool
 sending-rstp: ro;o;bool
@@ -48,14 +48,14 @@ designated-bridge: ro;o;ref=>interface
 designated-port-number: ro;o;u16
 root-path-cost: ro;o;u32
 designated-cost: ro;o;u32
-mvrp-registrar-state: enum=normal,fixed
-mvrp-applicant-state: enum=normal-participant,non-participant
+mvrp-registrar-state: ro; enum=normal,fixed
+mvrp-applicant-state: ro; enum=normal-participant,non-participant
 
 /interface/bridge:can-add;
 add-dhcp-option82: o; bool
 admin-mac: o; MacAddress
 ageing-time: Duration
-arp: disabled; enum= enabled, local-proxy-arp, proxy-arp, reply-only;
+arp: enum= enabled,disabled, local-proxy-arp, proxy-arp, reply-only;
 arp-timeout: auto; u32
 auto-mac: bool
 comment: o;
@@ -78,12 +78,12 @@ membership-interval: o; Duration
 mld-version: o; enum= 1, 2;
 mtu: auto; u16
 multicast-querier: o; bool
-multicast-router: o; disabled; enum= permanent, temporary-query;
+multicast-router: o; enum= disabled, permanent, temporary-query;
 mvrp: bool
 name: id; ref=interface;
 port-cost-mode: enum= short, long;
 priority: o; hex; u16
-protocol-mode: none; enum= mstp, rstp, stp;
+protocol-mode: enum= none, mstp, rstp, stp;
 pvid: o; u16
 querier-interval: o; Duration
 query-interval: o; Duration
@@ -94,16 +94,15 @@ startup-query-count: o; u32
 startup-query-interval: o; Duration
 transmit-hold-count: o; u8
 vlan-filtering: bool
-l2mtu: o;k;u16
-mac-address: MacAddress
+l2mtu: ro;u16
+mac-address: o;k;MacAddress
 actual-mtu: ro; u16
 running: ro; bool
-mid-version: o; enum= 1, 2;
-.id: id; ro;
+.id: id;ro;Id
 about: ro;
 
 */interface/bridge/vlan
-.id: id
+.id: id;ro;Id
 bridge: ref=>interface
 comment: o
 current-tagged: ro;mu;ref=>interface

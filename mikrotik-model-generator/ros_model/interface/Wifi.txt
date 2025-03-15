@@ -160,7 +160,7 @@ caps-man-addresses: mu;IpAddr
 caps-man-certificate-common-names: mu
 caps-man-names: mu
 certificate: mu; none;
-discovery-interfaces: none; ref=>interface; 
+discovery-interfaces: mu; ref=>interface;
 enabled: YesNo 
 lock-to-caps-man: o; bool
 slaves-datapath: o; ref=>wifi-datapath;
@@ -320,7 +320,7 @@ client-isolation: bool
 comment: 
 disabled: bool
 interface-list: o; none; ref=>interface-list
-name: ref=wifi-datapath
+name: id;ref=wifi-datapath
 vlan-id: o; none; u16
 about: ro; 
 

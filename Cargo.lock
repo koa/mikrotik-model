@@ -225,6 +225,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "const-str"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e991226a70654b49d34de5ed064885f0bef0348a8e70018b8ff1ac80aa984a2"
+
+[[package]]
 name = "convert_case"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -577,7 +583,6 @@ dependencies = [
 [[package]]
 name = "mikrotik-api"
 version = "0.1.0"
-source = "git+https://github.com/koa/mikrotik-api#8d6065cbd01e5290bdff3166e35a97d405db9669"
 dependencies = [
  "encoding_rs",
  "log",
@@ -592,6 +597,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "config",
+ "const-str",
  "derive_builder",
  "encoding_rs",
  "enum-iterator",

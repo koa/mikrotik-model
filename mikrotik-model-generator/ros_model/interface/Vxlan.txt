@@ -34,7 +34,6 @@ remote-ip: ro;
 .id: ro;id;Id
 comment: o
 interface: ref=>interface; 
-port: u16
 remote-ip: IpAddr
 about: ro; 
 
