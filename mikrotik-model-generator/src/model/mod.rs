@@ -195,6 +195,7 @@ impl Entity {
                         items.push(self.generate_cfg_for_id_external(id_field));
                         items.push(self.generate_set_for_id_external(id_field));
                         items.push(self.generate_updateable_id_external(id_field));
+                        items.push(self.generate_updateable_for_cfg_by_id_external(id_field));
                     } else {
                         items.push(self.generate_id_struct_internal(id_field));
                         items.push(self.generate_id_builder_internal(id_field));
@@ -465,8 +466,7 @@ impl Entity {
 
         let path = self.generate_path();
         parse_quote! {
-            impl resource::Updatable for #id_struct_ident {
-                type From=#id_struct_ident;
+            impl resource::Updatable<#id_struct_ident> for #id_struct_ident {
                 fn calculate_update<'a>(&'a self, from: &'a Self) -> resource::ResourceMutation<'a> {
                     resource::ResourceMutation {
                         resource: #path,
@@ -565,28 +565,11 @@ impl Entity {
     }
     fn generate_updateable_id_external(&self, id_field: &Field) -> Item {
         let id_struct_ident = self.id_struct_type(id_field);
-        let cfg_ident = self.struct_ident_cfg();
         let path = self.generate_path();
         let key = id_field.attribute_name();
         let key_name = id_field.generate_field_name();
-        /*parse_quote! {
-            impl resource::Updatable for #id_struct_ident {
-                type From=#cfg_ident;
-                fn calculate_update<'a>(&'a self, from: &'a #cfg_ident) -> resource::ResourceMutation<'a> {
-                    resource::ResourceMutation {
-                        resource: #path,
-                        operation: resource::ResourceMutationOperation::UpdateByKey(value::KeyValuePair {
-                            key: #key,
-                            value: value::RosValue::encode_ros(&self.#key_name),
-                        }),
-                        fields: resource::SetResource::changed_values(from,self).collect(),
-                    }
-                }
-            }
-        }*/
         parse_quote! {
-            impl resource::Updatable for #id_struct_ident {
-                type From=#id_struct_ident;
+            impl resource::Updatable<#id_struct_ident> for #id_struct_ident {
                 fn calculate_update<'a>(&'a self, from: &'a #id_struct_ident) -> resource::ResourceMutation<'a> {
                     resource::ResourceMutation {
                         resource: #path,
@@ -602,6 +585,30 @@ impl Entity {
             }
         }
     }
+    fn generate_updateable_for_cfg_by_id_external(&self, id_field: &Field) -> Item {
+        let id_struct_ident = self.id_struct_type(id_field);
+        let cfg_ident = self.struct_ident_cfg();
+        let path = self.generate_path();
+        let key = id_field.attribute_name();
+        let key_name = id_field.generate_field_name();
+        parse_quote! {
+            impl resource::Updatable<#id_struct_ident> for #cfg_ident {
+                fn calculate_update<'a>(&'a self, from: &'a #id_struct_ident) -> resource::ResourceMutation<'a> {
+                    resource::ResourceMutation {
+                        resource: #path,
+                        operation: resource::ResourceMutationOperation::UpdateByKey(value::KeyValuePair {
+                            key: #key,
+                            value: value::RosValue::encode_ros(&from.#key_name),
+                        }),
+                        fields: resource::SetResource::changed_values(self,from).collect(),
+                        depends: <#cfg_ident as resource::RosResource>::consumes_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
+                        provides: <#cfg_ident as resource::RosResource>::provides_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
+                    }
+                }
+            }
+        }
+    }
+
     fn generate_keyed_for_id_external(&self, id_field: &Field) -> Item {
         let id_field_type = self.struct_field_type(id_field);
         let field_name = id_field.attribute_name();
@@ -813,8 +820,7 @@ impl Entity {
     fn updateable_cfg(&self) -> Item {
         let struct_ident_cfg = self.struct_type_cfg();
         parse_quote! {
-            impl resource::Updatable for #struct_ident_cfg {
-                type From = #struct_ident_cfg;
+            impl resource::Updatable<#struct_ident_cfg> for #struct_ident_cfg {
                 fn calculate_update<'a>(&'a self, from: &'a Self) -> resource::ResourceMutation<'a> {
                     resource::ResourceMutation {
                         resource: <#struct_ident_cfg as resource::RosResource>::path(),

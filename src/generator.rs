@@ -23,8 +23,13 @@ impl<'a, W: Write> Generator<'a, W> {
         }
     }
     pub fn append_mutation(&mut self, mutation: &ResourceMutation) -> std::fmt::Result {
-        if mutation.fields.is_empty() {
-            return Ok(());
+        match &mutation.operation {
+            ResourceMutationOperation::RemoveByKey(_) => {}
+            _ => {
+                if mutation.fields.is_empty() {
+                    return Ok(());
+                }
+            }
         }
         if Some(mutation.resource) != self.current_path {
             writeln!(self.target, "/{}", decode_latin1(mutation.resource))?;

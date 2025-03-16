@@ -315,9 +315,9 @@ about: ro;
 /interface/wifi/datapath:can-add;id=name
 bridge: o; none; ref=> interface
 bridge-cost: o; u32
-bridge-horizon: none; 
-client-isolation: bool
-comment: 
+bridge-horizon: o;none;
+client-isolation: o;bool
+comment: o
 disabled: bool
 interface-list: o; none; ref=>interface-list
 name: id;ref=wifi-datapath

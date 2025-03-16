@@ -4,9 +4,6 @@ use encoding_rs::mem::decode_latin1;
 use env_logger::{Env, TimestampPrecision};
 use itertools::Itertools;
 use log::{error, info};
-use mikrotik_model::model::{
-    InterfaceVlan, InterfaceVxlanCfg, InterfaceVxlanVtepsCfg, ReferenceType,
-};
 use mikrotik_model::{
     Credentials, MikrotikDevice,
     ascii::AsciiString,
@@ -19,22 +16,21 @@ use mikrotik_model::{
         InterfaceWifiByDefaultName, InterfaceWifiCapCfg, InterfaceWifiDatapathByName,
         SystemIdentityCfg, SystemRouterboardSettingsCfg, VlanFrameTypes, YesNo,
     },
+    model::{InterfaceVlan, InterfaceVxlanCfg, InterfaceVxlanVtepsCfg, ReferenceType},
     resource::{
         self, KeyedResource, ResourceMutation, ResourceMutationError, SingleResource,
-        generate_add_update_remove_by_key, generate_single_update, generate_update_by_key,
+        generate_add_update_remove_by_id, generate_add_update_remove_by_key,
+        generate_single_update, generate_update_by_key,
     },
-    value,
     value::PossibleRangeDash,
 };
-use std::fmt::{Display, Formatter};
-use std::iter::Map;
-use std::net::Ipv6Addr;
 use std::{
     borrow::Cow,
     collections::{BTreeMap, HashSet},
+    fmt::{Display, Formatter},
+    net::Ipv6Addr,
     net::{IpAddr, Ipv4Addr},
 };
-use mikrotik_model::resource::generate_add_update_remove_by_id;
 
 struct DeviceDataCurrent {
     identity: SystemIdentityCfg,
@@ -147,6 +143,14 @@ impl DeviceDataTarget {
             InterfaceVxlanByName(vxlan)
         })
     }
+    fn vxlan_vteps(&self) -> impl Iterator<Item = InterfaceVxlanVtepsCfg> {
+        self.vxlan_vteps.iter().map(|((interface, addr), cfg)| {
+            let mut vxlan = cfg.clone();
+            vxlan.interface = interface.clone();
+            vxlan.remote_ip = addr.clone();
+            vxlan
+        })
+    }
     fn bridge_ports(&self) -> impl Iterator<Item = InterfaceBridgePortCfg> {
         self.bridge_port.iter().map(|((bridge_name, if_name), b)| {
             let mut port = b.clone();
@@ -171,15 +175,19 @@ impl DeviceDataTarget {
             &from.vxlan,
             self.vxlans().map(Cow::<InterfaceVxlanByName>::Owned),
         )
+        .chain(generate_add_update_remove_by_id(
+            &from.vxlan_vteps,
+            self.vxlan_vteps().map(Cow::<InterfaceVxlanVtepsCfg>::Owned),
+        ))
         .chain(generate_add_update_remove_by_key(
             &from.bridge,
             self.bridges().map(Cow::<InterfaceBridgeByName>::Owned),
         ))
-        /*.chain(generate_add_update_remove_by_id(
+        .chain(generate_add_update_remove_by_id(
             &from.bridge_port,
             self.bridge_ports()
                 .map(Cow::<InterfaceBridgePortCfg>::Owned),
-        ))*/
+        ))
         .chain(Some(generate_single_update(&from.identity, &self.identity)))
         .chain(Some(generate_single_update(
             &from.routerboard_settings,
@@ -249,7 +257,7 @@ async fn main() -> anyhow::Result<()> {
         1,
         wlan_hosts
             .iter()
-            .filter(|a| *a != &IpAddr::V4(ip_addr!(v4, "10.192.5.7"))),
+            .filter(|a| *a != &IpAddr::V4(ip_addr!(v4, "10.192.69.2"))),
     );
 
     target_data.enable_wifi_cap(b"caps-vlan99-mgmt");
@@ -285,7 +293,7 @@ async fn main() -> anyhow::Result<()> {
     //let router = IpAddr::V4(Ipv4Addr::new(172, 16, 1, 51));
     //let router = IpAddr::V4(Ipv4Addr::new(172, 16, 1, 54));
     //let router = IpAddr::V4(Ipv4Addr::new(172, 16, 1, 1));
-    //let router = IpAddr::V4(Ipv4Addr::new(10, 192, 69, 2));
+    let router = IpAddr::V4(Ipv4Addr::new(10, 192, 69, 2));
     println!("{router}");
     let device = MikrotikDevice::connect(
         (router, 8728),
@@ -359,6 +367,12 @@ fn sort_mutations<'a, 'b>(
                 .all(|dep| provided_dependencies.contains(dep))
             {
                 for dep in &mutation.provides {
+                    info!(
+                        "{} provides {:?}:{}",
+                        decode_latin1(mutation.resource),
+                        dep.0,
+                        decode_latin1(dep.1.as_ref())
+                    );
                     provided_dependencies.insert(dep.clone());
                 }
                 sorted_mutations.push(mutation);

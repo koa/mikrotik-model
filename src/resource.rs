@@ -3,11 +3,12 @@ use crate::generator::Generator;
 use crate::model::{InterfaceBridgePortById, InterfaceBridgePortCfg};
 use crate::resource::Error::ResourceAccess;
 use crate::{
+    MikrotikDevice,
     model::{ReferenceType, Resource, ResourceType},
     value::{KeyValuePair, RosValue},
-    MikrotikDevice,
 };
 use encoding_rs::mem::decode_latin1;
+use itertools::{EitherOrBoth, Itertools};
 use log::{debug, error, info};
 use mikrotik_api::prelude::{CommandBuilder, ParsedMessage, TrapCategory, TrapResult};
 use std::any::Any;
@@ -80,7 +81,7 @@ pub trait DeserializeRosResource: Sized + FieldUpdateHandler {
     }*/
 }
 pub trait UpdateHandler<R> {
-    fn handle_updatable<T: Updatable>(self, value: &T) -> R;
+    fn handle_updatable<F: RosResource, T: Updatable<F>>(self, value: &T) -> R;
 }
 pub trait CreateHandler<R> {
     fn handle_creatable<T: Creatable>(self, value: &T) -> R;
@@ -88,7 +89,7 @@ pub trait CreateHandler<R> {
 
 pub trait CompositeRosResource: Sized + DeserializeRosResource {
     type ReadOnlyData: DeserializeRosResource;
-    type ReadWriteData: DeserializeRosResource + Updatable;
+    type ReadWriteData: DeserializeRosResource + Updatable<Self::ReadWriteData> + RosResource;
 }
 
 pub trait DeserializeRosBuilder<R: DeserializeRosResource> {
@@ -337,9 +338,8 @@ impl<'a> ResourceMutationOperation<'a> {
     }
 }
 
-pub trait Updatable: DeserializeRosResource {
-    type From: RosResource;
-    fn calculate_update<'a>(&'a self, from: &'a Self::From) -> ResourceMutation<'a>;
+pub trait Updatable<From: RosResource>: DeserializeRosResource {
+    fn calculate_update<'a>(&'a self, from: &'a From) -> ResourceMutation<'a>;
     fn update<R, T: UpdateHandler<R>>(&self, handler: T) -> Option<R> {
         Some(handler.handle_updatable(self))
     }
@@ -575,7 +575,7 @@ where
 
 impl<'c, 't, Current, Target> UpdatePairing<'c, 't, Current, Target>
 where
-    Target: KeyedResource + Creatable + Updatable<From = Current> + Clone,
+    Target: KeyedResource + Creatable + Updatable<Current> + Clone,
     Current: KeyedResource,
     Current::Value: 'static + Sized,
 {
@@ -642,19 +642,44 @@ where
     }
 }
 
-pub fn generate_add_update_remove_by_id<'c, 't, 'r, Target, Current>(
+pub fn generate_add_update_remove_by_id<'c, 't, 'r, Target, Current, TargetIter, IntoTarget>(
     current: &'c [Current],
-    target: impl IntoIterator<Item = impl Into<Cow<'t, Target>>>,
+    target: TargetIter,
 ) -> impl Iterator<Item = ResourceMutation<'r>> + 'r
 where
     'c: 'r,
     't: 'r,
     Current: KeyedResource,
     <Current as KeyedResource>::Value: 'static,
-    Target: CfgResource + Creatable + Updatable<From = Current> + Clone + 't,
+    Target: CfgResource + Creatable + Updatable<Current> + Clone + 't,
+    TargetIter: IntoIterator<Item = IntoTarget>,
+    IntoTarget: Into<Cow<'t, Target>>,
+    <TargetIter as IntoIterator>::IntoIter: 'r,
 {
-    todo!();
-    [].into_iter()
+    let current_iter = current.iter();
+    let target_iter = target.into_iter();
+    current_iter
+        .zip_longest(target_iter)
+        .map(|entry| match entry {
+            EitherOrBoth::Both(current, target) => match target.into() {
+                Cow::Borrowed(t) => t.calculate_update(current),
+                Cow::Owned(t) => t.calculate_update(current).into_owned(),
+            },
+            EitherOrBoth::Left(current) => ResourceMutation {
+                resource: Current::path(),
+                operation: ResourceMutationOperation::RemoveByKey(KeyValuePair {
+                    key: Current::key_name(),
+                    value: current.key_value().encode_ros(),
+                }),
+                fields: Box::new([]),
+                depends: Box::new([]),
+                provides: Box::new([]),
+            },
+            EitherOrBoth::Right(target) => match target.into() {
+                Cow::Borrowed(t) => t.calculate_create(),
+                Cow::Owned(t) => t.calculate_create().into_owned(),
+            },
+        })
 }
 
 pub fn generate_add_update_remove_by_key<'c, 't, 'r, Target, Current>(
@@ -666,7 +691,7 @@ where
     't: 'r,
     Current: KeyedResource,
     <Current as KeyedResource>::Value: 'static,
-    Target: KeyedResource + CfgResource + Creatable + Updatable<From = Current> + Clone + 't,
+    Target: KeyedResource + CfgResource + Creatable + Updatable<Current> + Clone + 't,
     <Target as KeyedResource>::Key: PartialEq<<Current as KeyedResource>::Key>,
 {
     UpdatePairing::match_updates_by_key(current, target).generate_remove_update_add()
@@ -680,7 +705,7 @@ where
     't: 'r + 'e,
     Current: KeyedResource + Debug,
     <Current as KeyedResource>::Value: 'static,
-    Target: KeyedResource + CfgResource + Updatable<From = Current> + 't + Debug,
+    Target: KeyedResource + CfgResource + Updatable<Current> + 't + Debug,
     <Target as KeyedResource>::Key: PartialEq<<Current as KeyedResource>::Key>,
 {
     let mut target_refs = target.into_iter().collect::<Vec<_>>();
