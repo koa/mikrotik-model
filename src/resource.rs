@@ -13,7 +13,7 @@ use log::{debug, error, info};
 use mikrotik_api::prelude::{CommandBuilder, ParsedMessage, TrapCategory, TrapResult};
 use std::any::Any;
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter, Write};
 use std::hash::Hash;
 use std::iter::Map;
@@ -286,6 +286,27 @@ pub struct ResourceMutation<'a> {
     pub depends: Box<[(ReferenceType, Cow<'a, [u8]>)]>,
     pub provides: Box<[(ReferenceType, Cow<'a, [u8]>)]>,
 }
+#[derive(Debug, Clone, PartialEq)]
+pub struct MissingDependenciesError<'a, 'b> {
+    pub dependencies: HashSet<(ReferenceType, Cow<'a, [u8]>)>,
+    pub unresolved_mutations: Box<[&'b ResourceMutation<'a>]>,
+}
+
+impl Display for MissingDependenciesError<'_, '_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let missing_deps = self
+            .dependencies
+            .iter()
+            .map(|(k, v)| format!("{k:?}:\"{}\"", decode_latin1(v.as_ref())))
+            .join(", ");
+        let resources: HashSet<_> = self
+            .unresolved_mutations
+            .iter()
+            .map(|d| decode_latin1(d.resource))
+            .collect();
+        writeln!(f, "Missing dependencies: {missing_deps} on {resources:?}")
+    }
+}
 
 impl<'a> ResourceMutation<'a> {
     pub fn into_owned(self) -> ResourceMutation<'static> {
@@ -312,6 +333,55 @@ impl<'a> ResourceMutation<'a> {
             depends,
             provides,
         }
+    }
+    pub fn sort_mutations<'b, 'c>(
+        updates: &'c [ResourceMutation<'b>],
+    ) -> Result<Box<[&'c ResourceMutation<'b>]>, MissingDependenciesError<'b, 'c>> {
+        let mut remaining_updates = updates.iter().collect::<Vec<_>>();
+        let mut sorted_mutations = Vec::with_capacity(updates.len());
+        let mut provided_dependencies = HashSet::new();
+        while !remaining_updates.is_empty() {
+            let mut next_round = Vec::with_capacity(remaining_updates.len());
+            let mut could_add = false;
+            for mutation in remaining_updates {
+                if mutation
+                    .depends
+                    .iter()
+                    .all(|dep| provided_dependencies.contains(dep))
+                {
+                    for dep in &mutation.provides {
+                        info!(
+                            "{} provides {:?}:{}",
+                            decode_latin1(mutation.resource),
+                            dep.0,
+                            decode_latin1(dep.1.as_ref())
+                        );
+                        provided_dependencies.insert(dep.clone());
+                    }
+                    sorted_mutations.push(mutation);
+                    could_add = true;
+                } else {
+                    next_round.push(mutation);
+                }
+            }
+            if !could_add {
+                let dependencies = next_round
+                    .iter()
+                    .flat_map(|m| {
+                        m.depends
+                            .iter()
+                            .filter(|dep| !provided_dependencies.contains(dep))
+                    })
+                    .cloned()
+                    .collect();
+                return Err(MissingDependenciesError {
+                    dependencies,
+                    unresolved_mutations: next_round.into_boxed_slice(),
+                });
+            }
+            remaining_updates = next_round;
+        }
+        Ok(sorted_mutations.into_boxed_slice())
     }
 }
 

@@ -609,6 +609,7 @@ dependencies = [
  "mac_address",
  "mikrotik-api",
  "mikrotik-model-generator",
+ "mikrotik-model-generator-macro",
  "prettyplease",
  "quote",
  "serde",
@@ -622,12 +623,23 @@ name = "mikrotik-model-generator"
 version = "0.1.0"
 dependencies = [
  "convert_case",
+ "darling",
  "lazy_static",
  "log",
  "proc-macro2",
  "regex",
  "serde",
  "serde_yaml",
+ "syn",
+]
+
+[[package]]
+name = "mikrotik-model-generator-macro"
+version = "0.1.0"
+dependencies = [
+ "darling",
+ "mikrotik-model-generator",
+ "proc-macro2",
  "syn",
 ]
 

@@ -21,6 +21,7 @@ encoding_rs = "0.8.35"
 derive_builder = "0.20.2"
 enum-iterator = "2.1.0"
 const-str = "0.6.2"
+mikrotik-model-generator-macro={version = "0.1.0", path = "mikrotik-model-generator-macro"}
 
 [dev-dependencies]
 tokio = { version = "1.42.0" , features = ["macros","rt-multi-thread"]}

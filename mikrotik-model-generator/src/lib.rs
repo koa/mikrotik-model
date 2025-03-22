@@ -11,6 +11,7 @@ use syn::{
     Variant,
 };
 
+pub mod macros;
 pub mod model;
 lazy_static! {
     static ref KEYWORDS: HashSet<&'static str> = HashSet::from([

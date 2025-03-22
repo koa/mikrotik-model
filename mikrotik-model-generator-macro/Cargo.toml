@@ -1,0 +1,14 @@
+[package]
+name = "mikrotik-model-generator-macro"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+mikrotik-model-generator = { version = "0.1.0", path = "../mikrotik-model-generator" }
+proc-macro2 = "1.0.92"
+syn = { version = "2.0.90", features = ["full"] }
+darling = "0.20.10"
+
+
+[lib]
+proc-macro = true

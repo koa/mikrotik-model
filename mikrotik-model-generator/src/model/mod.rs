@@ -445,7 +445,7 @@ impl Entity {
         parse_quote! {(#id_struct_ident, #struct_ident_status)}
     }
 
-    fn generate_cfg_for_id_internal(&self, id_field: &Field) -> Item {
+    pub fn generate_cfg_for_id_internal(&self, id_field: &Field) -> Item {
         let id_struct_ident = self.id_struct_type(id_field);
         parse_quote! {
             impl resource::CfgResource for #id_struct_ident {
@@ -531,7 +531,7 @@ impl Entity {
         }
     }
 
-    fn generate_cfg_for_id_external(&self, id_field: &Field) -> Item {
+    pub fn generate_cfg_for_id_external(&self, id_field: &Field) -> Item {
         let id_struct_ident = self.id_struct_type(id_field);
         parse_quote! {
             impl resource::CfgResource for #id_struct_ident {
@@ -724,7 +724,7 @@ impl Entity {
         }
     }
 
-    fn id_struct_type(&self, id_field: &Field) -> Type {
+    pub fn id_struct_type(&self, id_field: &Field) -> Type {
         ident2type(self.id_struct_ident(id_field))
     }
 
@@ -920,7 +920,7 @@ impl Entity {
         (provides_array, consumes_array)
     }
 
-    fn generate_path(&self) -> Literal {
+    pub fn generate_path(&self) -> Literal {
         Literal::byte_string(self.path.join("/").as_bytes())
     }
 
@@ -1181,7 +1181,7 @@ impl Entity {
         field.generate_builder_type(self.enum_field_type(field).map(|(ty, _)| ident2type(ty)))
     }
 
-    fn struct_field_type(&self, field: &Field) -> Type {
+    pub fn struct_field_type(&self, field: &Field) -> Type {
         field.generate_struct_field_type(self.enum_field_type(field).map(|(ty, _)| ident2type(ty)))
     }
     fn base_field_type(&self, field: &Field) -> Type {
@@ -1199,7 +1199,7 @@ impl Entity {
         }
     }
 
-    fn struct_type_cfg(&self) -> Type {
+    pub fn struct_type_cfg(&self) -> Type {
         ident2type(self.struct_ident_cfg())
     }
 
@@ -1824,7 +1824,7 @@ impl Field {
         compare_and_set_snippet
     }
 
-    fn generate_struct_field_type(&self, enum_field_type: Option<Type>) -> Type {
+    pub fn generate_struct_field_type(&self, enum_field_type: Option<Type>) -> Type {
         let field_type = self.generate_base_field_type(enum_field_type);
         let field_type = if self.is_range_dash {
             parse_quote!(value::PossibleRangeDash<#field_type>)
@@ -1847,7 +1847,7 @@ impl Field {
             field_type
         }
     }
-    fn generate_builder_type(&self, enum_field_type: Option<Type>) -> Type {
+    pub fn generate_builder_type(&self, enum_field_type: Option<Type>) -> Type {
         let field_type = self.generate_struct_field_type(enum_field_type);
         if self.is_optional || self.is_multiple {
             field_type
@@ -1922,7 +1922,7 @@ impl Field {
         Literal::byte_string(self.name.as_bytes())
     }
 
-    fn generate_field_name(&self) -> Ident {
+    pub fn generate_field_name(&self) -> Ident {
         let field_name = cleanup_field_name(self.name.as_ref()).to_case(Case::Snake);
 
         let field_name = if KEYWORDS.contains(field_name.as_str())

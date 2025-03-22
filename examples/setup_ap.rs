@@ -65,8 +65,8 @@ impl DeviceDataTarget {
         Self {
             identity: SystemIdentityCfg::default(),
             routerboard_settings: Default::default(),
-            ethernet: device_type.build_ethernet_ports().into_boxed_slice(),
-            wifi: device_type.build_wifi_ports().into_boxed_slice(),
+            ethernet: device_type.build_ethernet_ports().into(),
+            wifi: device_type.build_wifi_ports().into(),
             wifi_cap: InterfaceWifiCapCfg::default(),
             wifi_datapath: vec![],
             bridge: BTreeMap::default(),
@@ -242,8 +242,8 @@ async fn main() -> anyhow::Result<()> {
 
     let wlan_hosts: [IpAddr; 6] = [
         ip_addr!(v4, "172.16.1.1").into(),
-        ip_addr!(v4, "10.172.12.252").into(),
         ip_addr!(v4, "10.172.12.253").into(),
+        ip_addr!(v4, "10.172.12.252").into(),
         ip_addr!(v4, "10.192.9.238").into(),
         ip_addr!(v4, "10.192.69.2").into(),
         ip_addr!(v4, "172.17.0.34").into(),
@@ -327,28 +327,6 @@ async fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
-}
-
-#[derive(Debug, Clone, PartialEq)]
-struct MissingDependenciesError<'a, 'b> {
-    pub dependencies: HashSet<(ReferenceType, Cow<'a, [u8]>)>,
-    pub unresolved_mutations: Box<[&'b ResourceMutation<'a>]>,
-}
-
-impl Display for MissingDependenciesError<'_, '_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let missing_deps = self
-            .dependencies
-            .iter()
-            .map(|(k, v)| format!("{k:?}:\"{}\"", decode_latin1(v.as_ref())))
-            .join(", ");
-        let resources: HashSet<_> = self
-            .unresolved_mutations
-            .iter()
-            .map(|d| decode_latin1(d.resource))
-            .collect();
-        writeln!(f, "Missing dependencies: {missing_deps} on {resources:?}")
-    }
 }
 
 fn sort_mutations<'a, 'b>(
