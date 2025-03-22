@@ -232,6 +232,9 @@ impl Entity {
             items.push(self.create_ros_resource_for_status());
             items.push(self.create_deserialize_builder_for_status());
             enum_entries.push(self.create_status_enum_entry());
+            if self.is_single {
+                items.push(self.create_state_single_impl());
+            }
         }
         if has_cfg_struct && has_readonly_fields {
             enum_entries.push(self.create_enum_entry());
@@ -1623,6 +1626,12 @@ impl Entity {
 
     fn create_combined_single_impl(&self) -> Item {
         let struct_ident = self.struct_type();
+        parse_quote! {
+            impl resource::SingleResource for #struct_ident {}
+        }
+    }
+    fn create_state_single_impl(&self) -> Item {
+        let struct_ident = self.struct_status_type();
         parse_quote! {
             impl resource::SingleResource for #struct_ident {}
         }

@@ -125,7 +125,7 @@ macro_rules! parameter_value_impl {
     }
 parameter_value_impl! { isize i8 i16 i32 i64 i128 usize u8 u16 u32 u64 u128 f32 f64 bool}
 
-#[derive(Clone, Copy, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub struct Hex<V: Copy + Eq + Hash>(pub V);
 
 macro_rules! hex_value_impl {
@@ -594,14 +594,17 @@ pub struct Id(pub u16);
 impl RosValue for Id {
     fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
         if let Some(number) = value.strip_prefix(b"*") {
-            u16::parse_ros(number).map(Id)
+            match u16::from_str_radix(decode_latin1(number).as_ref(), 16) {
+                Ok(n) => ParseRosValueResult::Value(Id(n)),
+                Err(_) => ParseRosValueResult::Invalid,
+            }
         } else {
             ParseRosValueResult::Invalid
         }
     }
 
     fn encode_ros(&self) -> Cow<[u8]> {
-        [b"*", self.0.encode_ros().as_ref()].concat().into()
+        Cow::Owned(Vec::from(format!("*{:X}", self.0).as_bytes()))
     }
 }
 
@@ -735,5 +738,19 @@ mod tests {
         assert_eq!(parsed, ParseRosValueResult::Value(Hex(0x8000)));
         let encoded = Hex(0x8000).encode_ros();
         assert_eq!(encoded.as_ref(), b"0x8000");
+    }
+    #[test]
+    fn test_parse_id() {
+        let parsed: ParseRosValueResult<Id> = RosValue::parse_ros(b"*4");
+        assert_eq!(parsed, ParseRosValueResult::Value(Id(4)));
+        let encoded = Id(4).encode_ros();
+        assert_eq!(encoded.as_ref(), b"*4");
+    }
+    #[test]
+    fn test_parse_id_hex() {
+        let parsed: ParseRosValueResult<Id> = RosValue::parse_ros(b"*A");
+        assert_eq!(parsed, ParseRosValueResult::Value(Id(10)));
+        let encoded = Id(10).encode_ros();
+        assert_eq!(encoded.as_ref(), b"*A");
     }
 }

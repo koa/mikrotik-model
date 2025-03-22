@@ -1,3 +1,5 @@
+use crate::ascii::AsciiString;
+use crate::hwconfig::DeviceType;
 use crate::{
     MikrotikDevice,
     model::{
@@ -11,6 +13,7 @@ use encoding_rs::mem::decode_latin1;
 use itertools::{EitherOrBoth, Itertools};
 use log::{debug, error, info};
 use mikrotik_api::prelude::{CommandBuilder, ParsedMessage, TrapCategory, TrapResult};
+use serde::de::Unexpected;
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
@@ -120,6 +123,8 @@ pub enum Error {
     Trap(TrapResponse),
     #[error("Cannot fetch single item")]
     ErrorFetchingSingleItem,
+    #[error("Cannot identify type {0}")]
+    UnknownType(AsciiString),
 }
 
 #[derive(Debug, Eq, PartialEq, Hash)]
@@ -607,6 +612,11 @@ pub enum ResourceMutationError<'a> {
     Add { entry: Resource },
     #[error("cannot remove {entry:?}")]
     Remove { entry: ResourceRef<'a> },
+    #[error("wrong device type found, expected {expected:?} but got {actual:?} instead")]
+    WrongDeviceType {
+        expected: DeviceType,
+        actual: AsciiString,
+    },
 }
 
 #[derive(Debug)]

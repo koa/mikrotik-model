@@ -1,16 +1,17 @@
-use crate::model::Entity;
-use crate::{cleanup_field_name, name2ident, CONTENT_FILES};
+use crate::{cleanup_field_name, model::Entity, name2ident, CONTENT_FILES};
 use convert_case::{Case, Casing};
-use darling::ast::NestedMeta;
-use darling::util::{PathList, SpannedValue};
-use darling::{Error, FromMeta};
+use darling::{
+    ast::NestedMeta,
+    util::{PathList, SpannedValue},
+    Error, FromMeta,
+};
 use proc_macro2::{Ident, TokenStream};
 use std::collections::HashMap;
-use syn::__private::quote::quote;
-use syn::__private::ToTokens;
-use syn::spanned::Spanned;
 use syn::{
-    parse_quote, Block, Expr, ExprStruct, Fields, ItemImpl, ItemStruct, PatTuple, Stmt, TypeTuple,
+    __private::{quote::quote, ToTokens},
+    parse_quote,
+    spanned::Spanned,
+    Block, Expr, ExprStruct, Fields, ItemImpl, ItemStruct, PatTuple, Stmt, TypeTuple,
 };
 
 #[cfg(test)]
@@ -288,6 +289,22 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
         };
         stream.extend(target_impl.to_token_stream());
     }
+    if let Some(detect_method) = params.detect {
+        let target_impl: ItemImpl = parse_quote! {
+            impl #target_struct_name {
+                 pub async fn detect_device(device: &MikrotikDevice) -> Result<Self, mikrotik_model::resource::Error> {
+                    let routerboard = <SystemRouterboardState as mikrotik_model::resource::SingleResource>::fetch(device)
+                        .await?
+                        .expect("System routerboard not found");
+                    match DeviceType::type_by_name(&routerboard.model.0) {
+                        None => Err(mikrotik_model::resource::Error::UnknownType(routerboard.model)),
+                        Some(ty) => Ok(Self::#detect_method(ty)),
+                    }
+                }
+            }
+        };
+        stream.extend(target_impl.to_token_stream());
+    }
     accumulator.finish_with(stream)
 }
 
@@ -306,6 +323,7 @@ fn chain(chain: Option<Expr>, item: Expr) -> Option<Expr> {
 #[derive(FromMeta, Debug)]
 struct MikrotikModelParams {
     name: Ident,
+    detect: Option<Ident>,
     fields: HashMap<Ident, TypeEntry>,
 }
 

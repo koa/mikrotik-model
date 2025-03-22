@@ -11,6 +11,7 @@ fn test_macro() {
     };
     let attr: TokenStream = parse_quote! {
         name=DeviceData,
+        detect=new,
         fields(
             systemIdentity(single="system/identity"),
             ethernet(by_key(path = "interface/ethernet", key = defaultName)),

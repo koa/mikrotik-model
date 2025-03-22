@@ -3,6 +3,7 @@ use const_str::ip_addr;
 use encoding_rs::mem::decode_latin1;
 use env_logger::{Env, TimestampPrecision};
 use log::{error, info};
+use mikrotik_model::model::SystemRouterboardState;
 use mikrotik_model::resource::MissingDependenciesError;
 use mikrotik_model::{
     Credentials, MikrotikDevice,
@@ -12,10 +13,10 @@ use mikrotik_model::{
     model::{
         InterfaceBridgeByName, InterfaceBridgeCfg, InterfaceBridgePortById, InterfaceBridgePortCfg,
         InterfaceBridgeProtocolMode, InterfaceBridgeVlanCfg, InterfaceEthernetByDefaultName,
-        InterfaceVlan, InterfaceVlanByName, InterfaceVlanCfg, InterfaceVxlanByName,
-        InterfaceVxlanCfg, InterfaceVxlanVtepsById, InterfaceVxlanVtepsCfg,
-        InterfaceWifiByDefaultName, InterfaceWifiCapCfg, InterfaceWifiDatapathByName,
-        ReferenceType, SystemIdentityCfg, SystemRouterboardSettingsCfg, VlanFrameTypes, YesNo,
+        InterfaceVlanByName, InterfaceVlanCfg, InterfaceVxlanByName, InterfaceVxlanCfg,
+        InterfaceVxlanVtepsById, InterfaceVxlanVtepsCfg, InterfaceWifiByDefaultName,
+        InterfaceWifiCapCfg, InterfaceWifiDatapathByName, ReferenceType, SystemIdentityCfg,
+        SystemRouterboardSettingsCfg, VlanFrameTypes, YesNo,
     },
     resource::{
         self, KeyedResource, ResourceMutation, ResourceMutationError, SingleResource,
@@ -27,9 +28,7 @@ use mikrotik_model::{
 use std::{
     borrow::Cow,
     collections::{BTreeMap, HashSet},
-    fmt::{Display, Formatter},
-    net::Ipv6Addr,
-    net::{IpAddr, Ipv4Addr},
+    net::{IpAddr, Ipv4Addr, Ipv6Addr},
 };
 
 struct DeviceDataCurrent {
@@ -46,6 +45,7 @@ struct DeviceDataCurrent {
     vxlan_vteps: Vec<InterfaceVxlanVtepsById>,
 }
 struct DeviceDataTarget {
+    device_type: DeviceType,
     identity: SystemIdentityCfg,
     routerboard_settings: SystemRouterboardSettingsCfg,
     ethernet: Box<[InterfaceEthernetByDefaultName]>,
@@ -61,8 +61,18 @@ struct DeviceDataTarget {
 }
 
 impl DeviceDataTarget {
+    async fn detect_device(device: &MikrotikDevice) -> Result<Self, resource::Error> {
+        let routerboard = SystemRouterboardState::fetch(device)
+            .await?
+            .expect("System routerboard not found");
+        match DeviceType::type_by_name(&routerboard.model.0) {
+            None => Err(resource::Error::UnknownType(routerboard.model)),
+            Some(ty) => Ok(DeviceDataTarget::new(ty)),
+        }
+    }
     fn new(device_type: DeviceType) -> Self {
         Self {
+            device_type,
             identity: SystemIdentityCfg::default(),
             routerboard_settings: Default::default(),
             ethernet: device_type.build_ethernet_ports().into(),
@@ -216,6 +226,14 @@ impl DeviceDataTarget {
 }
 
 impl DeviceDataCurrent {
+    async fn current_and_template(
+        device: &MikrotikDevice,
+    ) -> Result<(Self, DeviceDataTarget), resource::Error> {
+        Ok((
+            Self::fetch(device).await?,
+            DeviceDataTarget::detect_device(device).await?,
+        ))
+    }
     async fn fetch(device: &MikrotikDevice) -> Result<Self, resource::Error> {
         Ok(Self {
             identity: SystemIdentityCfg::fetch(device)
@@ -255,7 +273,29 @@ async fn main() -> anyhow::Result<()> {
         ip_addr!(v4, "172.17.0.34").into(),
     ];
 
-    let mut target_data = DeviceDataTarget::new(DeviceType::C52iG_5HaxD2HaxD);
+    let cfg = Config::builder()
+        .add_source(File::with_name("routers.yaml"))
+        .add_source(
+            Environment::with_prefix("APP")
+                .separator("-")
+                .prefix_separator("_"),
+        )
+        .build()?;
+    let credentials: Credentials = cfg.get("credentials")?;
+    //let router = IpAddr::V4(Ipv4Addr::new(10, 192, 5, 7));
+    let router = IpAddr::V4(Ipv4Addr::new(172, 16, 1, 51));
+    //let router = IpAddr::V4(Ipv4Addr::new(172, 16, 1, 54));
+    //let router = IpAddr::V4(Ipv4Addr::new(172, 16, 1, 1));
+    //let router = IpAddr::V4(Ipv4Addr::new(10, 192, 69, 2));
+    println!("{router}");
+    let device = MikrotikDevice::connect(
+        (router, 8728),
+        credentials.user.as_bytes(),
+        Some(credentials.password.as_bytes()),
+    )
+    .await?;
+    let current_data = DeviceDataCurrent::fetch(&device).await?;
+    let mut target_data = DeviceDataTarget::detect_device(&device).await?;
 
     target_data.set_identity(b"ap-buero");
     target_data.enable_vxlan(
@@ -285,29 +325,6 @@ async fn main() -> anyhow::Result<()> {
         });*/
 
     //target_data.interface_bridge_by_name.push(InterfaceBridgeByName(InterfaceBridgeCfg::new()))
-
-    let cfg = Config::builder()
-        .add_source(File::with_name("routers.yaml"))
-        .add_source(
-            Environment::with_prefix("APP")
-                .separator("-")
-                .prefix_separator("_"),
-        )
-        .build()?;
-    let credentials: Credentials = cfg.get("credentials")?;
-    let router = IpAddr::V4(Ipv4Addr::new(10, 192, 5, 7));
-    //let router = IpAddr::V4(Ipv4Addr::new(172, 16, 1, 51));
-    //let router = IpAddr::V4(Ipv4Addr::new(172, 16, 1, 54));
-    //let router = IpAddr::V4(Ipv4Addr::new(172, 16, 1, 1));
-    let router = IpAddr::V4(Ipv4Addr::new(10, 192, 69, 2));
-    println!("{router}");
-    let device = MikrotikDevice::connect(
-        (router, 8728),
-        credentials.user.as_bytes(),
-        Some(credentials.password.as_bytes()),
-    )
-    .await?;
-    let current_data = DeviceDataCurrent::fetch(&device).await?;
 
     //let current_vxlan_by_name: Box<[_]> = InterfaceVxlanByName::fetch_all(&device).await?;
 

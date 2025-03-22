@@ -20,6 +20,16 @@ pub enum DeviceType {
     C52iG_5HaxD2HaxD,
 }
 impl DeviceType {
+    pub fn type_by_name(name: &[u8]) -> Option<DeviceType> {
+        match name {
+            b"RB750Gr3" => Some(DeviceType::RB750Gr3),
+            b"CRS326-24G-2S+" => Some(DeviceType::CRS326_24G_2Splus),
+            b"CCR1009-7G-1C-1S+" => Some(DeviceType::CCR1009_7G_1C_1Splus),
+            b"CRS354-48G-4S+2Q+" => Some(DeviceType::CRS354_48G_4Splus_2Qplus),
+            b"C52iG-5HaxD2HaxD" => Some(DeviceType::C52iG_5HaxD2HaxD),
+            _ => None,
+        }
+    }
     pub fn device_type_name(&self) -> &'static str {
         match self {
             DeviceType::RB750Gr3 => "RB750Gr3",

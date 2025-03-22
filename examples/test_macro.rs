@@ -10,6 +10,7 @@ use std::net::{IpAddr, Ipv4Addr};
 
 mikrotik_model!(
     name = DeviceData,
+    detect = new,
     fields(
         identity(single = "system/identity"),
         ethernet(by_key(path = "interface/ethernet", key = defaultName)),
@@ -54,11 +55,11 @@ async fn main() -> anyhow::Result<()> {
         )
         .build()?;
     let credentials: Credentials = cfg.get("credentials")?;
-    let router = IpAddr::V4(Ipv4Addr::new(10, 192, 5, 7));
+    //let router = IpAddr::V4(Ipv4Addr::new(10, 192, 5, 7));
     //let router = IpAddr::V4(Ipv4Addr::new(172, 16, 1, 51));
     //let router = IpAddr::V4(Ipv4Addr::new(172, 16, 1, 54));
-    //let router = IpAddr::V4(Ipv4Addr::new(172, 16, 1, 1));
-    let router = IpAddr::V4(Ipv4Addr::new(10, 192, 69, 2));
+    let router = IpAddr::V4(Ipv4Addr::new(172, 16, 1, 1));
+    //let router = IpAddr::V4(Ipv4Addr::new(10, 192, 69, 2));
     println!("{router}");
     let device = MikrotikDevice::connect(
         (router, 8728),
@@ -68,7 +69,8 @@ async fn main() -> anyhow::Result<()> {
     .await?;
     let current_data = DeviceDataCurrent::fetch(&device).await?;
     info!("Current device: {:#?}", current_data);
-    let mut target_data = DeviceDataTarget::new(DeviceType::C52iG_5HaxD2HaxD);
+    let mut target_data = DeviceDataTarget::detect_device(&device).await?;
+    //let mut target_data = DeviceDataTarget::new(DeviceType::C52iG_5HaxD2HaxD);
 
     target_data.set_identity(b"ap-buero");
     let remaining_updates = match target_data.generate_mutations(&current_data) {
