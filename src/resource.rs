@@ -1,22 +1,22 @@
-use crate::ascii::AsciiString;
-use crate::generator::Generator;
-use crate::model::{InterfaceBridgePortById, InterfaceBridgePortCfg};
-use crate::resource::Error::ResourceAccess;
 use crate::{
     MikrotikDevice,
-    model::{ReferenceType, Resource, ResourceType},
+    model::{
+        InterfaceBridgePortById, InterfaceBridgePortCfg, ReferenceType, Resource, ResourceRef,
+        ResourceType,
+    },
+    resource::Error::ResourceAccess,
     value::{KeyValuePair, RosValue},
 };
 use encoding_rs::mem::decode_latin1;
 use itertools::{EitherOrBoth, Itertools};
 use log::{debug, error, info};
 use mikrotik_api::prelude::{CommandBuilder, ParsedMessage, TrapCategory, TrapResult};
-use std::any::Any;
-use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
-use std::fmt::{Debug, Display, Formatter, Write};
-use std::hash::Hash;
-use std::iter::Map;
+use std::{
+    borrow::Cow,
+    collections::{HashMap, HashSet},
+    fmt::{Debug, Display, Formatter, Write},
+    hash::Hash,
+};
 use thiserror::Error;
 use tokio_stream::{FromStream, Stream, StreamExt};
 
@@ -601,11 +601,10 @@ impl<R: DeserializeRosResource + Send + 'static> ParsedMessage for SentenceResul
         }
     }
 }
-use crate::model::ResourceRef;
 #[derive(Debug, Error)]
 pub enum ResourceMutationError<'a> {
     #[error("cannot insert {entry:?}")]
-    Add { entry: ResourceRef<'a> },
+    Add { entry: Resource },
     #[error("cannot remove {entry:?}")]
     Remove { entry: ResourceRef<'a> },
 }
@@ -768,17 +767,20 @@ where
 }
 pub fn generate_update_by_key<'c, 't, 'r, 'e, Target, Current>(
     current: &'c [Current],
-    target: impl IntoIterator<Item = &'t Target>,
+    target: impl IntoIterator<Item = impl Into<Cow<'t, Target>>>,
 ) -> Result<impl Iterator<Item = ResourceMutation<'r>> + 'r, ResourceMutationError<'e>>
 where
     'c: 'r + 'e,
     't: 'r + 'e,
     Current: KeyedResource + Debug,
     <Current as KeyedResource>::Value: 'static,
-    Target: KeyedResource + CfgResource + Updatable<Current> + 't + Debug,
+    Target: KeyedResource + CfgResource + Updatable<Current> + 't + Debug + Clone,
     <Target as KeyedResource>::Key: PartialEq<<Current as KeyedResource>::Key>,
 {
-    let mut target_refs = target.into_iter().collect::<Vec<_>>();
+    let mut target_refs = target
+        .into_iter()
+        .map(|e| Into::into(e))
+        .collect::<Vec<_>>();
     let mut matched = Vec::with_capacity(current.len().max(target_refs.len()));
     for c in current {
         let key = c.key_value();
@@ -796,13 +798,15 @@ where
         }
     }
     if let Some(entry) = target_refs.into_iter().next() {
+        let resource_ref = entry.create_resource_ref().cloned();
         return Err(ResourceMutationError::Add {
-            entry: entry.create_resource_ref(),
+            entry: resource_ref,
         });
     }
-    Ok(matched
-        .into_iter()
-        .map(|(original, target)| target.calculate_update(original)))
+    Ok(matched.into_iter().map(|(original, target)| match target {
+        Cow::Borrowed(t) => t.calculate_update(original),
+        Cow::Owned(t) => t.calculate_update(original).into_owned(),
+    }))
 }
 
 impl<'a, 'b, Target: KeyedResource + CfgResource, Current: KeyedResource>

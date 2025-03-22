@@ -112,18 +112,18 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
 
                                 for key_path in keys.iter() {
                                     if let Some(key) = key_path.get_ident() {
-                                        let key_string = key.to_string();
+                                        let key_name = derive_key_name(&key);
                                         if let Some(key_field) = entry
                                             .fields
                                             .iter()
-                                            .find(|f| f.name.as_ref() == key_string.as_str())
+                                            .find(|f| f.name.as_ref() == key_name.as_str())
                                         {
                                             key_fields.push(key_field);
                                         } else {
                                             accumulator.push(
                                                 Error::custom(format!(
                                                     "field {} not found",
-                                                    key_string.as_str()
+                                                    key_name.as_str()
                                                 ))
                                                 .with_span(&key.span()),
                                             );
@@ -188,7 +188,75 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
                             }
                         }
                     },
-                    TypeEntry::ByKey { .. } => {}
+                    TypeEntry::ByKey { path, key } => match known_structs.get(path.as_str()) {
+                        None => {
+                            accumulator.push(
+                                Error::custom("mikrotik path not found").with_span(&path.span()),
+                            );
+                        }
+                        Some(entry) => {
+                            let key_name = derive_key_name(&key);
+                            if let Some(key_field) = entry
+                                .fields
+                                .iter()
+                                .find(|f| f.is_key && f.name.as_ref() == key_name.as_str())
+                            {
+                                let field_type = entry.id_struct_type(key_field);
+                                current_struct_fields
+                                    .named
+                                    .push(parse_quote! {#field_name: Box<[#field_type]>});
+                                current_fetch_init.fields.push(parse_quote! {#field_name: <#field_type as mikrotik_model::resource::KeyedResource>::fetch_all(device).await?});
+                                let key_type = entry.struct_field_type(key_field);
+                                let cfg_type = entry.struct_type_cfg();
+                                let key_field_name = key_field.generate_field_name();
+                                if key_field.is_read_only {
+                                    target_struct_fields.named.push(
+                                        parse_quote!(#field_name:std::collections::BTreeMap<#key_type,#cfg_type>),
+                                    );
+                                } else {
+                                    target_struct_fields.named.push(
+                                        parse_quote!(#field_name:std::collections::BTreeMap<#key_type,#field_type>),
+                                    );
+                                }
+                                let iter_expr: Expr = if key_field.is_read_only {
+                                    parse_quote! {
+                                        self.#field_name.iter().map(|(key,entry)|{
+                                            #field_type{
+                                                #key_field_name: key.clone(),
+                                                data: entry.clone(),
+                                            }
+                                        }).map(std::borrow::Cow::<#field_type>::Owned)
+                                    }
+                                } else {
+                                    parse_quote! {
+                                        self.#field_name.iter().map(|(key,entry)|{
+                                            let mut entry=entry.clone();
+                                            entry.0.#key_field_name = key.clone();
+                                            entry
+                                        }).map(std::borrow::Cow::<#field_type>::Owned)
+                                    }
+                                };
+
+                                generate_mutations_expr = chain(
+                                    generate_mutations_expr,
+                                    if entry.can_add {
+                                        parse_quote! {
+                                            mikrotik_model::resource::generate_add_update_remove_by_key(&from.#field_name,#iter_expr)
+                                        }
+                                    } else {
+                                        parse_quote! {
+                                            mikrotik_model::resource::generate_update_by_key(&from.#field_name,#iter_expr)?
+                                        }
+                                    },
+                                );
+                            } else {
+                                accumulator.push(
+                                    Error::custom(format!("type has no field \"{key_name}\""))
+                                        .with_span(&key.span()),
+                                );
+                            }
+                        }
+                    },
                 }
             }
         }
@@ -221,6 +289,11 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
         stream.extend(target_impl.to_token_stream());
     }
     accumulator.finish_with(stream)
+}
+
+fn derive_key_name(key: &Ident) -> String {
+    let key_name = key.to_string().to_case(Case::Train).to_ascii_lowercase();
+    key_name
 }
 
 fn chain(chain: Option<Expr>, item: Expr) -> Option<Expr> {

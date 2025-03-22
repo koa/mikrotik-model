@@ -13,6 +13,7 @@ fn test_macro() {
         name=DeviceData,
         fields(
             systemIdentity(single="system/identity"),
+            ethernet(by_key(path = "interface/ethernet", key = defaultName)),
             bridge(by_key(path="interface/bridge",key=name)),
             bridge_port(by_id(path="interface/bridge/port",keys(bridge,interface)))
         )

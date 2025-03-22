@@ -2,8 +2,8 @@ use config::{Config, Environment, File};
 use const_str::ip_addr;
 use encoding_rs::mem::decode_latin1;
 use env_logger::{Env, TimestampPrecision};
-use itertools::Itertools;
 use log::{error, info};
+use mikrotik_model::resource::MissingDependenciesError;
 use mikrotik_model::{
     Credentials, MikrotikDevice,
     ascii::AsciiString,
@@ -12,11 +12,11 @@ use mikrotik_model::{
     model::{
         InterfaceBridgeByName, InterfaceBridgeCfg, InterfaceBridgePortById, InterfaceBridgePortCfg,
         InterfaceBridgeProtocolMode, InterfaceBridgeVlanCfg, InterfaceEthernetByDefaultName,
-        InterfaceVlanByName, InterfaceVlanCfg, InterfaceVxlanByName, InterfaceVxlanVtepsById,
+        InterfaceVlan, InterfaceVlanByName, InterfaceVlanCfg, InterfaceVxlanByName,
+        InterfaceVxlanCfg, InterfaceVxlanVtepsById, InterfaceVxlanVtepsCfg,
         InterfaceWifiByDefaultName, InterfaceWifiCapCfg, InterfaceWifiDatapathByName,
-        SystemIdentityCfg, SystemRouterboardSettingsCfg, VlanFrameTypes, YesNo,
+        ReferenceType, SystemIdentityCfg, SystemRouterboardSettingsCfg, VlanFrameTypes, YesNo,
     },
-    model::{InterfaceVlan, InterfaceVxlanCfg, InterfaceVxlanVtepsCfg, ReferenceType},
     resource::{
         self, KeyedResource, ResourceMutation, ResourceMutationError, SingleResource,
         generate_add_update_remove_by_id, generate_add_update_remove_by_key,
@@ -194,12 +194,18 @@ impl DeviceDataTarget {
             &self.routerboard_settings,
         )))
         .chain(Some(generate_single_update(&from.wifi_cap, &self.wifi_cap)))
-        .chain(generate_update_by_key(&from.wifi, &self.wifi)?)
+        .chain(generate_update_by_key(
+            &from.wifi,
+            self.wifi.iter().map(Cow::Borrowed),
+        )?)
         .chain(generate_add_update_remove_by_key(
             &from.wifi_datapath,
             self.wifi_datapath.iter().map(Cow::Borrowed),
         ))
-        .chain(generate_update_by_key(&from.ethernet, &self.ethernet)?)
+        .chain(generate_update_by_key(
+            &from.ethernet,
+            self.ethernet.iter().map(Cow::Borrowed),
+        )?)
         .chain(generate_add_update_remove_by_key(
             &from.vlans,
             self.vlans().map(Cow::<InterfaceVlanByName>::Owned),

@@ -168,6 +168,7 @@ pub fn generator() -> syn::File {
     let mut append_field_match: ExprMatch = parse_quote! {match self{}};
     let mut build_match: ExprMatch = parse_quote! {match self{}};
     let mut resource2type_match: ExprMatch = parse_quote! {match self{}};
+    let mut resource_ref_cloned_type_match: ExprMatch = parse_quote! {match self{}};
     let mut data_fields = FieldsNamed {
         brace_token: Default::default(),
         named: Default::default(),
@@ -208,6 +209,9 @@ pub fn generator() -> syn::File {
         resource2type_match
             .arms
             .push(parse_quote! {Self::#name(_)=>ResourceType::#name});
+        resource_ref_cloned_type_match
+            .arms
+            .push(parse_quote! {&Self::#name(r)=>Resource::#name(r.clone())});
         if field.can_update {
             let name = field.field_name;
             data_fields
@@ -252,6 +256,11 @@ pub fn generator() -> syn::File {
             }
         }
     });
+    items.push(parse_quote!(
+        impl ResourceRef<'_>{
+            pub fn cloned(&self)->Resource{#resource_ref_cloned_type_match}
+        }
+    ));
     items.push(parse_quote! {
         impl Resource {
             pub fn type_of(&self)->ResourceType{#resource2type_match}

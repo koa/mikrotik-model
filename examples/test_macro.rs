@@ -2,8 +2,8 @@ use config::{Config, Environment, File};
 use env_logger::{Env, TimestampPrecision};
 use log::{error, info};
 use mikrotik_model::{
-    ascii::AsciiString, generator::Generator, hwconfig::DeviceType, resource::ResourceMutation, Credentials,
-    MikrotikDevice,
+    Credentials, MikrotikDevice, ascii::AsciiString, generator::Generator, hwconfig::DeviceType,
+    resource::ResourceMutation,
 };
 use mikrotik_model_generator_macro::mikrotik_model;
 use std::net::{IpAddr, Ipv4Addr};
@@ -12,6 +12,7 @@ mikrotik_model!(
     name = DeviceData,
     fields(
         identity(single = "system/identity"),
+        ethernet(by_key(path = "interface/ethernet", key = defaultName)),
         bridge(by_key(path = "interface/bridge", key = name)),
         bridge_port(by_id(
             path = "interface/bridge/port",
@@ -23,7 +24,13 @@ mikrotik_model!(
 impl DeviceDataTarget {
     fn new(device_type: DeviceType) -> Self {
         Self {
+            ethernet: device_type
+                .build_ethernet_ports()
+                .into_iter()
+                .map(|e| (e.default_name, e.data))
+                .collect(),
             identity: Default::default(),
+            bridge: Default::default(),
             bridge_port: Default::default(),
         }
     }
