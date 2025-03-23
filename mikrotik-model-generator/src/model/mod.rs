@@ -487,7 +487,6 @@ impl Entity {
     }
     fn generate_creatable_id_internal(&self, id_field: &Field) -> Item {
         let id_struct_ident = self.id_struct_type(id_field);
-        let path = self.generate_path();
         parse_quote! {
             impl resource::Creatable for #id_struct_ident {
                 fn calculate_create<'a>(&'a self) -> resource::ResourceMutation<'a> {
@@ -551,7 +550,6 @@ impl Entity {
     fn generate_set_for_id_external(&self, id_field: &Field) -> Item {
         let id_struct_ident = self.id_struct_type(id_field);
         let struct_ident = self.struct_ident_cfg();
-        let status_ident = self.struct_status_ident();
         let changed_values_array = self.modifiable_field_updaters(&Some(parse_quote!(data)));
 
         parse_quote! {
@@ -1634,15 +1632,6 @@ impl Entity {
         let struct_ident = self.struct_status_type();
         parse_quote! {
             impl resource::SingleResource for #struct_ident {}
-        }
-    }
-
-    fn generate_default_for_cfg(&self) -> Item {
-        let cfg_name = self.struct_ident_cfg();
-        parse_quote! {
-            impl Default for #cfg_name {
-
-            }
         }
     }
 }

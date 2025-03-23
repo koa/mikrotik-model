@@ -175,12 +175,12 @@ pub fn generator() -> syn::File {
     };
     let mut data_loader_fields: Punctuated<FieldValue, Comma> = Punctuated::new();
 
-    for (field, incoming_references, outgoing_references) in all_generated_types {
-        let length = incoming_references
-            .iter()
-            .map(|r| path_lengths_of_key.get(r).copied().unwrap_or_default() + 1)
-            .max()
-            .unwrap_or_default();
+    for (field, _, _) in all_generated_types {
+        /*let length = incoming_references
+        .iter()
+        .map(|r| path_lengths_of_key.get(r).copied().unwrap_or_default() + 1)
+        .max()
+        .unwrap_or_default();*/
         let name = field.type_name;
         /*println!(
             "{name}: {}",

@@ -1,14 +1,9 @@
 use crate::macros::mikrotik_model;
 use proc_macro2::TokenStream;
-use syn::{parse_quote, Item};
+use syn::parse_quote;
 
 #[test]
 fn test_macro() {
-    let data: Item = parse_quote! {
-        struct DeviceDataTarget {
-            identity: SystemIdentityCfg,
-        }
-    };
     let attr: TokenStream = parse_quote! {
         name=DeviceData,
         detect=new,
