@@ -583,6 +583,7 @@ dependencies = [
 [[package]]
 name = "mikrotik-api"
 version = "0.1.0"
+source = "git+https://github.com/koa/mikrotik-api#6ee22a607a6ba1967a57b03e0de4a827397fe481"
 dependencies = [
  "encoding_rs",
  "log",
