@@ -70,7 +70,7 @@ async fn main() -> anyhow::Result<()> {
     let current_data = DeviceDataCurrent::fetch(&device).await?;
     info!("Current device: {:#?}", current_data);
     let mut target_data = DeviceDataTarget::detect_device(&device).await?;
-    //let mut target_data = DeviceDataTarget::new(DeviceType::C52iG_5HaxD2HaxD);
+    //let mut target_data = DeviceDataTarget::new(DeviceType::C52iG5haxD2haxD);
 
     target_data.set_identity(b"ap-buero");
     let remaining_updates = match target_data.generate_mutations(&current_data) {

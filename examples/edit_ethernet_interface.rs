@@ -75,7 +75,7 @@ async fn main() -> anyhow::Result<()> {
         .format_timestamp(Some(TimestampPrecision::Millis))
         .init();
 
-    let target_data = DeviceType::C52iG_5HaxD2HaxD.generate_empty_data();
+    let target_data = DeviceType::C52iG5haxD2haxD.generate_empty_data();
 
     let cfg = Config::builder()
         .add_source(File::with_name("routers.yaml"))

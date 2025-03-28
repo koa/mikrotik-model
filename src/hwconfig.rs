@@ -1,11 +1,10 @@
-use crate::model::InterfaceEthernetPoeOut;
 use crate::{
     ascii::AsciiString,
     model::{
         Data, EthernetSpeed, InterfaceEthernetArp, InterfaceEthernetByDefaultName,
         InterfaceEthernetCfg, InterfaceEthernetComboMode, InterfaceEthernetFecMode,
-        InterfaceEthernetLoopProtect, InterfaceEthernetSfpRateSelect, InterfaceWifiByDefaultName,
-        InterfaceWifiCfg, OnOff,
+        InterfaceEthernetLoopProtect, InterfaceEthernetPoeOut, InterfaceEthernetSfpRateSelect,
+        InterfaceWifiByDefaultName, InterfaceWifiCfg, OnOff,
     },
     value::{Auto, HasUnlimited, RxTxPair},
 };
@@ -14,29 +13,32 @@ use std::{iter::repeat_n, time::Duration};
 #[derive(Debug, Copy, Clone, PartialEq, Hash)]
 pub enum DeviceType {
     RB750Gr3,
-    CRS326_24G_2Splus,
-    CCR1009_7G_1C_1Splus,
-    CRS354_48G_4Splus_2Qplus,
-    C52iG_5HaxD2HaxD,
+    Crs1098g1s2hnD,
+    Crs32624g2splus,
+    Ccr10097g1c1splus,
+    Crs35448g4splus2qplus,
+    C52iG5haxD2haxD,
 }
 impl DeviceType {
     pub fn type_by_name(name: &[u8]) -> Option<DeviceType> {
         match name {
             b"RB750Gr3" => Some(DeviceType::RB750Gr3),
-            b"CRS326-24G-2S+" => Some(DeviceType::CRS326_24G_2Splus),
-            b"CCR1009-7G-1C-1S+" => Some(DeviceType::CCR1009_7G_1C_1Splus),
-            b"CRS354-48G-4S+2Q+" => Some(DeviceType::CRS354_48G_4Splus_2Qplus),
-            b"C52iG-5HaxD2HaxD" => Some(DeviceType::C52iG_5HaxD2HaxD),
+            b"CRS326-24G-2S+" => Some(DeviceType::Crs32624g2splus),
+            b"CCR1009-7G-1C-1S+" => Some(DeviceType::Ccr10097g1c1splus),
+            b"CRS354-48G-4S+2Q+" => Some(DeviceType::Crs35448g4splus2qplus),
+            b"C52iG-5HaxD2HaxD" => Some(DeviceType::C52iG5haxD2haxD),
+            b"CRS109-8G-1S-2HnD" => Some(DeviceType::Crs1098g1s2hnD),
             _ => None,
         }
     }
     pub fn device_type_name(&self) -> &'static str {
         match self {
             DeviceType::RB750Gr3 => "RB750Gr3",
-            DeviceType::CRS326_24G_2Splus => "CRS326-24G-2S+",
-            DeviceType::CCR1009_7G_1C_1Splus => "CCR1009-7G-1C-1S+",
-            DeviceType::CRS354_48G_4Splus_2Qplus => "CRS354-48G-4S+2Q+",
-            DeviceType::C52iG_5HaxD2HaxD => "C52iG-5HaxD2HaxD",
+            DeviceType::Crs32624g2splus => "CRS326-24G-2S+",
+            DeviceType::Ccr10097g1c1splus => "CCR1009-7G-1C-1S+",
+            DeviceType::Crs35448g4splus2qplus => "CRS354-48G-4S+2Q+",
+            DeviceType::C52iG5haxD2haxD => "C52iG-5HaxD2HaxD",
+            DeviceType::Crs1098g1s2hnD => "CRS109-8G-1S-2HnD",
         }
     }
 
@@ -49,7 +51,7 @@ impl DeviceType {
             .enumerate()
             .map(|(idx, generator)| generator(idx + 1))
             .collect(),
-            DeviceType::C52iG_5HaxD2HaxD => repeat_n(
+            DeviceType::C52iG5haxD2haxD => repeat_n(
                 generate_ethernet(EthernetNamePattern::Ether, &ADVERTISE_1G, 1568, true),
                 1,
             )
@@ -60,7 +62,7 @@ impl DeviceType {
             .enumerate()
             .map(|(idx, generator)| generator(idx + 1))
             .collect(),
-            DeviceType::CRS326_24G_2Splus => repeat_n(
+            DeviceType::Crs32624g2splus => repeat_n(
                 generate_ethernet(EthernetNamePattern::Ether, &ADVERTISE_1G, 1592, false),
                 24,
             )
@@ -74,7 +76,7 @@ impl DeviceType {
             )
             .map(|(idx, generator)| generator(idx + 1))
             .collect(),
-            DeviceType::CCR1009_7G_1C_1Splus => repeat_n(
+            DeviceType::Ccr10097g1c1splus => repeat_n(
                 generate_ethernet(EthernetNamePattern::Ether, &ADVERTISE_1G_FULL, 1580, false),
                 7,
             )
@@ -100,7 +102,7 @@ impl DeviceType {
             )
             .map(|(idx, generator)| generator(idx + 1))
             .collect(),
-            DeviceType::CRS354_48G_4Splus_2Qplus => repeat_n(
+            DeviceType::Crs35448g4splus2qplus => repeat_n(
                 generate_ethernet(EthernetNamePattern::Ether, &ADVERTISE_1G, 1592, false),
                 48,
             )
@@ -125,18 +127,33 @@ impl DeviceType {
             )
             .map(|(idx, generator)| generator(idx + 1))
             .collect(),
+            DeviceType::Crs1098g1s2hnD => repeat_n(
+                generate_ethernet(EthernetNamePattern::Ether, &ADVERTISE_1G, 1588, false),
+                8,
+            )
+            .enumerate()
+            .chain(
+                repeat_n(
+                    generate_ethernet(EthernetNamePattern::Sfp, &ADVERTISE_1G_SFP, 1588, false),
+                    1,
+                )
+                .enumerate(),
+            )
+            .map(|(idx, generator)| generator(idx + 1))
+            .collect(),
         }
     }
     pub fn build_wifi_ports(&self) -> Vec<InterfaceWifiByDefaultName> {
         match self {
-            DeviceType::C52iG_5HaxD2HaxD => repeat_n(generate_wifi(1560), 2)
+            DeviceType::C52iG5haxD2haxD => repeat_n(generate_wifi(1560), 2)
                 .enumerate()
                 .map(|(idx, generator)| generator(idx + 1))
                 .collect(),
-            DeviceType::CRS326_24G_2Splus
-            | DeviceType::CCR1009_7G_1C_1Splus
+            DeviceType::Crs32624g2splus
+            | DeviceType::Crs1098g1s2hnD
+            | DeviceType::Ccr10097g1c1splus
             | DeviceType::RB750Gr3
-            | DeviceType::CRS354_48G_4Splus_2Qplus => Vec::new(),
+            | DeviceType::Crs35448g4splus2qplus => Vec::new(),
         }
     }
 
@@ -153,6 +170,7 @@ impl DeviceType {
 enum EthernetNamePattern {
     Ether,
     Combo,
+    Sfp,
     SfpSfpPlus,
     QsfpPlus,
 }
@@ -171,6 +189,9 @@ impl EthernetNamePattern {
                 }
                 EthernetNamePattern::Combo => {
                     format!("combo{idx}")
+                }
+                EthernetNamePattern::Sfp => {
+                    format!("sfp{idx}")
                 }
             })
             .as_bytes(),
@@ -191,6 +212,9 @@ impl EthernetNamePattern {
                 EthernetNamePattern::Combo => {
                     format!("c{idx:02}")
                 }
+                EthernetNamePattern::Sfp => {
+                    format!("s{idx:02}")
+                }
             })
             .as_bytes(),
         ))
@@ -205,9 +229,10 @@ impl EthernetNamePattern {
     fn default_sfp_shutdown_temperature(&self) -> Option<u8> {
         match self {
             EthernetNamePattern::Ether => None,
-            EthernetNamePattern::Combo => Some(95),
-            EthernetNamePattern::SfpSfpPlus => Some(95),
-            EthernetNamePattern::QsfpPlus => Some(95),
+            EthernetNamePattern::Combo
+            | EthernetNamePattern::SfpSfpPlus
+            | EthernetNamePattern::QsfpPlus
+            | EthernetNamePattern::Sfp => Some(95),
         }
     }
     fn default_sfp_ignore_rx_loss(&self) -> Option<bool> {
@@ -216,6 +241,7 @@ impl EthernetNamePattern {
             EthernetNamePattern::Combo => Some(false),
             EthernetNamePattern::SfpSfpPlus => Some(false),
             EthernetNamePattern::QsfpPlus => Some(false),
+            EthernetNamePattern::Sfp => Some(false),
         }
     }
     fn default_sfp_rate_select(&self) -> Option<InterfaceEthernetSfpRateSelect> {
@@ -224,6 +250,7 @@ impl EthernetNamePattern {
             EthernetNamePattern::Combo => Some(InterfaceEthernetSfpRateSelect::High),
             EthernetNamePattern::SfpSfpPlus => Some(InterfaceEthernetSfpRateSelect::High),
             EthernetNamePattern::QsfpPlus => Some(InterfaceEthernetSfpRateSelect::High),
+            EthernetNamePattern::Sfp => Some(InterfaceEthernetSfpRateSelect::High),
         }
     }
     fn default_fec_mode(&self) -> Option<InterfaceEthernetFecMode> {
@@ -233,6 +260,7 @@ impl EthernetNamePattern {
 
             EthernetNamePattern::SfpSfpPlus => None,
             EthernetNamePattern::QsfpPlus => Some(InterfaceEthernetFecMode::Auto),
+            EthernetNamePattern::Sfp => None,
         }
     }
 }
@@ -419,6 +447,15 @@ const ADVERTISE_1G: [EthernetSpeed; 6] = [
     EthernetSpeed::_100MBaseTFull,
     EthernetSpeed::_1GBaseTHalf,
     EthernetSpeed::_1GBaseTFull,
+];
+const ADVERTISE_1G_SFP: [EthernetSpeed; 7] = [
+    EthernetSpeed::_10MBaseTHalf,
+    EthernetSpeed::_10MBaseTFull,
+    EthernetSpeed::_100MBaseTHalf,
+    EthernetSpeed::_100MBaseTFull,
+    EthernetSpeed::_1GBaseTHalf,
+    EthernetSpeed::_1GBaseTFull,
+    EthernetSpeed::_1GBaseX,
 ];
 const ADVERTISE_1G_FULL: [EthernetSpeed; 3] = [
     EthernetSpeed::_10MBaseTFull,
