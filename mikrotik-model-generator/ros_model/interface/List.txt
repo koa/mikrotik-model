@@ -1,0 +1,18 @@
+/interface/list:can-add;
+comment: 
+exclude: mu;ref=>interface-list;
+include: mu;ref=>interface-list;
+name: id; ref=interface-list;
+builtin: ro; 
+about: ro; 
+dynamic: ro; 
+
+/interface/list/member:can-add;
+comment: 
+disabled: bool
+interface: ref=>interface; 
+list: none; 
+about: ro; 
+dynamic: ro;
+.id: ro;id
+

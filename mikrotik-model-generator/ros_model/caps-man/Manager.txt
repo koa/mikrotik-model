@@ -1,0 +1,19 @@
+/caps-man/manager:is-single;
+ca-certificate: none; auto; 
+certificate: none; auto; 
+enabled: bool
+package-path: 
+require-peer-certificate: bool
+upgrade-policy: none; enum= require-same-version, suggest-same-version; 
+generated-ca-certificate: ro; 
+generated-certificate: ro; 
+
+/caps-man/manager/interface:can-add;
+comment: 
+disabled: bool
+forbid: bool
+interface: ref=>interface; 
+default: ro; 
+about: ro; 
+dynamic: ro; 
+

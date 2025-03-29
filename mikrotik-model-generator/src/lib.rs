@@ -1,5 +1,6 @@
 use crate::model::{Entity, EnumDescriptions};
 use convert_case::{Case, Casing};
+use include_dir::{include_dir, Dir};
 use lazy_static::lazy_static;
 use proc_macro2::{Ident, Literal, Span};
 use std::collections::{BTreeMap, HashMap};
@@ -23,7 +24,9 @@ lazy_static! {
     ]);
 }
 
-const CONTENT_FILES: [&str; 7] = [
+//static ROS_MODEL_DIR: Dir = include_dir!("mikrotik-model-generator/ros_model");
+static ROS_MODEL_DIR: Dir = include_dir!("ros_model");
+const CONTENT_FILES: &[&str] = &[
     include_str!("../ros_model/system.txt"),
     include_str!("../ros_model/interface.txt"),
     include_str!("../ros_model/bridge.txt"),
@@ -31,11 +34,14 @@ const CONTENT_FILES: [&str; 7] = [
     include_str!("../ros_model/ospf.txt"),
     include_str!("../ros_model/interface/Wifi.txt"),
     include_str!("../ros_model/interface/Vxlan.txt"),
+    include_str!("../ros_model/interface/List.txt"),
 ];
 
 pub fn known_entities() -> impl Iterator<Item = Entity> {
-    CONTENT_FILES
-        .into_iter()
+    ROS_MODEL_DIR
+        .files()
+        .filter(|f| f.path().extension().is_some_and(|ext| ext == "txt"))
+        .filter_map(|f| f.contents_utf8())
         .flat_map(|content| Entity::parse_lines(content.lines()))
 }
 

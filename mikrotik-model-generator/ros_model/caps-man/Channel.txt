@@ -1,0 +1,15 @@
+/caps-man/channel:can-add;
+band: o;CapsChannelBand;
+comment: o
+control-channel-width: o;CapsChannelWidth;
+extension-channel: o; disabled; CapExtensionChannel
+frequency: o; u16
+name: id; ref=caps-channel
+reselect-interval: o;Duration
+save-selected: o; bool
+secondary-frequency: o; disabled; u32
+skip-dfs-channels: o; bool
+tx-power: o; u8
+about: ro;
+.id: ro; id
+

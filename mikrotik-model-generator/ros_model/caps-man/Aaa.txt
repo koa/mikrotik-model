@@ -1,0 +1,7 @@
+/caps-man/aaa:is-single;
+called-format: enum= mac, mac:ssid, ssid; 
+interim-update: disabled; 
+mac-caching: disabled; 
+mac-format: 
+mac-mode: enum= as-username, as-username-and-password; 
+

@@ -13,6 +13,7 @@ regex = "1.11.1"
 lazy_static = "1.5.0"
 log = "0.4.22"
 darling = "0.20.10"
+include_dir = "0.7.4"
 
 [dev-dependencies]
 prettyplease = "0.2.19"

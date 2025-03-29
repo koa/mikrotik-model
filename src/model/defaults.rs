@@ -232,3 +232,20 @@ impl Default for InterfaceVxlanVtepsCfg {
         }
     }
 }
+#[allow(clippy::derivable_impls)]
+impl Default for InterfaceWirelessCapCfg {
+    fn default() -> Self {
+        InterfaceWirelessCapCfg {
+            bridge: None,
+            caps_man_addresses: Default::default(),
+            caps_man_certificate_common_names: Default::default(),
+            caps_man_names: None,
+            certificate: None,
+            discovery_interfaces: Default::default(),
+            enabled: false,
+            interfaces: Default::default(),
+            lock_to_caps_man: false,
+            static_virtual: false,
+        }
+    }
+}

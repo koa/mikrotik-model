@@ -1,0 +1,15 @@
+/caps-man/security:can-add;
+authentication-types: mu; CapsAuthenticationTypes
+comment: o
+disable-pmkid: o; bool
+eap-methods: o; CapsSecurityEapMode
+eap-radius-accounting: o; bool
+encryption: mu; CapsEncryption
+group-encryption: o; CapsEncryption;
+group-key-update: o; Duration
+name: id; ref=caps-security
+passphrase: o
+tls-certificate: o; none;
+tls-mode: o; enum= dont-verify-certificate, no-certificates, verify-certificate, verify-certificate-with-crl;
+about: ro; 
+

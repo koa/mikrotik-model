@@ -1,0 +1,12 @@
+/caps-man/remote-cap:
+about: ro; 
+radios: ro; 
+address: ro; 
+base-mac: ro; 
+name: ro; 
+serial: ro; 
+state: ro; 
+board: ro; 
+version: ro; 
+identity: ro; 
+

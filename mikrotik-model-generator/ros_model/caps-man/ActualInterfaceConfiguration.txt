@@ -1,0 +1,64 @@
+/caps-man/actual-interface-configuration:
+arp: disabled; enum= enabled, local-proxy-arp, proxy-arp, reply-only; 
+arp-timeout: auto; 
+channel.band: o;CapsChannelBand;
+channel.control-channel-width: o;CapsChannelWidth;
+channel.extension-channel: o; disabled; CapExtensionChannel
+channel.frequency: o; u16
+channel.reselect-interval: o; Duration
+channel.save-selected: o; bool
+channel.secondary-frequency: o; disabled; u32
+channel.skip-dfs-channels: o; bool
+channel.tx-power: o; u8
+comment: 
+configuration.country: o; WifiCountry
+configuration.disconnect-timeout: 
+configuration.distance: hex; i64
+configuration.frame-lifetime: 
+configuration.guard-interval: enum= any, long; 
+configuration.hide-ssid: bool
+configuration.hw-protection-mode: none; enum= cts-to-self, rts-cts; 
+configuration.hw-retries: u8
+configuration.installation: enum= any, indoor, outdoor; 
+configuration.keepalive-frames: disabled; enum= enabled; 
+configuration.load-balancing-group: 
+configuration.max-sta-count: u16
+configuration.mode: enum= ap; 
+configuration.multicast-helper: disabled; enum= default, dhcp, full; 
+configuration.rx-chains: 
+configuration.ssid: 
+configuration.tx-chains: 
+datapath.bridge: 
+datapath.bridge-cost: u32
+datapath.bridge-horizon: none; 
+datapath.client-to-client-forwarding: bool
+datapath.interface-list: none; 
+datapath.local-forwarding: bool
+datapath.openflow-switch: 
+datapath.vlan-id: u16
+datapath.vlan-mode: enum= no-tag, use-service-tag, use-tag; 
+disable-running-check: bool
+disabled: bool
+l2mtu: u16
+mac-address: 
+master-interface: none; 
+mtu: u16
+name: 
+radio-mac: 
+security.authentication-types: 
+security.disable-pmkid: bool
+security.eap-methods: enum= eap-tls, passthrough; 
+security.eap-radius-accounting: bool
+security.encryption: 
+security.group-encryption: enum= aes-ccm, tkip; 
+security.group-key-update: 
+security.passphrase: 
+security.tls-certificate: none; 
+security.tls-mode: enum= dont-verify-certificate, no-certificates, verify-certificate, verify-certificate-with-crl; 
+inactive: ro; 
+about: ro; 
+master: ro; 
+bound: ro; 
+dynamic: ro; 
+running: ro; 
+.id: ro; id

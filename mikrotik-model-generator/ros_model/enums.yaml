@@ -77,6 +77,19 @@ WifiChannelBand:
   - 5ghz-ac
   - 5ghz-ax
   - 5ghz-n
+CapsChannelBand:
+  - 2ghz-b
+  - 2ghz-b/g
+  - 2ghz-b/g/n
+  - 2ghz-g/n
+  - 2ghz-onlyg
+  - 2ghz-onlyn
+  - 5ghz-a
+  - 5ghz-a/n
+  - 5ghz-a/n/ac
+  - 5ghz-n/ac
+  - 5ghz-onlyac
+  - 5ghz-onlyn
 WifiSkipDfsChannels:
   - 10min-cac
   - all
@@ -88,6 +101,72 @@ WifiChannelWidth:
   - 20/40mhz-Ce
   - 20/40mhz-eC
   - 20mhz
+CapsChannelWidth:
+  - 5mhz
+  - 10mhz
+  - 20mhz
+  - 40mhz-turbo
+CapsExtensionChannel:
+  - Ce
+  - Ceee
+  - Ceeeeeee
+  - XX
+  - XXXX
+  - XXXXXXXX
+  - eC
+  - eCee
+  - eCeeeeee
+  - eeCe
+  - eeCeeeee
+  - eeeC
+  - eeeCeeee
+  - eeeeCeee
+  - eeeeeCee
+  - eeeeeeCe
+  - eeeeeeeC
+CapsRates:
+  - 1Mbps
+  - 2Mbps
+  - 5.5Mbps
+  - 6Mbps
+  - 9Mbps
+  - 11Mbps
+  - 12Mbps
+  - 18Mbps
+  - 24Mbps
+  - 36Mbps
+  - 48Mbps
+  - 54Mbps
+CapsMcs:
+  - mcs-0
+  - mcs-1
+  - mcs-2
+  - mcs-3
+  - mcs-4
+  - mcs-5
+  - mcs-6
+  - mcs-7
+  - mcs-8
+  - mcs-9
+  - mcs-10
+  - mcs-11
+  - mcs-12
+  - mcs-13
+  - mcs-14
+  - mcs-15
+  - mcs-16
+  - mcs-17
+  - mcs-18
+  - mcs-19
+  - mcs-20
+  - mcs-21
+  - mcs-22
+  - mcs-23
+CapsMcsGroup:
+  - none
+  - mcs0-7
+  - mcs0-8
+  - mcs0-9
 IndoorOutdoor:
   - indoor
   - outdoor
@@ -212,11 +291,17 @@ WifiSecurityEapMode:
   - peap
   - tls
   - ttls
+CapsSecurityEapMode:
+  - eap-tls
+  - passthrough
 WifiSecurityGroupEncryption:
   - ccmp
   - ccmp-256
   - gcmp
   - gcmp-256
+  - tkip
+CapsEncryption:
+  - aes-ccm
   - tkip
 WifiSecurityManagementEncryption:
   - cmac
@@ -384,3 +469,8 @@ WifiAuthenticationTypes:
   - owe
   - wpa3-eap
   - wpa3-eap-192
+CapsAuthenticationTypes:
+  - wpa-eap
+  - wpa-psk
+  - wpa2-eap
+  - wpa2-psk

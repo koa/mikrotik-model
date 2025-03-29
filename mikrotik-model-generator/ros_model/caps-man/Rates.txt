@@ -1,0 +1,11 @@
+/caps-man/rates:can-add;
+basic: mu;CapsRates
+comment: 
+ht-basic-mcs: mu; CapsMcs
+ht-supported-mcs: mu; CapsMcs
+name: id; ref=caps-rate
+supported: mu; CapsRates
+vht-basic-mcs: mu; CapsMcsGroup;
+vht-supported-mcs: mu; CapsMcsGroup;
+about: ro; 
+

@@ -157,7 +157,6 @@ pub async fn stream_resource<R: DeserializeRosResource + RosResource>(
         .await
         .map(|entry| entry.map(|r| R::unwrap_resource(r).expect("Unexpected result type")))
 }
-use serde::__private::de::Borrowed;
 
 pub trait RosResource: Sized {
     fn path() -> &'static [u8];

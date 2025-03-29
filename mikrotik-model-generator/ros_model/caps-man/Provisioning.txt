@@ -1,0 +1,15 @@
+/caps-man/provisioning:can-add;
+action: none; enum= create-disabled, create-dynamic-enabled, create-enabled; 
+comment: 
+common-name-regexp: 
+disabled: bool
+hw-supported-modes: enum= a, a-turbo, ac, an, b, g, g-turbo, gn; 
+identity-regexp: 
+ip-address-ranges: 
+master-configuration: 
+name-format: enum= cap, identity, prefix, prefix-identity; 
+name-prefix: 
+radio-mac: 
+slave-configurations: 
+about: ro; 
+

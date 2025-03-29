@@ -214,9 +214,7 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
                                 let cfg_type = entry.struct_type_cfg();
                                 let key_field_name = key_field.generate_field_name();
                                 if key_field.is_read_only {
-                                    target_struct_fields.named.push(
-                                        parse_quote!(#field_name:std::collections::BTreeMap<#key_type,#cfg_type>),
-                                    );
+                                    target_struct_fields.named.push(parse_quote!(#field_name:std::collections::BTreeMap<#key_type,#cfg_type>));
                                 } else {
                                     target_struct_fields.named.push(
                                         parse_quote!(#field_name:std::collections::BTreeMap<#key_type,#field_type>),

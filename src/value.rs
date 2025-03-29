@@ -3,7 +3,6 @@ use encoding_rs::mem::{decode_latin1, encode_latin1_lossy};
 use ipnet::IpNet;
 use log::{error, warn};
 use mac_address::MacAddress;
-use std::num::ParseIntError;
 use std::ops::Range;
 use std::{
     borrow::Cow,

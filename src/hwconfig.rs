@@ -1,3 +1,4 @@
+use crate::model::{InterfaceWirelessByDefaultName, InterfaceWirelessCfg};
 use crate::{
     ascii::AsciiString,
     model::{
@@ -154,6 +155,19 @@ impl DeviceType {
             | DeviceType::Ccr10097g1c1splus
             | DeviceType::RB750Gr3
             | DeviceType::Crs35448g4splus2qplus => Vec::new(),
+        }
+    }
+    pub fn build_wireless_ports(&self) -> Vec<InterfaceWirelessByDefaultName> {
+        match self {
+            DeviceType::RB750Gr3
+            | DeviceType::Crs32624g2splus
+            | DeviceType::Ccr10097g1c1splus
+            | DeviceType::Crs35448g4splus2qplus
+            | DeviceType::C52iG5haxD2haxD => Default::default(),
+            DeviceType::Crs1098g1s2hnD => repeat_n(generate_wlan(1600), 1)
+                .enumerate()
+                .map(|(idx, generator)| generator(idx + 1))
+                .collect(),
         }
     }
 
@@ -435,6 +449,111 @@ fn generate_wifi(l_2_mtu: u16) -> impl Fn(usize) -> InterfaceWifiByDefaultName +
                 steering_neighbor_group: None,
                 steering_rrm: None,
                 steering_wnm: None,
+            },
+        }
+    }
+}
+fn generate_wlan(l_2_mtu: u16) -> impl Fn(usize) -> InterfaceWirelessByDefaultName + Clone {
+    move |idx| {
+        let default_name: AsciiString = format!("wlan{idx}").into();
+        let name: AsciiString = format!("wl{idx:02}").into();
+        InterfaceWirelessByDefaultName {
+            default_name: Some(default_name),
+            data: InterfaceWirelessCfg {
+                adaptive_noise_immunity: None,
+                allow_sharedkey: None,
+                ampdu_priorities: None,
+                amsdu_limit: None,
+                amsdu_threshold: None,
+                antenna_gain: None,
+                antenna_mode: None,
+                area: None,
+                arp: None,
+                arp_timeout: None,
+                band: None,
+                basic_rates_a_g: None,
+                basic_rates_b: None,
+                bridge_mode: None,
+                burst_time: None,
+                channel_width: None,
+                comment: None,
+                compression: None,
+                country: None,
+                default_ap_tx_limit: None,
+                default_authentication: None,
+                default_client_tx_limit: None,
+                default_forwarding: None,
+                disable_running_check: None,
+                disabled: false,
+                disconnect_timeout: None,
+                distance: None,
+                frame_lifetime: None,
+                frequency: None,
+                frequency_mode: None,
+                frequency_offset: None,
+                guard_interval: None,
+                hide_ssid: None,
+                ht_basic_mcs: Default::default(),
+                ht_supported_mcs: Default::default(),
+                hw_fragmentation_threshold: None,
+                hw_protection_mode: None,
+                hw_protection_threshold: None,
+                hw_retries: None,
+                installation: None,
+                interworking_profile: None,
+                keepalive_frames: None,
+                l_2_mtu: Some(l_2_mtu),
+                mac_address: None,
+                master_interface: None,
+                max_station_count: None,
+                mode: None,
+                mtu: None,
+                multicast_buffering: None,
+                multicast_helper: None,
+                name,
+                noise_floor_threshold: None,
+                nv_2_cell_radius: None,
+                nv_2_downlink_ratio: None,
+                nv_2_mode: None,
+                nv_2_noise_floor_offset: None,
+                nv_2_preshared_key: None,
+                nv_2_qos: None,
+                nv_2_queue_count: None,
+                nv_2_security: None,
+                nv_2_sync_secret: None,
+                on_fail_retry_time: None,
+                preamble_mode: None,
+                prism_cardtype: None,
+                radio_name: None,
+                rate_selection: None,
+                rate_set: None,
+                rx_chains: None,
+                scan_list: None,
+                secondary_frequency: None,
+                security_profile: None,
+                skip_dfs_channels: None,
+                ssid: None,
+                station_bridge_clone_mac: None,
+                station_roaming: None,
+                supported_rates_a_g: Default::default(),
+                supported_rates_b: Default::default(),
+                tdma_period_size: None,
+                tx_chains: Default::default(),
+                tx_power: None,
+                tx_power_mode: None,
+                update_stats_interval: None,
+                vht_basic_mcs: None,
+                vht_supported_mcs: None,
+                vlan_id: None,
+                vlan_mode: None,
+                wds_cost_range: None,
+                wds_default_bridge: None,
+                wds_default_cost: None,
+                wds_ignore_ssid: None,
+                wds_mode: None,
+                wireless_protocol: None,
+                wmm_support: None,
+                wps_mode: None,
             },
         }
     }

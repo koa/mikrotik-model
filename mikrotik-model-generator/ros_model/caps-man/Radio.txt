@@ -1,0 +1,9 @@
+/caps-man/radio:
+local: ro; 
+remote-cap-name: ro; 
+interface: ro; 
+about: ro; 
+provisioned: ro; 
+radio-mac: ro; 
+remote-cap-identity: ro; 
+

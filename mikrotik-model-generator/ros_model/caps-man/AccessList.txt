@@ -1,0 +1,21 @@
+/caps-man/access-list:can-add;
+action: o; enum= accept, query-radius, reject;
+allow-signal-out-of-range: 
+ap-tx-limit: o; u32
+client-to-client-forwarding: o; bool
+client-tx-limit: o; u32
+comment: 
+disabled: o; bool
+interface: o; none; ref=>interface;
+mac-address: o; MacAddress
+mac-address-mask: o; MacAddress
+private-passphrase: o
+radius-accounting: o; bool
+signal-range: i; range-dot; i8
+ssid-regexp:  o
+time: o
+vlan-id: o;none; u16
+vlan-mode: o; enum= no-tag, use-service-tag, use-tag;
+about: ro;
+.id: ro; id
+

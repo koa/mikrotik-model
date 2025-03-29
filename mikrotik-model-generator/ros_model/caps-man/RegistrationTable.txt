@@ -1,0 +1,18 @@
+/caps-man/registration-table:
+ssid: ro; 
+tx-rate: ro; 
+eap-identity: ro; 
+uptime: ro; 
+comment: ro; 
+about: ro; 
+packets: ro; 
+rx-signal: ro; 
+vlan-id: ro; 
+radio-name: ro; 
+tx-rate-set: ro; 
+mac-address: ro; 
+rx-rate: ro; 
+bytes: ro; 
+tx-signal: ro; 
+interface: ro; 
+

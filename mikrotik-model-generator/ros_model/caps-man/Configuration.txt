@@ -1,0 +1,63 @@
+/caps-man/configuration:can-add;
+channel: o; ref=>caps-channel
+channel.band: enum= 2ghz-b, 2ghz-b/g, 2ghz-b/g/n, 2ghz-g/n, 2ghz-onlyg, 2ghz-onlyn, 5ghz-a, 5ghz-a/n, 5ghz-a/n/ac, 5ghz-n/ac, 5ghz-onlyac, 5ghz-onlyn; 
+channel.control-channel-width: enum= 10mhz, 20mhz, 40mhz-turbo, 5mhz; 
+channel.extension-channel: disabled; enum= Ce, Ceee, Ceeeeeee, XX, XXXX, XXXXXXXX, eC, eCee, eCeeeeee, eeCe, eeCeeeee, eeeC, eeeCeeee, eeeeCeee, eeeeeCee, eeeeeeCe, eeeeeeeC; 
+channel.frequency: u32
+channel.reselect-interval: 
+channel.save-selected: bool
+channel.secondary-frequency: disabled; u32
+channel.skip-dfs-channels: bool
+channel.tx-power: u8
+comment: 
+country: 
+datapath: o; ref=>caps-datapath
+datapath.arp: o; disabled; enum= enabled, local-proxy-arp, proxy-arp, reply-only;
+datapath.bridge: ref=>interface
+datapath.bridge-cost: o; u32
+datapath.bridge-horizon: o; none;
+datapath.client-to-client-forwarding: o; bool
+datapath.interface-list: o;ref=>interface-list;
+datapath.l2mtu: o; u16
+datapath.local-forwarding: o; bool
+datapath.mtu: o; u16
+datapath.openflow-switch: o
+datapath.vlan-id: o; none; u16
+datapath.vlan-mode: o; enum= no-tag, use-service-tag, use-tag;
+disconnect-timeout: 
+distance: o
+frame-lifetime: o
+guard-interval: o;enum= any, long;
+hide-ssid: o; bool
+hw-protection-mode: o; none; enum= cts-to-self, rts-cts;
+hw-retries: o; u8
+installation: o; enum= any, indoor, outdoor;
+keepalive-frames: o; disabled; enum= enabled;
+load-balancing-group: o
+max-sta-count: o; u16
+mode: o; enum= ap;
+multicast-helper: o; disabled; enum= default, dhcp, full;
+name: id
+rates: o; ref=>caps-rate
+rates.basic: mu;CapsRates
+rates.ht-basic-mcs: mu; CapsMcs
+rates.ht-supported-mcs: mu; CapsMcs
+rates.supported:  mu; CapsRates
+rates.vht-basic-mcs: mu; CapsMcsGroup;
+rates.vht-supported-mcs: mu; CapsMcsGroup
+rx-chains: mu;u8
+security: o; ref=>caps-security
+security.authentication-types: mu; CapsAuthenticationTypes
+security.disable-pmkid: o; bool
+security.eap-methods:  o; CapsSecurityEapMode
+security.eap-radius-accounting: bool
+security.encryption: mu; CapsEncryption
+security.group-encryption: o; CapsEncryption;
+security.group-key-update: o; Duration
+security.passphrase: o
+security.tls-certificate: none; 
+security.tls-mode: enum= dont-verify-certificate, no-certificates, verify-certificate, verify-certificate-with-crl; 
+ssid: 
+tx-chains: mu; u8
+about: ro; 
+

@@ -1,0 +1,82 @@
+/caps-man/interface:can-add;
+arp: disabled; enum= enabled, local-proxy-arp, proxy-arp, reply-only; 
+arp-timeout: auto; 
+channel: 
+channel.band: enum= 2ghz-b, 2ghz-b/g, 2ghz-b/g/n, 2ghz-g/n, 2ghz-onlyg, 2ghz-onlyn, 5ghz-a, 5ghz-a/n, 5ghz-a/n/ac, 5ghz-n/ac, 5ghz-onlyac, 5ghz-onlyn; 
+channel.control-channel-width: enum= 10mhz, 20mhz, 40mhz-turbo, 5mhz; 
+channel.extension-channel: disabled; enum= Ce, Ceee, Ceeeeeee, XX, XXXX, XXXXXXXX, eC, eCee, eCeeeeee, eeCe, eeCeeeee, eeeC, eeeCeeee, eeeeCeee, eeeeeCee, eeeeeeCe, eeeeeeeC; 
+channel.frequency: u32
+channel.reselect-interval: 
+channel.save-selected: bool
+channel.secondary-frequency: disabled; u32
+channel.skip-dfs-channels: bool
+channel.tx-power: u8
+comment: 
+configuration: 
+configuration.country: 
+configuration.disconnect-timeout: 
+configuration.distance: hex; i64
+configuration.frame-lifetime: 
+configuration.guard-interval: enum= any, long; 
+configuration.hide-ssid: bool
+configuration.hw-protection-mode: none; enum= cts-to-self, rts-cts; 
+configuration.hw-retries: u8
+configuration.installation: enum= any, indoor, outdoor; 
+configuration.keepalive-frames: disabled; enum= enabled; 
+configuration.load-balancing-group: 
+configuration.max-sta-count: u16
+configuration.mode: enum= ap; 
+configuration.multicast-helper: disabled; enum= default, dhcp, full; 
+configuration.rx-chains: 
+configuration.ssid: 
+configuration.tx-chains: 
+datapath: 
+datapath.bridge: 
+datapath.bridge-cost: u32
+datapath.bridge-horizon: none; 
+datapath.client-to-client-forwarding: bool
+datapath.interface-list: none; 
+datapath.local-forwarding: bool
+datapath.openflow-switch: 
+datapath.vlan-id: u16
+datapath.vlan-mode: enum= no-tag, use-service-tag, use-tag; 
+disable-running-check: bool
+disabled: bool
+l2mtu: u16
+mac-address: 
+master-interface: none; 
+mtu: u16
+name: 
+radio-mac: 
+radio-name: 
+rates: 
+rates.basic: 
+rates.ht-basic-mcs: 
+rates.ht-supported-mcs: 
+rates.supported: 
+rates.vht-basic-mcs: none; enum= mcs0-7, mcs0-8, mcs0-9; 
+rates.vht-supported-mcs: none; enum= mcs0-7, mcs0-8, mcs0-9; 
+security: 
+security.authentication-types: 
+security.disable-pmkid: bool
+security.eap-methods: enum= eap-tls, passthrough; 
+security.eap-radius-accounting: bool
+security.encryption: 
+security.group-encryption: enum= aes-ccm, tkip; 
+security.group-key-update: 
+security.passphrase: 
+security.tls-certificate: none; 
+security.tls-mode: enum= dont-verify-certificate, no-certificates, verify-certificate, verify-certificate-with-crl; 
+current-registered-clients: ro; 
+master: ro; 
+current-state: ro; 
+inactive: ro; 
+current-authorized-clients: ro; 
+about: ro; 
+current-rate-set: ro; 
+running: ro; 
+dynamic: ro; 
+current-channel: ro; 
+current-basic-rate-set: ro; 
+bound: ro; 
+

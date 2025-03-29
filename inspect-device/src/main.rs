@@ -3,7 +3,7 @@ use convert_case::{Case, Casing};
 use encoding_rs::mem::encode_latin1_lossy;
 use env_logger::{Env, TimestampPrecision};
 use lazy_static::lazy_static;
-use log::error;
+use log::{error, info};
 use mikrotik_api::prelude::MikrotikDevice;
 use mikrotik_api::simple::SimpleResult;
 use mikrotik_model_generator::known_entities;
@@ -112,8 +112,8 @@ async fn main() -> anyhow::Result<()> {
     if !base_dir.exists() {
         create_dir_all(base_dir)?;
     }
-    
-    let mut entity_list_file = File::create( "target/ros_model/entities.txt")?;
+
+    let mut entity_list_file = File::create("target/ros_model/entities.txt")?;
     for (filename, entries) in entries_by_group {
         write!(&mut entity_list_file, "{filename}.txt\n")?;
         let path = format!("target/ros_model/{filename}.txt");
