@@ -1,24 +1,20 @@
-use crate::ascii::AsciiString;
-use crate::hwconfig::DeviceType;
 use crate::{
     MikrotikDevice,
-    model::{
-        InterfaceBridgePortById, InterfaceBridgePortCfg, ReferenceType, Resource, ResourceRef,
-        ResourceType,
-    },
-    resource::Error::ResourceAccess,
+    ascii::AsciiString,
+    hwconfig::DeviceType,
+    model::{ReferenceType, Resource, ResourceRef, ResourceType},
     value::{KeyValuePair, RosValue},
 };
 use encoding_rs::mem::decode_latin1;
 use itertools::{EitherOrBoth, Itertools};
 use log::{debug, error, info};
 use mikrotik_api::prelude::{CommandBuilder, ParsedMessage, TrapCategory, TrapResult};
-use serde::de::Unexpected;
 use std::{
     borrow::Cow,
-    collections::{HashMap, HashSet},
-    fmt::{Debug, Display, Formatter, Write},
+    collections::HashSet,
+    fmt::{Debug, Display, Formatter},
     hash::Hash,
+    sync::Arc,
 };
 use thiserror::Error;
 use tokio_stream::{FromStream, Stream, StreamExt};
@@ -96,7 +92,7 @@ pub trait CompositeRosResource: Sized + DeserializeRosResource {
 }
 
 pub trait DeserializeRosBuilder<R: DeserializeRosResource> {
-    type Context: Send + Sync + Debug;
+    type Context: Send + Sync + Debug + Clone;
     fn init(context: &Self::Context) -> Self;
     fn append_field(&mut self, key: &[u8], value: Option<&[u8]>) -> AppendFieldResult;
     fn build(self) -> Result<R, &'static [u8]>;
@@ -161,6 +157,7 @@ pub async fn stream_resource<R: DeserializeRosResource + RosResource>(
         .await
         .map(|entry| entry.map(|r| R::unwrap_resource(r).expect("Unexpected result type")))
 }
+use serde::__private::de::Borrowed;
 
 pub trait RosResource: Sized {
     fn path() -> &'static [u8];
@@ -195,7 +192,7 @@ fn value_or_error<R: DeserializeRosResource>(entry: SentenceResult<R>) -> Result
             }
             if !errors.is_empty() {
                 info!("Errors from fetch {:?}", R::resource_type());
-                for error in &errors {
+                for error in errors.iter() {
                     info!("- {}", error);
                 }
             }
@@ -454,15 +451,15 @@ pub trait Creatable: CfgResource {
         Some(handler.handle_creatable(self))
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SentenceResult<R> {
     Row {
         value: R,
-        warnings: Box<[ResourceAccessWarning]>,
+        warnings: Arc<Box<[ResourceAccessWarning]>>,
     },
     Error {
-        errors: Box<[ResourceAccessError]>,
-        warnings: Box<[ResourceAccessWarning]>,
+        errors: Arc<Box<[ResourceAccessError]>>,
+        warnings: Arc<Box<[ResourceAccessWarning]>>,
     },
     Trap {
         category: Option<TrapCategory>,
@@ -475,7 +472,7 @@ impl<R> SentenceResult<R> {
         match self {
             SentenceResult::Row { value, warnings } => SentenceResult::Row {
                 value: apply(value),
-                warnings,
+                warnings: warnings.clone(),
             },
             SentenceResult::Error { errors, warnings } => {
                 SentenceResult::Error { errors, warnings }
@@ -514,28 +511,28 @@ impl ParsedMessage for SentenceResult<Resource> {
             match builder.build() {
                 Ok(result) => SentenceResult::Row {
                     value: result,
-                    warnings: warnings.into_boxed_slice(),
+                    warnings: Arc::new(warnings.into_boxed_slice()),
                 },
                 Err(field_name) => {
                     errors.push(ResourceAccessError::UndefinedFieldError { field_name });
                     SentenceResult::Error {
-                        errors: errors.into_boxed_slice(),
-                        warnings: warnings.into_boxed_slice(),
+                        errors: Arc::new(errors.into_boxed_slice()),
+                        warnings: Arc::new(warnings.into_boxed_slice()),
                     }
                 }
             }
         } else {
             SentenceResult::Error {
-                errors: errors.into_boxed_slice(),
-                warnings: warnings.into_boxed_slice(),
+                errors: Arc::new(errors.into_boxed_slice()),
+                warnings: Arc::new(warnings.into_boxed_slice()),
             }
         }
     }
 
     fn process_error(error: &mikrotik_api::error::Error, _context: &Self::Context) -> Self {
         SentenceResult::Error {
-            errors: Box::new([ResourceAccessError::ApiError(error.clone())]),
-            warnings: Box::new([]),
+            errors: Arc::new(Box::new([ResourceAccessError::ApiError(error.clone())])),
+            warnings: Arc::default(),
         }
     }
 
@@ -574,28 +571,28 @@ impl<R: DeserializeRosResource + Send + 'static> ParsedMessage for SentenceResul
             match builder.build() {
                 Ok(result) => SentenceResult::Row {
                     value: result,
-                    warnings: warnings.into_boxed_slice(),
+                    warnings: Arc::new(warnings.into_boxed_slice()),
                 },
                 Err(field_name) => {
                     errors.push(ResourceAccessError::MissingFieldError { field_name });
                     SentenceResult::Error {
-                        errors: errors.into_boxed_slice(),
-                        warnings: warnings.into_boxed_slice(),
+                        errors: Arc::new(errors.into_boxed_slice()),
+                        warnings: Arc::new(warnings.into_boxed_slice()),
                     }
                 }
             }
         } else {
             SentenceResult::Error {
-                errors: errors.into_boxed_slice(),
-                warnings: warnings.into_boxed_slice(),
+                errors: Arc::new(errors.into_boxed_slice()),
+                warnings: Arc::new(warnings.into_boxed_slice()),
             }
         }
     }
 
     fn process_error(error: &mikrotik_api::error::Error, _context: &Self::Context) -> Self {
         SentenceResult::Error {
-            errors: Box::new([ResourceAccessError::ApiError(error.clone())]),
-            warnings: Box::new([]),
+            errors: Arc::new(Box::new([ResourceAccessError::ApiError(error.clone())])),
+            warnings: Arc::default(),
         }
     }
 

@@ -1,5 +1,4 @@
-use crate::model::Resource;
-use crate::resource::SentenceResult;
+use crate::{model::Resource, resource::SentenceResult};
 use serde::Deserialize;
 
 pub mod ascii;

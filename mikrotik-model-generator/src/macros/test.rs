@@ -18,3 +18,17 @@ fn test_macro() {
     let file = syn::parse2(result).unwrap();
     println!("{}", prettyplease::unparse(&file));
 }
+
+#[test]
+fn test_routerboard() {
+    let attr: TokenStream = parse_quote! {
+        name=DeviceData,
+        detect=new,
+        fields(
+            routerboard(single= "system/routerboard"),
+        )
+    };
+    let result = mikrotik_model(attr).expect("failed to run model");
+    let file = syn::parse2(result).unwrap();
+    println!("{}", prettyplease::unparse(&file));
+}

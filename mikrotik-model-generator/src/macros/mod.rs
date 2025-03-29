@@ -44,11 +44,14 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
     let target_struct_name = name2ident(&format!("{}_target", params.name));
 
     let mut current_struct: ItemStruct = parse_quote! {
-        #[derive(Debug)]
+        #[derive(Clone, Debug, PartialEq)]
         struct #current_struct_name{}
     };
     let mut current_fetch_init: ExprStruct = parse_quote! {Self{}};
-    let mut target_struct: ItemStruct = parse_quote! {struct #target_struct_name{}};
+    let mut target_struct: ItemStruct = parse_quote! {
+        #[derive(Clone, Debug, PartialEq)]
+        struct #target_struct_name{}
+    };
     let mut accumulator = Error::accumulator();
     let mut generate_mutations_expr: Option<Expr> = None;
     match (&mut current_struct.fields, &mut target_struct.fields) {
