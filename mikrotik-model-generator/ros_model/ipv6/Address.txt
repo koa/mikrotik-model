@@ -1,0 +1,21 @@
+/ipv6/address:can-add;
+address: id; Ipv6Net
+advertise: bool
+auto-link-local: bool
+comment: o
+disabled: bool
+eui-64: bool
+from-pool: o; enum= public-pool;
+interface: ref=>interface; 
+no-dad: bool
+valid: ro; 
+invalid: ro; 
+slave: ro; 
+about: ro; 
+actual-interface: ro; 
+dynamic: ro; 
+deprecated: ro; 
+global: ro; 
+preferred: ro; 
+link-local: ro; 
+

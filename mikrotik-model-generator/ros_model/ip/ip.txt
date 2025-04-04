@@ -1,7 +1,7 @@
 */ip/address
 .id: ro;id
-address: IpNet
-network: ro;IpAddr
+address: id; Ipv4Net
+network: ro;Ipv4Addr
 interface: ref=>interface
 actual-interface: ro;ref=>interface
 disabled: ro;bool

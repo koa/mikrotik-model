@@ -29,6 +29,8 @@ upgrade-firmware: ro
 serial-number: ro
 current-firmware: ro
 factory-firmware: ro
+board-name: ro
+revision: ro
 routerboard: ro;bool
 
 /system/routerboard/settings:is-single;no-default

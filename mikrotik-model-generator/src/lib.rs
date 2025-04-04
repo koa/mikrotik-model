@@ -25,24 +25,23 @@ lazy_static! {
 }
 
 //static ROS_MODEL_DIR: Dir = include_dir!("mikrotik-model-generator/ros_model");
-static ROS_MODEL_DIR: Dir = include_dir!("ros_model");
-const CONTENT_FILES: &[&str] = &[
-    include_str!("../ros_model/system.txt"),
-    include_str!("../ros_model/interface.txt"),
-    include_str!("../ros_model/bridge.txt"),
-    include_str!("../ros_model/ip.txt"),
-    include_str!("../ros_model/ospf.txt"),
-    include_str!("../ros_model/interface/Wifi.txt"),
-    include_str!("../ros_model/interface/Vxlan.txt"),
-    include_str!("../ros_model/interface/List.txt"),
-];
+static ROS_MODEL_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/ros_model");
 
 pub fn known_entities() -> impl Iterator<Item = Entity> {
-    ROS_MODEL_DIR
-        .files()
-        .filter(|f| f.path().extension().is_some_and(|ext| ext == "txt"))
-        .filter_map(|f| f.contents_utf8())
-        .flat_map(|content| Entity::parse_lines(content.lines()))
+    let mut entities = Vec::new();
+    collect_entities(&ROS_MODEL_DIR, &mut entities);
+    entities.into_iter()
+}
+fn collect_entities(dir: &Dir, target: &mut Vec<Entity>) {
+    target.extend(
+        dir.files()
+            .filter(|f| f.path().extension().is_some_and(|ext| ext == "txt"))
+            .filter_map(|f| f.contents_utf8())
+            .flat_map(|content| Entity::parse_lines(content.lines())),
+    );
+    for subdir in dir.dirs() {
+        collect_entities(subdir, target);
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -69,13 +68,16 @@ pub fn generator() -> syn::File {
             };
         ),
         parse_quote!(
-            use std::{time::Duration, net::IpAddr};
+            use std::{
+                time::Duration,
+                net::{IpAddr, Ipv4Addr},
+            };
         ),
         parse_quote!(
             use mac_address::MacAddress;
         ),
         parse_quote!(
-            use ipnet::{IpNet};
+            use ipnet::{IpNet, Ipv4Net, Ipv6Net};
         ),
     ];
     let enums: EnumDescriptions =
@@ -96,46 +98,42 @@ pub fn generator() -> syn::File {
     let mut outgoing_chain_edges = HashMap::new();
     let mut entries_by_incoming_references = HashMap::new();
 
-    for content in CONTENT_FILES {
-        let entries = Entity::parse_lines(content.lines());
-
-        for entity in entries.iter() {
-            let (entity_items, enum_fields, references) = entity.generate_code();
-            for item in entity_items {
-                items.push(item);
-            }
-            let mut incoming_references = HashSet::new();
-            let mut outgoing_references = HashSet::new();
-            for entry in references {
-                if entry.incoming {
-                    incoming_references.insert(entry.name.clone());
-                } else {
-                    outgoing_references.insert(entry.name.clone());
-                }
-                known_references.insert(entry.name, entry.data);
-            }
-
-            //incoming_references.retain(|e| !outgoing_references.contains(e));
-            for outgoing_ref in outgoing_references.iter() {
-                for incoming_ref in incoming_references.iter() {
-                    outgoing_chain_edges
-                        .entry(outgoing_ref.clone())
-                        .or_insert_with(Vec::new)
-                        .push(incoming_ref.clone());
-                }
-            }
-            for field in enum_fields {
-                all_generated_types.push((
-                    field,
-                    incoming_references.clone(),
-                    outgoing_references.clone(),
-                ));
-            }
-            entries_by_incoming_references
-                .entry(HashableSet(incoming_references))
-                .or_insert_with(Vec::new)
-                .push(entity.path.clone());
+    for entity in known_entities() {
+        let (entity_items, enum_fields, references) = entity.generate_code();
+        for item in entity_items {
+            items.push(item);
         }
+        let mut incoming_references = HashSet::new();
+        let mut outgoing_references = HashSet::new();
+        for entry in references {
+            if entry.incoming {
+                incoming_references.insert(entry.name.clone());
+            } else {
+                outgoing_references.insert(entry.name.clone());
+            }
+            known_references.insert(entry.name, entry.data);
+        }
+
+        //incoming_references.retain(|e| !outgoing_references.contains(e));
+        for outgoing_ref in outgoing_references.iter() {
+            for incoming_ref in incoming_references.iter() {
+                outgoing_chain_edges
+                    .entry(outgoing_ref.clone())
+                    .or_insert_with(Vec::new)
+                    .push(incoming_ref.clone());
+            }
+        }
+        for field in enum_fields {
+            all_generated_types.push((
+                field,
+                incoming_references.clone(),
+                outgoing_references.clone(),
+            ));
+        }
+        entries_by_incoming_references
+            .entry(HashableSet(incoming_references))
+            .or_insert_with(Vec::new)
+            .push(entity.path.clone());
     }
     for (references, paths) in entries_by_incoming_references {
         let deps = references
@@ -413,7 +411,7 @@ fn generate_enums<'a, T: Iterator<Item = (Ident, Box<[Box<str>]>)>>(
     )
 }
 fn cleanup_field_name(name: &str) -> String {
-    name.replace(['.', '/', '+'], "_")
+    name.replace(['.', '/', '+', ':'], "_")
 }
 
 fn derive_ident(value: &str) -> String {
@@ -432,7 +430,7 @@ fn derive_ident(value: &str) -> String {
 #[cfg(test)]
 mod test {
     use crate::model::{Entity, EnumDescriptions};
-    use crate::{generate_enums, generator, name2ident, CONTENT_FILES};
+    use crate::{generate_enums, generator, known_entities, name2ident};
     use std::fs::File;
     use std::io::read_to_string;
     use syn::__private::ToTokens;
@@ -470,10 +468,7 @@ mod test {
 
     #[test]
     fn test_serialize_deserialize() {
-        let all_entities: Vec<_> = CONTENT_FILES
-            .iter()
-            .flat_map(|&content| Entity::parse_lines(content.lines()).into_iter())
-            .collect();
+        let all_entities: Vec<_> = known_entities().collect();
         let mut temp_content = String::new();
         for entity in all_entities.iter() {
             entity

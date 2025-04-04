@@ -1,8 +1,9 @@
 use crate::ascii::AsciiString;
 use encoding_rs::mem::{decode_latin1, encode_latin1_lossy};
-use ipnet::IpNet;
+use ipnet::{IpNet, Ipv4Net, Ipv6Net};
 use log::{error, warn};
 use mac_address::MacAddress;
+use std::net::{Ipv4Addr, Ipv6Addr};
 use std::ops::Range;
 use std::{
     borrow::Cow,
@@ -571,6 +572,38 @@ impl RosValue for IpAddr {
         Vec::from(encode_latin1_lossy(&self.to_string())).into()
     }
 }
+impl RosValue for Ipv4Addr {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
+        if value.is_empty() {
+            ParseRosValueResult::None
+        } else {
+            match decode_latin1(value).parse::<Ipv4Addr>() {
+                Ok(v) => ParseRosValueResult::Value(v),
+                Err(_) => ParseRosValueResult::Invalid,
+            }
+        }
+    }
+
+    fn encode_ros(&self) -> Cow<[u8]> {
+        Vec::from(encode_latin1_lossy(&self.to_string())).into()
+    }
+}
+impl RosValue for Ipv6Addr {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
+        if value.is_empty() {
+            ParseRosValueResult::None
+        } else {
+            match decode_latin1(value).parse::<Ipv6Addr>() {
+                Ok(v) => ParseRosValueResult::Value(v),
+                Err(_) => ParseRosValueResult::Invalid,
+            }
+        }
+    }
+
+    fn encode_ros(&self) -> Cow<[u8]> {
+        Vec::from(encode_latin1_lossy(&self.to_string())).into()
+    }
+}
 
 impl RosValue for IpNet {
     fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
@@ -578,6 +611,38 @@ impl RosValue for IpNet {
             ParseRosValueResult::None
         } else {
             match IpNet::from_str(decode_latin1(value).as_ref()) {
+                Ok(v) => ParseRosValueResult::Value(v),
+                Err(_) => ParseRosValueResult::Invalid,
+            }
+        }
+    }
+
+    fn encode_ros(&self) -> Cow<[u8]> {
+        Vec::from(encode_latin1_lossy(&format!("{}", self))).into()
+    }
+}
+impl RosValue for Ipv4Net {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
+        if value.is_empty() {
+            ParseRosValueResult::None
+        } else {
+            match Ipv4Net::from_str(decode_latin1(value).as_ref()) {
+                Ok(v) => ParseRosValueResult::Value(v),
+                Err(_) => ParseRosValueResult::Invalid,
+            }
+        }
+    }
+
+    fn encode_ros(&self) -> Cow<[u8]> {
+        Vec::from(encode_latin1_lossy(&format!("{}", self))).into()
+    }
+}
+impl RosValue for Ipv6Net {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
+        if value.is_empty() {
+            ParseRosValueResult::None
+        } else {
+            match Ipv6Net::from_str(decode_latin1(value).as_ref()) {
                 Ok(v) => ParseRosValueResult::Value(v),
                 Err(_) => ParseRosValueResult::Invalid,
             }

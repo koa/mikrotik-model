@@ -1,5 +1,6 @@
 use super::*;
 use crate::value;
+use crate::value::{HasDisabled, HasNone};
 use std::net::Ipv4Addr;
 
 impl Default for SystemIdentityCfg {
@@ -246,6 +247,57 @@ impl Default for InterfaceWirelessCapCfg {
             interfaces: Default::default(),
             lock_to_caps_man: false,
             static_virtual: false,
+        }
+    }
+}
+impl Default for CapsManAaaCfg {
+    fn default() -> Self {
+        CapsManAaaCfg {
+            called_format: CapsManAaaCalledFormat::MacSsid,
+            interim_update: HasDisabled::Disabled,
+            mac_caching: HasDisabled::Disabled,
+            mac_format: b"XX:XX:XX:XX:XX:XX".into(),
+            mac_mode: CapsManAaaMacMode::AsUsername,
+        }
+    }
+}
+impl Default for CapsManManagerCfg {
+    fn default() -> Self {
+        CapsManManagerCfg {
+            ca_certificate: HasNone::NoneValue,
+            certificate: HasNone::NoneValue,
+            enabled: false,
+            package_path: Default::default(),
+            require_peer_certificate: false,
+            upgrade_policy: HasNone::NoneValue,
+        }
+    }
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for IpAddressCfg {
+    fn default() -> Self {
+        IpAddressCfg {
+            address: Default::default(),
+            interface: Default::default(),
+            comment: None,
+        }
+    }
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for Ipv6AddressCfg {
+    fn default() -> Self {
+        Ipv6AddressCfg {
+            address: Default::default(),
+            advertise: false,
+            interface: Default::default(),
+            comment: None,
+            disabled: false,
+            eui_64: false,
+            auto_link_local: true,
+            from_pool: None,
+            no_dad: false,
         }
     }
 }

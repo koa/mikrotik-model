@@ -3,7 +3,7 @@ arp: disabled; enum= enabled, local-proxy-arp, proxy-arp, reply-only;
 arp-timeout: auto; 
 channel.band: o;CapsChannelBand;
 channel.control-channel-width: o;CapsChannelWidth;
-channel.extension-channel: o; disabled; CapExtensionChannel
+channel.extension-channel: o; disabled; CapsExtensionChannel
 channel.frequency: o; u16
 channel.reselect-interval: o; Duration
 channel.save-selected: o; bool

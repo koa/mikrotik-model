@@ -1,4 +1,4 @@
-use crate::{cleanup_field_name, model::Entity, name2ident, CONTENT_FILES};
+use crate::{cleanup_field_name, known_entities, name2ident};
 use convert_case::{Case, Casing};
 use darling::{
     ast::NestedMeta,
@@ -19,17 +19,14 @@ mod test;
 
 pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
     let mut known_structs = HashMap::new();
-    for content in CONTENT_FILES {
-        let entries = Entity::parse_lines(content.lines());
-        for entity in entries {
-            let path = entity
-                .path
-                .iter()
-                .map(|s| s.as_ref())
-                .collect::<Vec<&str>>()
-                .join("/");
-            known_structs.insert(path, entity);
-        }
+    for entity in known_entities() {
+        let path = entity
+            .path
+            .iter()
+            .map(|s| s.as_ref())
+            .collect::<Vec<&str>>()
+            .join("/");
+        known_structs.insert(path, entity);
     }
     //println!("attr: {}", item);
     let parameters = NestedMeta::parse_meta_list(item).map_err(Error::from)?;

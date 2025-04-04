@@ -33,7 +33,7 @@ remote-ip: ro;
 /interface/vxlan/vteps:can-add;
 .id: ro;id;Id
 comment: o
-interface: ref=>interface; 
-remote-ip: IpAddr
+interface: id; ref=>interface;
+remote-ip: id; IpAddr
 about: ro; 
 
