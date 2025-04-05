@@ -1,7 +1,7 @@
 /system/resource:is-single;no-default
 
 architecture-name: ro;enum=arm, arm64, mipsbe, tile,x86,mmips
-board-name:ro
+board-name: o;ro
 cpu:ro
 cpu-frequency: ro;ClockFrequency
 factory-software:ro
@@ -29,8 +29,8 @@ upgrade-firmware: ro
 serial-number: ro
 current-firmware: ro
 factory-firmware: ro
-board-name: ro
-revision: ro
+board-name: o;ro
+revision: o;ro
 routerboard: ro;bool
 
 /system/routerboard/settings:is-single;no-default
