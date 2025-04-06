@@ -1,14 +1,14 @@
 /interface/list:can-add;
-comment: 
+comment: o
 exclude: mu;ref=>interface-list;
 include: mu;ref=>interface-list;
 name: id; ref=interface-list;
 builtin: ro; 
 about: ro; 
-dynamic: ro; 
+dynamic: ro
 
 /interface/list/member:can-add;
-comment: 
+comment: o
 disabled: bool
 interface: ref=>interface; 
 list: none; 

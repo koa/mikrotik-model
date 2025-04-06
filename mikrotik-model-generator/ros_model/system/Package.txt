@@ -1,0 +1,40 @@
+/system/package:
+version: ro; 
+about: ro;o
+bundle: ro;o
+build-time: ro;o
+size: ro;o; u32
+name: ro; id
+disabled: ro;bool
+available: ro; bool
+scheduled: ro
+
+/system/package/local-update:
+download: bool
+source: ro; 
+status: ro; 
+version: ro; 
+name: ro; 
+about: ro; 
+completed: ro; 
+
+/system/package/local-update/mirror:is-single;
+check-interval: Duration
+enabled: bool
+password: 
+primary-server: IpAddr
+secondary-server: IpAddr
+user: 
+software-id: ro; 
+
+/system/package/local-update/update-package-source:can-add;
+address: 
+user: 
+about: ro; 
+
+/system/package/update:is-single;
+channel: enum= development, long-term, stable, testing; 
+installed-version: ro; 
+status: ro; 
+latest-version: ro; 
+

@@ -2,8 +2,8 @@ use config::{Config, Environment, File};
 use env_logger::{Env, TimestampPrecision};
 use log::{error, info};
 use mikrotik_model::{
-    Credentials, MikrotikDevice, ascii::AsciiString, generator::Generator, hwconfig::DeviceType,
-    resource::ResourceMutation,
+    Credentials, MikrotikDevice, ascii, ascii::AsciiString, generator::Generator,
+    hwconfig::DeviceType, resource::ResourceMutation,
 };
 use mikrotik_model_generator_macro::mikrotik_model;
 use std::net::{IpAddr, Ipv4Addr};

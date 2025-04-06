@@ -8,10 +8,8 @@ use darling::{
 use proc_macro2::{Ident, TokenStream};
 use std::collections::HashMap;
 use syn::{
-    __private::{quote::quote, ToTokens},
-    parse_quote,
-    spanned::Spanned,
-    Block, Expr, ExprStruct, Fields, ItemImpl, ItemStruct, PatTuple, Stmt, TypeTuple,
+    __private::ToTokens, parse_quote, spanned::Spanned, Block, Expr, ExprStruct, Fields, ItemImpl,
+    ItemStruct, PatTuple, Stmt, TypeTuple,
 };
 
 #[cfg(test)]
@@ -74,19 +72,19 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
                                 if entry.is_single {
                                     current_struct_fields
                                         .named
-                                        .push(parse_quote!(#field_name:#field_type));
+                                        .push(parse_quote!(#field_name:mikrotik_model::model::#field_type));
                                     let not_found_error_msg = format!(
                                         "single value at {} not found",
                                         entry.path.join("/")
                                     );
-                                    current_fetch_init.fields.push(parse_quote! {#field_name: <#field_type as mikrotik_model::resource::SingleResource>::fetch(device).await?.expect(#not_found_error_msg)});
+                                    current_fetch_init.fields.push(parse_quote! {#field_name: <mikrotik_model::model::#field_type as mikrotik_model::resource::SingleResource>::fetch(device).await?.expect(#not_found_error_msg)});
                                     generate_mutations_expr = chain(
                                         generate_mutations_expr,
                                         parse_quote! {Some(mikrotik_model::resource::generate_single_update(&from.#field_name,&self.#field_name)).into_iter()},
                                     );
                                     target_struct_fields
                                         .named
-                                        .push(parse_quote!(#field_name:#field_type));
+                                        .push(parse_quote!(#field_name:mikrotik_model::model::#field_type));
                                 } else {
                                     accumulator.push(
                                         Error::custom("type is not single")
@@ -140,12 +138,12 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
                                 let current_field_type = entry.id_struct_type(id_field);
                                 current_struct_fields
                                     .named
-                                    .push(parse_quote! {#field_name: Box<[#current_field_type]>});
-                                current_fetch_init.fields.push(parse_quote! {#field_name: <#current_field_type as mikrotik_model::resource::KeyedResource>::fetch_all(device).await?});
+                                    .push(parse_quote! {#field_name: Box<[mikrotik_model::model::#current_field_type]>});
+                                current_fetch_init.fields.push(parse_quote! {#field_name: <mikrotik_model::model::#current_field_type as mikrotik_model::resource::KeyedResource>::fetch_all(device).await?});
                                 if key_fields.is_empty() {
                                     target_struct_fields
                                         .named
-                                        .push(parse_quote!(#field_name:Vec<#field_type>));
+                                        .push(parse_quote!(#field_name:Vec<mikrotik_model::model::#field_type>));
                                 } else {
                                     let mut key_type: TypeTuple = parse_quote!(());
                                     let mut key_values: PatTuple = PatTuple {
@@ -171,13 +169,13 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
                                         .push(Stmt::Expr(parse_quote! {entry}, None));
 
                                     target_struct_fields.named.push(
-                                        parse_quote!(#field_name:std::collections::BTreeMap<#key_type,#field_type>),
+                                        parse_quote!(#field_name:std::collections::BTreeMap<#key_type,mikrotik_model::model::#field_type>),
                                     );
                                     generate_mutations_expr = chain(
                                         generate_mutations_expr,
                                         parse_quote! {
                                             mikrotik_model::resource::generate_add_update_remove_by_id(&from.#field_name,
-                                                self.#field_name.iter().map(|(#key_values,entry)|#generate_block).map(std::borrow::Cow::<#field_type>::Owned)
+                                                self.#field_name.iter().map(|(#key_values,entry)|#generate_block).map(std::borrow::Cow::<mikrotik_model::model::#field_type>::Owned)
                                             )
                                         },
                                     );
@@ -205,26 +203,26 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
                                 let field_type = entry.id_struct_type(key_field);
                                 current_struct_fields
                                     .named
-                                    .push(parse_quote! {#field_name: Box<[#field_type]>});
-                                current_fetch_init.fields.push(parse_quote! {#field_name: <#field_type as mikrotik_model::resource::KeyedResource>::fetch_all(device).await?});
+                                    .push(parse_quote! {#field_name: Box<[mikrotik_model::model::#field_type]>});
+                                current_fetch_init.fields.push(parse_quote! {#field_name: <mikrotik_model::model::#field_type as mikrotik_model::resource::KeyedResource>::fetch_all(device).await?});
                                 let key_type = entry.struct_field_type(key_field);
                                 let cfg_type = entry.struct_type_cfg();
                                 let key_field_name = key_field.generate_field_name();
                                 if key_field.is_read_only {
-                                    target_struct_fields.named.push(parse_quote!(#field_name:std::collections::BTreeMap<#key_type,#cfg_type>));
+                                    target_struct_fields.named.push(parse_quote!(#field_name:std::collections::BTreeMap<#key_type,mikrotik_model::model::#cfg_type>));
                                 } else {
                                     target_struct_fields.named.push(
-                                        parse_quote!(#field_name:std::collections::BTreeMap<#key_type,#field_type>),
+                                        parse_quote!(#field_name:std::collections::BTreeMap<#key_type,mikrotik_model::model::#field_type>),
                                     );
                                 }
                                 let iter_expr: Expr = if key_field.is_read_only {
                                     parse_quote! {
                                         self.#field_name.iter().map(|(key,entry)|{
-                                            #field_type{
+                                            mikrotik_model::model::#field_type{
                                                 #key_field_name: key.clone(),
                                                 data: entry.clone(),
                                             }
-                                        }).map(std::borrow::Cow::<#field_type>::Owned)
+                                        }).map(std::borrow::Cow::<mikrotik_model::model::#field_type>::Owned)
                                     }
                                 } else {
                                     parse_quote! {
@@ -232,7 +230,7 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
                                             let mut entry=entry.clone();
                                             entry.0.#key_field_name = key.clone();
                                             entry
-                                        }).map(std::borrow::Cow::<#field_type>::Owned)
+                                        }).map(std::borrow::Cow::<mikrotik_model::model::#field_type>::Owned)
                                     }
                                 };
 
@@ -261,10 +259,7 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
         }
         _ => panic!("Should not be possible"),
     }
-    let mut stream = quote! {
-        use mikrotik_model::model::*;
-        use mikrotik_model::ascii;
-    };
+    let mut stream = TokenStream::new();
 
     let current_impl: ItemImpl = parse_quote! {
         impl #current_struct_name {
@@ -280,7 +275,7 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
         stream.extend(target_struct.to_token_stream());
         let target_impl: ItemImpl = parse_quote! {
             impl #target_struct_name {
-                fn generate_mutations<'a>(&'a self, from: &'a #current_struct_name)->Result<Box<[mikrotik_model::resource::ResourceMutation<'a>]>, mikrotik_model::resource::ResourceMutationError<'a>> {
+                fn generate_mutations<'a>(&'a self, from: &'a #current_struct_name)->Result<Box<[mikrotik_model::resource::ResourceMutation<'a>]>, mikrotik_model::resource::ResourceMutationError> {
                     Ok(#mutations.collect())
                 }
             }
@@ -291,7 +286,7 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
         let target_impl: ItemImpl = parse_quote! {
             impl #target_struct_name {
                  pub async fn detect_device(device: &MikrotikDevice) -> Result<Self, mikrotik_model::resource::Error> {
-                    let routerboard = <SystemRouterboardState as mikrotik_model::resource::SingleResource>::fetch(device)
+                    let routerboard = <mikrotik_model::model::SystemRouterboardState as mikrotik_model::resource::SingleResource>::fetch(device)
                         .await?
                         .expect("System routerboard not found");
                     match DeviceType::type_by_name(&routerboard.model.0) {

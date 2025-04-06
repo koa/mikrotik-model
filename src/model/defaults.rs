@@ -1,6 +1,8 @@
 use super::*;
-use crate::value;
-use crate::value::{HasDisabled, HasNone};
+use crate::{
+    value,
+    value::{HasDisabled, HasNone},
+};
 use std::net::Ipv4Addr;
 
 impl Default for SystemIdentityCfg {
@@ -298,6 +300,25 @@ impl Default for Ipv6AddressCfg {
             auto_link_local: true,
             from_pool: None,
             no_dad: false,
+        }
+    }
+}
+impl Default for SystemPackageLocalUpdateMirrorCfg {
+    fn default() -> Self {
+        Self {
+            check_interval: Duration::from_secs(60 * 60 * 24),
+            enabled: false,
+            password: Default::default(),
+            primary_server: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+            secondary_server: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+            user: Default::default(),
+        }
+    }
+}
+impl Default for SystemPackageUpdateCfg {
+    fn default() -> Self {
+        Self {
+            channel: SystemPackageUpdateChannel::Stable,
         }
     }
 }

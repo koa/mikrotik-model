@@ -72,12 +72,6 @@ pub trait DeserializeRosResource: Sized + FieldUpdateHandler {
         handler: &mut V,
     ) {
     }
-    /*fn update<R, T: UpdateHandler<R>>(&self, _handler: T) -> Option<R> {
-        None
-    }
-    fn create<R, T: CreateHandler<R>>(&self, _handler: T) -> Option<R> {
-        None
-    }*/
 }
 pub trait UpdateHandler<R> {
     fn handle_updatable<F: RosResource, T: Updatable<F>>(self, value: &T) -> R;
@@ -156,6 +150,16 @@ pub async fn stream_resource<R: DeserializeRosResource + RosResource>(
         .send_simple_command(&[b"/", R::path(), b"/print"], R::resource_type())
         .await
         .map(|entry| entry.map(|r| R::unwrap_resource(r).expect("Unexpected result type")))
+}
+
+pub async fn collect_resource<R: DeserializeRosResource + RosResource>(
+    device: &MikrotikDevice,
+) -> Result<Box<[R]>, Error> {
+    stream_resource(device)
+        .await
+        .map(|entry| value_or_error(entry))
+        .collect::<Result<Box<[R]>, _>>()
+        .await
 }
 
 pub trait RosResource: Sized {
@@ -338,9 +342,15 @@ impl<'a> ResourceMutation<'a> {
     pub fn sort_mutations<'b, 'c>(
         updates: &'c [ResourceMutation<'b>],
     ) -> Result<Box<[&'c ResourceMutation<'b>]>, MissingDependenciesError<'b, 'c>> {
+        Self::sort_mutations_with_provided_dependencies(updates, None)
+    }
+    pub fn sort_mutations_with_provided_dependencies<'b, 'c>(
+        updates: &'c [ResourceMutation<'b>],
+        provided_dependencies: impl IntoIterator<Item = (ReferenceType, Cow<'b, [u8]>)>,
+    ) -> Result<Box<[&'c ResourceMutation<'b>]>, MissingDependenciesError<'b, 'c>> {
+        let mut provided_dependencies = provided_dependencies.into_iter().collect::<HashSet<_>>();
         let mut remaining_updates = updates.iter().collect::<Vec<_>>();
         let mut sorted_mutations = Vec::with_capacity(updates.len());
-        let mut provided_dependencies = HashSet::new();
         while !remaining_updates.is_empty() {
             let mut next_round = Vec::with_capacity(remaining_updates.len());
             let mut could_add = false;
@@ -603,11 +613,11 @@ impl<R: DeserializeRosResource + Send + 'static> ParsedMessage for SentenceResul
     }
 }
 #[derive(Debug, Error)]
-pub enum ResourceMutationError<'a> {
+pub enum ResourceMutationError {
     #[error("cannot insert {entry:?}")]
     Add { entry: Resource },
     #[error("cannot remove {entry:?}")]
-    Remove { entry: ResourceRef<'a> },
+    Remove { entry: Resource },
     #[error("wrong device type found, expected {expected:?} but got {actual:?} instead")]
     WrongDeviceType {
         expected: DeviceType,
@@ -774,7 +784,7 @@ where
 pub fn generate_update_by_key<'c, 't, 'r, 'e, Target, Current>(
     current: &'c [Current],
     target: impl IntoIterator<Item = impl Into<Cow<'t, Target>>>,
-) -> Result<impl Iterator<Item = ResourceMutation<'r>> + 'r, ResourceMutationError<'e>>
+) -> Result<impl Iterator<Item = ResourceMutation<'r>> + 'r, ResourceMutationError>
 where
     'c: 'r + 'e,
     't: 'r + 'e,
@@ -799,7 +809,7 @@ where
             matched.push((c, t));
         } else {
             return Err(ResourceMutationError::Remove {
-                entry: c.create_resource_ref(),
+                entry: c.create_resource_ref().cloned(),
             });
         }
     }

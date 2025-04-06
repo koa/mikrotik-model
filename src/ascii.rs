@@ -59,6 +59,11 @@ impl From<String> for AsciiString {
         AsciiString(Box::from(value.into_bytes()))
     }
 }
+impl From<&str> for AsciiString {
+    fn from(value: &str) -> Self {
+        AsciiString(Box::from(value.as_bytes()))
+    }
+}
 /*impl<I: IntoIterator<Item = u8>> From<I> for AsciiString {
     fn from(value: I) -> Self {
         AsciiString(value.into_iter().collect())

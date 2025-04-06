@@ -3,14 +3,13 @@ use encoding_rs::mem::{decode_latin1, encode_latin1_lossy};
 use ipnet::{IpNet, Ipv4Net, Ipv6Net};
 use log::{error, warn};
 use mac_address::MacAddress;
-use std::net::{Ipv4Addr, Ipv6Addr};
-use std::ops::Range;
 use std::{
     borrow::Cow,
     collections::{BTreeSet, HashSet},
     fmt::{Debug, Formatter, Write},
     hash::Hash,
-    net::IpAddr,
+    net::{IpAddr, Ipv4Addr, Ipv6Addr},
+    ops::Range,
     str::FromStr,
     time::Duration,
 };
@@ -766,9 +765,16 @@ pub fn write_script_string(target: &mut impl Write, value: &[u8]) -> core::fmt::
     target.write_char('"')?;
     for character in value.iter().copied() {
         match character {
-            b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b' ' | b'.' | b'-' => {
-                target.write_char(character as char)?
-            }
+            b'0'..=b'9'
+            | b'A'..=b'Z'
+            | b'a'..=b'z'
+            | b' '
+            | b'.'
+            | b'-'
+            | b','
+            | b'/'
+            | b':'
+            | b'*' => target.write_char(character as char)?,
             b'"' | b'\\' => {
                 target.write_char('\\')?;
                 target.write_char(character as char)?;
