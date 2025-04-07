@@ -474,3 +474,18 @@ CapsAuthenticationTypes:
   - wpa-psk
   - wpa2-eap
   - wpa2-psk
+RoutingOriginateDefault:
+  - always
+  - if-installed
+  - never
+RoutingRedistribute:
+  - bgp
+  - connected
+  - copy
+  - dhcp
+  - fantasy
+  - modem
+  - ospf
+  - rip
+  - static
+  - vpn

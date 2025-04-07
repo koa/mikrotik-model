@@ -322,3 +322,73 @@ impl Default for SystemPackageUpdateCfg {
         }
     }
 }
+impl Default for RoutingOspfInstanceCfg {
+    fn default() -> Self {
+        Self {
+            comment: None,
+            disabled: false,
+            domain_id: None,
+            domain_tag: None,
+            in_filter: None,
+            mpls_te_address: None,
+            mpls_te_area: None,
+            name: Default::default(),
+            originate_default: Some(RoutingOriginateDefault::IfInstalled),
+            out_filter_chain: None,
+            out_filter_select: None,
+            redistribute: Default::default(),
+            router_id: None,
+            version: RoutingOspfInstanceVersion::_2,
+            vrf: b"main".into(),
+            use_dn: None,
+            in_filter_chain: None,
+            routing_table: None,
+        }
+    }
+}
+impl Default for RoutingOspfAreaCfg {
+    fn default() -> Self {
+        Self {
+            area_id: Ipv4Addr::new(0, 0, 0, 0),
+            comment: None,
+            default_cost: None,
+            disabled: false,
+            instance: Default::default(),
+            name: Default::default(),
+            nssa_translator: None,
+            _type: RoutingOspfAreaType::Default,
+        }
+    }
+}
+impl Default for RoutingOspfAreaByName {
+    fn default() -> Self {
+        Self(RoutingOspfAreaCfg::default())
+    }
+}
+impl Default for RoutingOspfInterfaceTemplateCfg {
+    fn default() -> Self {
+        Self {
+            area: Default::default(),
+            auth: None,
+            auth_id: None,
+            auth_key: None,
+            comment: None,
+            cost: 0,
+            dead_interval: Duration::from_secs(40),
+            disabled: false,
+            hello_interval: Duration::from_secs(10),
+            instance_id: 0,
+            interfaces: Default::default(),
+            networks: Default::default(),
+            passive: false,
+            prefix_list: Default::default(),
+            priority: 128,
+            retransmit_interval: Duration::from_secs(5),
+            transmit_delay: Duration::from_secs(1),
+            _type: RoutingOspfInterfaceTemplateType::Broadcast,
+            use_bfd: false,
+            vlink_neighbor_id: None,
+            vlink_transit_area: None,
+        }
+    }
+}

@@ -1,0 +1,141 @@
+/routing/ospf/area:can-add;
+area-id: Ipv4Addr
+comment: o
+default-cost: o; u32
+disabled: bool
+instance: ref=>ospf-instance
+name: id; ref=ospf-area
+nssa-translator: o; enum= candidate, no, yes;
+type: enum= default, nssa, stub; 
+about: ro; 
+dynamic: ro; bool
+inactive: ro; bool
+transit-capable: ro; bool
+
+/routing/ospf/area/range:can-add;
+advertise: bool
+area: ref=>ospf-area
+comment: o
+cost: u32
+disabled: bool
+prefix: IpNet
+about: ro; 
+inactive: ro; bool
+
+/routing/ospf/instance:can-add;
+comment: o
+disabled: bool
+domain-id: o; 
+domain-tag: o; u32
+in-filter-chain: o; ref=>routing-filter;
+mpls-te-address: o; 
+mpls-te-area: o; 
+name: id; ref=ospf-instance
+originate-default: o; RoutingOriginateDefault
+out-filter-chain: o; ref=>routing-filter; 
+out-filter-select: o; ref=>routing-filter-select; 
+redistribute: mu;RoutingRedistribute
+router-id: o; Ipv4Addr
+routing-table: o; ref=>routing-table;
+use-dn: o; bool
+version: enum= 2, 3; 
+vrf: ref=>routing-table;
+in-filter: o; ref=>routing-filter; 
+about: ro; 
+inactive: ro; bool
+
+/routing/ospf/interface:
+instance-id: ro; 
+dr: ro; 
+vlink-neighbor-id: ro; 
+transmit-delay: ro; 
+bdr: ro; 
+hello-interval: ro; 
+area: ro; 
+state: ro; 
+retransmit-interval: ro; 
+dead-interval: ro; 
+vlink-remote-address: ro; 
+vlink-transit-area: ro; 
+about: ro; 
+use-bfd: ro; bool
+address: ro; 
+cost: ro; 
+dynamic: ro; bool
+network-type: ro; 
+priority: ro; 
+
+/routing/ospf/interface-template:can-add;
+.id: ro; id
+area: id; ref=>ospf-area
+auth: o; enum= md5, sha1, sha256, sha384, sha512, simple; 
+auth-id: o; u8
+auth-key: o
+comment: o
+cost: u16
+dead-interval: Duration
+disabled: bool
+hello-interval: Duration
+instance-id: u8
+interfaces: mu; ref=>interface;
+networks: mu; IpNet
+passive: bool
+prefix-list: mu
+priority: u8
+retransmit-interval: Duration
+transmit-delay: Duration
+type: enum= broadcast, nbma, ptmp, ptmp-broadcast, ptp, ptp-unnumbered, virtual-link; 
+use-bfd: bool
+vlink-neighbor-id: o; Ipv4Addr
+vlink-transit-area: o; ref=>ospf-area
+inactive: ro; bool
+about: ro; 
+
+/routing/ospf/lsa:
+type: ro; 
+id: ro; 
+link-instance-id: ro; 
+originator: ro; 
+self-originated: ro; 
+wraparound: ro; 
+area: ro; 
+dynamic: ro; 
+sequence: ro; 
+instance: ro; 
+flushing: ro; 
+about: ro; 
+checksum: ro; 
+body: ro; 
+link: ro; 
+age: ro; 
+
+/routing/ospf/neighbor:
+comment: ro;
+ls-requests: ro; 
+timeout: ro; 
+about: ro; 
+bdr: ro; 
+dr: ro; 
+dynamic: ro; 
+state: ro; 
+adjacency: ro; 
+instance: ro; 
+ls-retransmits: ro; 
+priority: ro; 
+state-changes: ro; 
+virtual: ro; 
+router-id: ro; 
+db-summaries: ro; 
+area: ro; 
+address: ro; 
+
+/routing/ospf/static-neighbor:can-add;
+address: id; IpAddr
+area: id; ref=>ospf-neighbor
+comment: 
+disabled: bool
+instance-id: u8
+poll-interval: Duration
+about: ro; 
+inactive: ro; 
+
