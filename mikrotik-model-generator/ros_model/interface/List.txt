@@ -3,9 +3,9 @@ comment: o
 exclude: mu;ref=>interface-list;
 include: mu;ref=>interface-list;
 name: id; ref=interface-list;
-builtin: ro; 
+builtin: ro; bool
 about: ro; 
-dynamic: ro
+dynamic: ro; bool
 
 /interface/list/member:can-add;
 comment: o

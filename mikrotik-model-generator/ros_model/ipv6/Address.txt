@@ -8,14 +8,14 @@ eui-64: bool
 from-pool: o; enum= public-pool;
 interface: ref=>interface; 
 no-dad: bool
-valid: ro; 
-invalid: ro; 
-slave: ro; 
+valid: ro; bool
+invalid: ro; bool
+slave: ro; bool
 about: ro; 
 actual-interface: ro; 
-dynamic: ro; 
-deprecated: ro; 
+dynamic: ro; bool
+deprecated: ro; bool
 global: ro; 
 preferred: ro; 
-link-local: ro; 
+link-local: ro; o; bool
 

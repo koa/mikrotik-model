@@ -4,8 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-#mikrotik-rs = { version = "0.4.0", git = "https://github.com/koa/mikrotik-rs", package = "mikrotik-rs",branch = "extended-encoding" }
-#mikrotik-rs = { version = "0.4.0", path = "../mikrotik-rs/mikrotik-rs" }
 mikrotik-api={version="0.1.0", git="https://github.com/koa/mikrotik-api"}
 #mikrotik-api={version="0.1.0", path="../mikrotik-api"}
 config = "0.14.1"

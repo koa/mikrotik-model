@@ -365,6 +365,8 @@ impl Entity {
         let struct_ident_status = self.struct_status_type();
         let struct_ident_cfg = self.struct_ident_cfg();
         let id_struct_ident = self.id_struct_type(id_field);
+        let filter = self.dynamic_filter();
+
         let item = parse_quote! {
             impl resource::KeyedResource for (#id_struct_ident, #struct_ident_status) {
                 type Key = #id_field_type;
@@ -380,6 +382,7 @@ impl Entity {
                 fn value(&self) -> &Self::Value{
                     self.0.value()
                 }
+                #filter
             }
         };
         item
@@ -501,6 +504,7 @@ impl Entity {
         let struct_ident = self.struct_ident_cfg();
         let field_name = id_field.attribute_name();
         let id_field_name = id_field.generate_field_name();
+        let filter = self.dynamic_filter();
 
         let item = parse_quote! {
             impl resource::KeyedResource for #id_struct_ident {
@@ -518,6 +522,7 @@ impl Entity {
                 fn value(&self) -> &Self::Value{
                     &self.0
                 }
+                #filter
             }
         };
         item
@@ -616,20 +621,7 @@ impl Entity {
         let id_field_name = id_field.generate_field_name();
         let id_struct_ident = self.id_struct_type(id_field);
         let struct_ident = self.struct_ident_cfg();
-        let has_dynamic = self.fields.iter().any(|f| {
-            f.name.as_ref() == "dynamic"
-                && f.field_type.as_deref() == Some("bool")
-                && f.is_read_only
-        });
-        let filter: Option<Stmt> = if has_dynamic {
-            Some(parse_quote! {
-                fn filter(cmd: mikrotik_api::prelude::CommandBuilder) -> mikrotik_api::prelude::CommandBuilder {
-                    cmd.query_equal(b"dynamic",b"false")
-                }
-            })
-        } else {
-            None
-        };
+        let filter = self.dynamic_filter();
 
         parse_quote! {
             impl resource::KeyedResource for #id_struct_ident {
@@ -650,6 +642,38 @@ impl Entity {
 
                 #filter
             }
+        }
+    }
+
+    fn dynamic_filter(&self) -> Option<Stmt> {
+        let has_dynamic = self.fields.iter().any(|f| {
+            f.name.as_ref() == "dynamic"
+                && f.field_type.as_deref() == Some("bool")
+                && f.is_read_only
+        });
+        let has_builtin = self.fields.iter().any(|f| {
+            f.name.as_ref() == "builtin"
+                && f.field_type.as_deref() == Some("bool")
+                && f.is_read_only
+        });
+
+        match (has_dynamic, has_builtin) {
+            (true, true) => Some(parse_quote! {
+                fn filter(cmd: mikrotik_api::prelude::CommandBuilder) -> mikrotik_api::prelude::CommandBuilder {
+                    cmd.query_equal(b"dynamic",b"false").query_equal(b"builtin",b"false").query_operations(Some(mikrotik_api::prelude::QueryOperator::And).into_iter())
+                }
+            }),
+            (true, false) => Some(parse_quote! {
+                fn filter(cmd: mikrotik_api::prelude::CommandBuilder) -> mikrotik_api::prelude::CommandBuilder {
+                    cmd.query_equal(b"dynamic",b"false")
+                }
+            }),
+            (false, true) => Some(parse_quote! {
+                fn filter(cmd: mikrotik_api::prelude::CommandBuilder) -> mikrotik_api::prelude::CommandBuilder {
+                    cmd.query_equal(b"builtin",b"false")
+                }
+            }),
+            (false, false) => None,
         }
     }
 
