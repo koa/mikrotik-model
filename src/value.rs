@@ -122,7 +122,25 @@ macro_rules! parameter_value_impl {
             }
         )*}
     }
-parameter_value_impl! { isize i8 i16 i32 i64 i128 usize u8 u16 u32 u64 u128 f32 f64 bool}
+parameter_value_impl! { isize i8 i16 i32 i64 i128 usize u8 u16 u32 u64 u128 f32 f64}
+
+impl RosValue for bool {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
+        match value {
+            b"" => ParseRosValueResult::None,
+            b"true" | b"yes" => ParseRosValueResult::Value(true),
+            b"false" | b"no" => ParseRosValueResult::Value(false),
+            _ => ParseRosValueResult::Invalid,
+        }
+    }
+
+    fn encode_ros(&self) -> Cow<[u8]> {
+        match *self {
+            true => Cow::Borrowed(b"yes"),
+            false => Cow::Borrowed(b"no"),
+        }
+    }
+}
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub struct Hex<V: Copy + Eq + Hash>(pub V);
@@ -746,7 +764,7 @@ impl RosValue for IpOrInterface {
         }
     }
 }
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct KeyValuePair<'a> {
     pub key: &'static [u8],
     pub value: Cow<'a, [u8]>,
@@ -758,6 +776,17 @@ impl KeyValuePair<'_> {
             key: self.key,
             value: Cow::Owned(self.value.into_owned()),
         }
+    }
+}
+
+impl Debug for KeyValuePair<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{:?}={:?}",
+            decode_latin1(self.key),
+            decode_latin1(self.value.as_ref())
+        )
     }
 }
 

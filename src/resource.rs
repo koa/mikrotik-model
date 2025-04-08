@@ -283,13 +283,38 @@ pub trait SetResource<Base: RosResource>: FieldUpdateHandler {
     -> impl Iterator<Item = KeyValuePair<'a>>;
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct ResourceMutation<'a> {
     pub resource: &'static [u8],
     pub operation: ResourceMutationOperation<'a>,
     pub fields: Box<[KeyValuePair<'a>]>,
     pub depends: Box<[(ReferenceType, Cow<'a, [u8]>)]>,
     pub provides: Box<[(ReferenceType, Cow<'a, [u8]>)]>,
+}
+impl Debug for ResourceMutation<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "ResourceMutation {{resource: {}, operation: {:?}, fields: {:?}, depends: [",
+            decode_latin1(self.resource),
+            self.operation,
+            self.fields
+        )?;
+        for (idx, (reference, id)) in self.depends.iter().enumerate() {
+            if idx > 0 {
+                f.write_str(", ")?
+            }
+            write!(f, "{:?}:{}", reference, decode_latin1(id.as_ref()))?;
+        }
+        f.write_str("], provides: [")?;
+        for (idx, (reference, id)) in self.provides.iter().enumerate() {
+            if idx > 0 {
+                f.write_str(", ")?
+            }
+            write!(f, "{:?}:{}", reference, decode_latin1(id.as_ref()))?;
+        }
+        f.write_str("]}")
+    }
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct MissingDependenciesError<'a, 'b> {

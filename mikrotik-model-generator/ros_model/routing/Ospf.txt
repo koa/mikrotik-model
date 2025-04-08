@@ -16,7 +16,7 @@ transit-capable: ro; bool
 advertise: bool
 area: ref=>ospf-area
 comment: o
-cost: u32
+cost: o; u32
 disabled: bool
 prefix: IpNet
 about: ro; 
@@ -68,7 +68,7 @@ priority: ro;
 /routing/ospf/interface-template:can-add;
 .id: ro; id
 area: id; ref=>ospf-area
-auth: o; enum= md5, sha1, sha256, sha384, sha512, simple; 
+auth: o; enum= md5, sha1, sha256, sha384, sha512, simple;
 auth-id: o; u8
 auth-key: o
 comment: o
@@ -79,7 +79,7 @@ hello-interval: Duration
 instance-id: u8
 interfaces: mu; ref=>interface;
 networks: mu; IpNet
-passive: bool
+#passive: bool
 prefix-list: mu
 priority: u8
 retransmit-interval: Duration
