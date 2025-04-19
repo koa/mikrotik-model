@@ -181,7 +181,7 @@ impl DeviceType {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Hash)]
-enum EthernetNamePattern {
+pub enum EthernetNamePattern {
     Ether,
     Combo,
     Sfp,
@@ -189,7 +189,7 @@ enum EthernetNamePattern {
     QsfpPlus,
 }
 impl EthernetNamePattern {
-    fn default_name(&self, idx: usize) -> AsciiString {
+    pub fn default_name(&self, idx: usize) -> AsciiString {
         AsciiString(Box::from(
             (match self {
                 EthernetNamePattern::Ether => {
@@ -211,7 +211,7 @@ impl EthernetNamePattern {
             .as_bytes(),
         ))
     }
-    fn short_name(&self, idx: usize) -> AsciiString {
+    pub fn short_name(&self, idx: usize) -> AsciiString {
         AsciiString(Box::from(
             (match self {
                 EthernetNamePattern::Ether => {
@@ -233,14 +233,14 @@ impl EthernetNamePattern {
             .as_bytes(),
         ))
     }
-    fn default_combo_mode(&self) -> Option<InterfaceEthernetComboMode> {
+    pub fn default_combo_mode(&self) -> Option<InterfaceEthernetComboMode> {
         if let EthernetNamePattern::Combo = self {
             Some(InterfaceEthernetComboMode::Auto)
         } else {
             None
         }
     }
-    fn default_sfp_shutdown_temperature(&self) -> Option<u8> {
+    pub fn default_sfp_shutdown_temperature(&self) -> Option<u8> {
         match self {
             EthernetNamePattern::Ether => None,
             EthernetNamePattern::Combo
@@ -249,7 +249,7 @@ impl EthernetNamePattern {
             | EthernetNamePattern::Sfp => Some(95),
         }
     }
-    fn default_sfp_ignore_rx_loss(&self) -> Option<bool> {
+    pub fn default_sfp_ignore_rx_loss(&self) -> Option<bool> {
         match self {
             EthernetNamePattern::Ether => None,
             EthernetNamePattern::Combo => Some(false),
@@ -258,7 +258,7 @@ impl EthernetNamePattern {
             EthernetNamePattern::Sfp => Some(false),
         }
     }
-    fn default_sfp_rate_select(&self) -> Option<InterfaceEthernetSfpRateSelect> {
+    pub fn default_sfp_rate_select(&self) -> Option<InterfaceEthernetSfpRateSelect> {
         match self {
             EthernetNamePattern::Ether => None,
             EthernetNamePattern::Combo => Some(InterfaceEthernetSfpRateSelect::High),
@@ -267,7 +267,7 @@ impl EthernetNamePattern {
             EthernetNamePattern::Sfp => Some(InterfaceEthernetSfpRateSelect::High),
         }
     }
-    fn default_fec_mode(&self) -> Option<InterfaceEthernetFecMode> {
+    pub fn default_fec_mode(&self) -> Option<InterfaceEthernetFecMode> {
         match self {
             EthernetNamePattern::Ether => None,
             EthernetNamePattern::Combo => None,
@@ -279,7 +279,7 @@ impl EthernetNamePattern {
     }
 }
 
-fn generate_ethernet(
+pub fn generate_ethernet(
     name: EthernetNamePattern,
     speeds: &[EthernetSpeed],
     l_2_mtu: u16,
@@ -328,7 +328,7 @@ fn generate_ethernet(
     }
 }
 
-fn generate_wifi(l_2_mtu: u16) -> impl Fn(usize) -> InterfaceWifiByDefaultName + Clone {
+pub fn generate_wifi(l_2_mtu: u16) -> impl Fn(usize) -> InterfaceWifiByDefaultName + Clone {
     move |idx| {
         let default_name: AsciiString = format!("wifi{idx}").into();
         let name: AsciiString = format!("wi{idx:02}").into();
@@ -453,7 +453,7 @@ fn generate_wifi(l_2_mtu: u16) -> impl Fn(usize) -> InterfaceWifiByDefaultName +
         }
     }
 }
-fn generate_wlan(l_2_mtu: u16) -> impl Fn(usize) -> InterfaceWirelessByDefaultName + Clone {
+pub fn generate_wlan(l_2_mtu: u16) -> impl Fn(usize) -> InterfaceWirelessByDefaultName + Clone {
     move |idx| {
         let default_name: AsciiString = format!("wlan{idx}").into();
         let name: AsciiString = format!("wl{idx:02}").into();
@@ -559,7 +559,7 @@ fn generate_wlan(l_2_mtu: u16) -> impl Fn(usize) -> InterfaceWirelessByDefaultNa
     }
 }
 
-const ADVERTISE_1G: [EthernetSpeed; 6] = [
+pub const ADVERTISE_1G: [EthernetSpeed; 6] = [
     EthernetSpeed::_10MBaseTHalf,
     EthernetSpeed::_10MBaseTFull,
     EthernetSpeed::_100MBaseTHalf,
@@ -567,7 +567,7 @@ const ADVERTISE_1G: [EthernetSpeed; 6] = [
     EthernetSpeed::_1GBaseTHalf,
     EthernetSpeed::_1GBaseTFull,
 ];
-const ADVERTISE_1G_SFP: [EthernetSpeed; 7] = [
+pub const ADVERTISE_1G_SFP: [EthernetSpeed; 7] = [
     EthernetSpeed::_10MBaseTHalf,
     EthernetSpeed::_10MBaseTFull,
     EthernetSpeed::_100MBaseTHalf,
@@ -576,20 +576,20 @@ const ADVERTISE_1G_SFP: [EthernetSpeed; 7] = [
     EthernetSpeed::_1GBaseTFull,
     EthernetSpeed::_1GBaseX,
 ];
-const ADVERTISE_1G_FULL: [EthernetSpeed; 3] = [
+pub const ADVERTISE_1G_FULL: [EthernetSpeed; 3] = [
     EthernetSpeed::_10MBaseTFull,
     EthernetSpeed::_100MBaseTFull,
     EthernetSpeed::_1GBaseTFull,
 ];
 
-const ADVERTISE_100M: [EthernetSpeed; 4] = [
+pub const ADVERTISE_100M: [EthernetSpeed; 4] = [
     EthernetSpeed::_10MBaseTHalf,
     EthernetSpeed::_10MBaseTFull,
     EthernetSpeed::_100MBaseTHalf,
     EthernetSpeed::_100MBaseTFull,
 ];
 
-const ADVERTISE_10G: [EthernetSpeed; 13] = [
+pub const ADVERTISE_10G: [EthernetSpeed; 13] = [
     EthernetSpeed::_10MBaseTHalf,
     EthernetSpeed::_10MBaseTFull,
     EthernetSpeed::_100MBaseTHalf,
@@ -604,7 +604,7 @@ const ADVERTISE_10G: [EthernetSpeed; 13] = [
     EthernetSpeed::_10GBaseCr,
     EthernetSpeed::_10GBaseSrLr,
 ];
-const ADVERTISE_10G_FULL: [EthernetSpeed; 7] = [
+pub const ADVERTISE_10G_FULL: [EthernetSpeed; 7] = [
     EthernetSpeed::_10MBaseTFull,
     EthernetSpeed::_100MBaseTFull,
     EthernetSpeed::_1GBaseTFull,

@@ -289,10 +289,7 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
                     let routerboard = <mikrotik_model::model::SystemRouterboardState as mikrotik_model::resource::SingleResource>::fetch(device)
                         .await?
                         .expect("System routerboard not found");
-                    match DeviceType::type_by_name(&routerboard.model.0) {
-                        None => Err(mikrotik_model::resource::Error::UnknownType(routerboard.model)),
-                        Some(ty) => Ok(Self::#detect_method(ty)),
-                    }
+                    Ok(Self::#detect_method(&routerboard.model.0))
                 }
             }
         };

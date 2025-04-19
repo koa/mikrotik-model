@@ -385,7 +385,7 @@ impl Default for RoutingOspfInterfaceTemplateCfg {
             retransmit_interval: Duration::from_secs(5),
             transmit_delay: Duration::from_secs(1),
             _type: RoutingOspfInterfaceTemplateType::Broadcast,
-            use_bfd: false,
+            use_bfd: None,
             vlink_neighbor_id: None,
             vlink_transit_area: None,
         }

@@ -2,11 +2,22 @@ use config::{Config, Environment, File};
 use env_logger::{Env, TimestampPrecision};
 use log::{error, info};
 use mikrotik_model::{
-    Credentials, MikrotikDevice, ascii, ascii::AsciiString, generator::Generator,
-    hwconfig::DeviceType, resource::ResourceMutation,
+    Credentials, MikrotikDevice, ascii,
+    ascii::AsciiString,
+    generator::Generator,
+    hwconfig::{
+        DeviceType,
+        ADVERTISE_1G,
+        EthernetNamePattern,
+        generate_ethernet
+    },
+    resource::ResourceMutation,
 };
 use mikrotik_model_generator_macro::mikrotik_model;
-use std::net::{IpAddr, Ipv4Addr};
+use std::{
+    iter::repeat_n,
+    net::{IpAddr, Ipv4Addr},
+};
 
 mikrotik_model!(
     name = DeviceData,
@@ -23,13 +34,16 @@ mikrotik_model!(
 );
 
 impl DeviceDataTarget {
-    fn new(device_type: DeviceType) -> Self {
+    fn new(device_type: &[u8]) -> Self {
         Self {
-            ethernet: device_type
-                .build_ethernet_ports()
-                .into_iter()
-                .map(|e| (e.default_name, e.data))
-                .collect(),
+            ethernet: repeat_n(
+                generate_ethernet(EthernetNamePattern::Ether, &ADVERTISE_1G, 1596, false),
+                5,
+            )
+            .enumerate()
+            .map(|(idx, generator)| generator(idx + 1))
+            .map(|e| (e.default_name, e.data))
+            .collect(),
             identity: Default::default(),
             bridge: Default::default(),
             bridge_port: Default::default(),

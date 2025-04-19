@@ -85,7 +85,7 @@ priority: u8
 retransmit-interval: Duration
 transmit-delay: Duration
 type: enum= broadcast, nbma, ptmp, ptmp-broadcast, ptp, ptp-unnumbered, virtual-link; 
-use-bfd: bool
+use-bfd: o; bool
 vlink-neighbor-id: o; Ipv4Addr
 vlink-transit-area: o; ref=>ospf-area
 inactive: ro; bool

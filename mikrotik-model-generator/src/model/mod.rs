@@ -45,7 +45,7 @@ pub struct ReferenceEntry {
 }
 
 impl Entity {
-    pub fn parse_lines<'a>(lines: impl Iterator<Item=&'a str>) -> Vec<Self> {
+    pub fn parse_lines<'a>(lines: impl Iterator<Item = &'a str>) -> Vec<Self> {
         let mut collected_entities = Vec::new();
         let mut current_entity = None;
         for line in lines {
@@ -150,9 +150,9 @@ impl Entity {
     pub fn generate_code(
         &self,
     ) -> (
-        impl IntoIterator<Item=Item>,
-        impl IntoIterator<Item=RosTypeEntry>,
-        impl IntoIterator<Item=ReferenceEntry>,
+        impl IntoIterator<Item = Item>,
+        impl IntoIterator<Item = RosTypeEntry>,
+        impl IntoIterator<Item = ReferenceEntry>,
     ) {
         let mut items: Vec<Item> = Vec::with_capacity(50);
         let mut enum_entries: Vec<RosTypeEntry> = Vec::with_capacity(10);
@@ -257,7 +257,7 @@ impl Entity {
         )
     }
 
-    fn collect_enum_field_types(&self) -> impl Iterator<Item=(Ident, Box<[Box<str>]>)> + use < '_ > {
+    fn collect_enum_field_types(&self) -> impl Iterator<Item = (Ident, Box<[Box<str>]>)> + use<'_> {
         self.fields
             .iter()
             .filter_map(|field| self.enum_field_type(field))
@@ -275,7 +275,7 @@ impl Entity {
             .collect()
     }
 
-    fn referencing_fields(&self) -> impl Iterator<Item=(Ident, bool, &Field)> {
+    fn referencing_fields(&self) -> impl Iterator<Item = (Ident, bool, &Field)> {
         self.fields
             .iter()
             .filter_map(|field| match &field.reference {
@@ -1178,7 +1178,7 @@ impl Entity {
         fields_named_cfg
     }
 
-    fn modifiable_fields_iterator(&self) -> impl Iterator<Item=&Field> {
+    fn modifiable_fields_iterator(&self) -> impl Iterator<Item = &Field> {
         self.fields.iter().filter(|f| !f.is_read_only)
     }
 
@@ -1198,7 +1198,7 @@ impl Entity {
         fields_named_status
     }
 
-    fn read_only_fields_iterator(&self) -> impl Iterator<Item=&Field> {
+    fn read_only_fields_iterator(&self) -> impl Iterator<Item = &Field> {
         self.fields.iter().filter(|f| f.is_read_only)
     }
 
@@ -1289,7 +1289,7 @@ impl Entity {
         )
     }
 
-    fn generate_deserialize_for_builder<'a, F: Fn() -> I, I: Iterator<Item=&'a Field>>(
+    fn generate_deserialize_for_builder<'a, F: Fn() -> I, I: Iterator<Item = &'a Field>>(
         builder_type: Type,
         ty: Type,
         fields: F,
@@ -1949,10 +1949,10 @@ impl Field {
 
         let field_name = if KEYWORDS.contains(field_name.as_str())
             || field_name
-            .chars()
-            .next()
-            .map(|ch| ch.is_numeric())
-            .unwrap_or(true)
+                .chars()
+                .next()
+                .map(|ch| ch.is_numeric())
+                .unwrap_or(true)
         {
             format!("_{field_name}")
         } else {
