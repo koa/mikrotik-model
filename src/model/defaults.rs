@@ -179,7 +179,7 @@ impl Default for InterfaceBridgePortCfg {
             frame_types: VlanFrameTypes::AdmitAll,
             ingress_filtering: true,
             learn: value::Auto::Auto,
-            horizon: None,
+            horizon: Some(HasNone::NoneValue),
             point_to_point: value::Auto::Auto,
             restricted_role: false,
             trusted: false,

@@ -5,12 +5,7 @@ use mikrotik_model::{
     Credentials, MikrotikDevice, ascii,
     ascii::AsciiString,
     generator::Generator,
-    hwconfig::{
-        DeviceType,
-        ADVERTISE_1G,
-        EthernetNamePattern,
-        generate_ethernet
-    },
+    hwconfig::{ADVERTISE_1G, DeviceType, EthernetNamePattern, generate_ethernet},
     resource::ResourceMutation,
 };
 use mikrotik_model_generator_macro::mikrotik_model;

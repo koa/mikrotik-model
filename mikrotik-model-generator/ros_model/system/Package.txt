@@ -6,7 +6,7 @@ build-time: ro;o
 size: ro;o; u32
 name: ro; id
 disabled: ro;bool
-available: ro; bool
+available: ro; o; bool
 scheduled: ro
 
 /system/package/local-update:

@@ -905,7 +905,7 @@ impl Entity {
         path: Literal,
         field_gen: FG,
     ) -> Item {
-        let (provides_array, consumes_array) = self.consume_and_provides(field_gen);
+        let (provides, consumes) = self.consume_and_provides(field_gen);
         parse_quote! {
             impl resource::RosResource for #struct_ident_cfg {
                 fn path()->&'static [u8]{
@@ -916,33 +916,48 @@ impl Entity {
                 }
 
                 fn provides_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<[u8]>)>{
-                    #provides_array.into_iter().filter(|(_,value):&(ReferenceType,std::borrow::Cow<[u8]>)|!value.is_empty())
+                    #provides
                 }
                 fn consumes_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<[u8]>)>{
-                    #consumes_array.into_iter().filter(|(_,value):&(ReferenceType,std::borrow::Cow<[u8]>)|!value.is_empty())
+                    #consumes
                 }
             }
         }
     }
 
-    fn consume_and_provides<FG: Fn(&Field) -> Option<Expr>>(
-        &self,
-        field_gen: FG,
-    ) -> (ExprArray, ExprArray) {
-        let mut provides_array: ExprArray = parse_quote!([]);
-        let mut consumes_array: ExprArray = parse_quote!([]);
+    fn consume_and_provides<FG: Fn(&Field) -> Option<Expr>>(&self, field_gen: FG) -> (Expr, Expr) {
+        let mut provides_expr = None;
+        let mut consumes_expr = None;
         for (name, incoming, field) in self.referencing_fields() {
             if let Some(field_access) = field_gen(field) {
-                let expr =
-                    parse_quote!((ReferenceType::#name,value::RosValue::encode_ros(#field_access)));
-                if incoming {
-                    consumes_array.elems.push(expr);
+                let expr: Expr = if field.is_multiple || field.is_optional {
+                    parse_quote! {(#field_access).iter()
+                    .map(value::RosValue::encode_ros)
+                    .map(|value| (ReferenceType::#name, value))}
                 } else {
-                    provides_array.elems.push(expr);
+                    parse_quote! {Some(#field_access).into_iter()
+                    .map(value::RosValue::encode_ros)
+                    .map(|value| (ReferenceType::#name, value))}
+                };
+                if incoming {
+                    consumes_expr = Some(if let Some(previous_expr) = consumes_expr.take() {
+                        parse_quote!(#previous_expr.chain(#expr))
+                    } else {
+                        expr
+                    });
+                } else {
+                    provides_expr = Some(if let Some(previous_expr) = provides_expr.take() {
+                        parse_quote!(#previous_expr.chain(#expr))
+                    } else {
+                        expr
+                    });
                 }
             }
         }
-        (provides_array, consumes_array)
+        (
+            provides_expr.unwrap_or(parse_quote!(None.into_iter())),
+            consumes_expr.unwrap_or(parse_quote!(None.into_iter())),
+        )
     }
 
     pub fn generate_path(&self) -> Literal {

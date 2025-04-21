@@ -277,7 +277,7 @@ caps-man-addresses: mu; IpAddr
 caps-man-certificate-common-names: mu
 caps-man-names: o
 certificate: o
-discovery-interfaces: ref=>interface;
+discovery-interfaces: mu; ref=>interface;
 enabled: bool
 interfaces: mu; ref=interface;
 lock-to-caps-man: bool

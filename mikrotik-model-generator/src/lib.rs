@@ -3,13 +3,15 @@ use convert_case::{Case, Casing};
 use include_dir::{include_dir, Dir};
 use lazy_static::lazy_static;
 use proc_macro2::{Ident, Literal, Span};
-use std::collections::{BTreeMap, HashMap};
-use std::hash::{DefaultHasher, Hash, Hasher};
-use std::{collections::HashSet, vec};
-use syn::__private::ToTokens;
+use std::{
+    collections::HashSet,
+    collections::{BTreeMap, HashMap},
+    hash::{DefaultHasher, Hash, Hasher},
+    vec,
+};
 use syn::{
-    parse_quote, punctuated::Punctuated, token::Comma, ExprMatch, FieldValue, FieldsNamed, Item,
-    Variant,
+    __private::ToTokens, parse_quote, punctuated::Punctuated, token::Comma, ExprMatch, FieldValue,
+    FieldsNamed, Item, Variant,
 };
 
 pub mod macros;
@@ -63,7 +65,7 @@ pub fn generator() -> syn::File {
         parse_quote!(
             use crate::{
                 resource,
-                value::{self, IpOrInterface, ClockFrequency},
+                value::{self, IpOrInterface, ClockFrequency, Id},
                 ascii,
             };
         ),

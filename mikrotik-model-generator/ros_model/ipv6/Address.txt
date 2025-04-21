@@ -5,7 +5,7 @@ auto-link-local: bool
 comment: o
 disabled: bool
 eui-64: bool
-from-pool: o; enum= public-pool;
+from-pool: o; ref=>ipv6-pool
 interface: ref=>interface; 
 no-dad: bool
 valid: ro; bool
