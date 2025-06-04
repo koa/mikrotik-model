@@ -15,7 +15,7 @@ comment: o
 interface: ref=>interface
 add-default-route: YesNo
 comment:o
-default-route-distance: o;u8
+default-route-distance: u8
 dhcp-options: mu;enum=clientid,clientid_duid,hostname
 disabled: ro;bool
 script: o

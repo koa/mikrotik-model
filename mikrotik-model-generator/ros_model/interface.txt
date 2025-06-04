@@ -156,19 +156,6 @@ message
 dynamic:bool
 
 
-/interface/ethernet/switch/vlan:can-add
-comment
-disabled:bool
-flood:bool
-ingress-mirror:bool
-learn:bool
-ports:mu;ref=>interface
-qos-group
-svl:bool
-vlan-id:id;u16
-message
-dynamic:bool
-
 
 /interface/wireless
 adaptive-noise-immunity: o; enum=none, ap-and-client-mode, client-mode

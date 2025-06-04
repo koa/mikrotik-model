@@ -53,7 +53,7 @@ mvrp-applicant-state: ro; enum=normal-participant,non-participant
 
 /interface/bridge:can-add;
 add-dhcp-option82: o; bool
-admin-mac: o; MacAddress
+admin-mac: k;o; MacAddress
 ageing-time: Duration
 arp: enum= enabled,disabled, local-proxy-arp, proxy-arp, reply-only;
 arp-timeout: auto; u32

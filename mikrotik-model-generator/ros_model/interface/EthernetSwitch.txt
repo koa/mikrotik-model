@@ -1,0 +1,307 @@
+/interface/ethernet/switch:
+cpu-flow-control: bool
+mirror-source: none;
+mirror-target: none;
+name: ref=switch;id
+switch-all-ports: bool
+tx-queue7-packet: ro;
+tx-1519-max: ro;
+tx-queue0-packet: ro;
+rx-error-events: ro;
+tx-queue-custom1-drop-byte: ro;
+tx-queue1-packet: ro;
+tx-queue5-packet: ro;
+rx-multicast: ro;
+tx-128-255: ro;
+tx-queue2-byte: ro;
+policy-drop-packet: ro;
+rx-fcs-error: ro;
+rs-fec-uncorrected: ro;
+tx-drop: ro;
+current-learned: ro;
+rx-code-error: ro;
+rx-carrier-error: ro;
+tx-rx-256-511: ro;
+rx-drop: ro;
+tx-total-collision: ro;
+rx-256-511: ro;
+rs-fec-corrected: ro;
+rx-65-127: ro;
+tx-64: ro;
+rs-fec-codewords: ro;
+tx-unicast: ro;
+rx-length-error: ro;
+tx-packet: ro;
+tx-1024-1518: ro;
+fc-fec-block-uncorrected: ro;
+tx-queue0-byte: ro;
+tx-underrun: ro;
+tx-pause-honored: ro;
+rx-1024-1518: ro;
+tx-late-collision: ro;
+rx-ip-header-checksum-error: ro;
+tx-broadcast: ro;
+about: ro;
+tx-all-queue-drop-byte: ro;
+type: ro;
+rx-unknown-op: ro;
+tx-fragment: ro;
+tx-pause: ro;
+tx-rx-65-127: ro;
+tx-queue6-byte: ro;
+tx-fcs-error: ro;
+fc-fec-rx-block: ro;
+fc-fec-block-corrected: ro;
+rx-64: ro;
+tx-65-127: ro;
+rx-align-error: ro;
+tx-all-queue-drop-packet: ro;
+invalid: ro;
+tx-bytes: ro;
+rx-128-255: ro;
+tx-deferred: ro;
+tx-excessive-deferred: ro;
+tx-queue2-packet: ro;
+tx-control: ro;
+driver-rx-byte: ro;
+driver-rx-packet: ro;
+rx-packet: ro;
+rs-fec-symbol-error: ro;
+driver-tx-byte: ro;
+tx-512-1023: ro;
+tx-too-long: ro;
+tx-queue3-packet: ro;
+tx-1024-max: ro;
+not-learned: ro;
+tx-rx-512-1023: ro;
+rx-broadcast: ro;
+tx-queue1-byte: ro;
+tx-queue-custom0-drop-byte: ro;
+rx-tcp-checksum-error: ro;
+custom-drop-packet: ro;
+rx-bytes: ro;
+rx-pause: ro;
+tx-queue-custom0-drop-packet: ro;
+rx-udp-checksum-error: ro;
+rx-fragment: ro;
+tx-collision: ro;
+tx-queue3-byte: ro;
+rx-control: ro;
+tx-queue-custom1-drop-packet: ro;
+tx-queue7-byte: ro;
+tx-256-511: ro;
+rx-overflow: ro;
+tx-queue6-packet: ro;
+tx-rx-64: ro;
+tx-too-short: ro;
+rx-1519-max: ro;
+tx-jabber: ro;
+driver-tx-packet: ro;
+tx-rx-128-255: ro;
+tx-multicast: ro;
+rx-too-short: ro;
+tx-single-collision: ro;
+tx-rx-1024-max: ro;
+tx-queue5-byte: ro;
+rx-too-long: ro;
+rx-512-1023: ro;
+rx-jabber: ro;
+tx-queue4-packet: ro;
+tx-queue4-byte: ro;
+rx-unicast: ro;
+tx-carrier-sense-error: ro;
+rx-1024-max: ro;
+tx-multiple-collision: ro;
+tx-excessive-collision: ro;
+tx-rx-1024-1518: ro;
+tx-rx-1519-max: ro;
+
+/interface/ethernet/switch/host:can-add;
+copy-to-cpu: bool
+drop: bool
+mac-address:
+mirror: bool
+ports: mu; ref=>interface
+redirect-to-cpu: bool
+share-vlan-learned: bool
+switch: ref=>switch
+vlan-id: auto;
+dynamic: bool; ro;
+invalid: bool; ro;
+timeout: ro;
+about: ro;
+
+/interface/ethernet/switch/port:
+default-vlan-id: auto;
+vlan-header: enum= add-if-missing, always-strip, leave-as-is;
+vlan-mode: disabled; enum= check, fallback, secure;
+name: ro;
+tx-512-1023: ro;
+rx-unicast: ro;
+tx-unicast: ro;
+fc-fec-block-uncorrected: ro;
+rx-length-error: ro;
+tx-control: ro;
+tx-rx-256-511: ro;
+tx-rx-128-255: ro;
+tx-queue0-byte: ro;
+tx-underrun: ro;
+driver-rx-byte: ro;
+tx-fragment: ro;
+tx-1519-max: ro;
+rx-1024-max: ro;
+rx-multicast: ro;
+fc-fec-rx-block: ro;
+tx-multiple-collision: ro;
+policy-drop-packet: ro;
+tx-too-short: ro;
+tx-all-queue-drop-packet: ro;
+rs-fec-codewords: ro;
+rx-error-events: ro;
+rx-carrier-error: ro;
+rx-too-short: ro;
+tx-multicast: ro;
+tx-queue4-byte: ro;
+driver-tx-byte: ro;
+tx-rx-65-127: ro;
+tx-collision: ro;
+tx-fcs-error: ro;
+tx-queue-custom1-drop-packet: ro;
+tx-jabber: ro;
+rs-fec-corrected: ro;
+rx-65-127: ro;
+tx-pause: ro;
+driver-tx-packet: ro;
+tx-drop: ro;
+tx-queue7-packet: ro;
+rx-512-1023: ro;
+rx-unknown-op: ro;
+invalid: ro;
+rx-256-511: ro;
+tx-queue3-byte: ro;
+tx-late-collision: ro;
+tx-rx-512-1023: ro;
+current-learned: ro;
+tx-deferred: ro;
+tx-queue7-byte: ro;
+rx-1519-max: ro;
+tx-queue1-byte: ro;
+tx-queue5-packet: ro;
+fc-fec-block-corrected: ro;
+rx-overflow: ro;
+rx-broadcast: ro;
+not-learned: ro;
+tx-too-long: ro;
+rx-packet: ro;
+tx-1024-max: ro;
+tx-excessive-collision: ro;
+tx-queue0-packet: ro;
+tx-rx-1519-max: ro;
+tx-bytes: ro;
+tx-queue-custom0-drop-byte: ro;
+tx-1024-1518: ro;
+rx-too-long: ro;
+tx-queue-custom1-drop-byte: ro;
+tx-queue2-packet: ro;
+tx-single-collision: ro;
+rx-code-error: ro;
+tx-queue2-byte: ro;
+rx-1024-1518: ro;
+rx-ip-header-checksum-error: ro;
+tx-64: ro;
+rx-drop: ro;
+switch: ro; ref=>switch
+tx-queue3-packet: ro;
+about: ro;
+rx-128-255: ro;
+rx-bytes: ro;
+rx-control: ro;
+tx-256-511: ro;
+tx-queue1-packet: ro;
+tx-128-255: ro;
+rx-jabber: ro;
+tx-broadcast: ro;
+tx-all-queue-drop-byte: ro;
+driver-rx-packet: ro;
+rs-fec-symbol-error: ro;
+tx-65-127: ro;
+rx-pause: ro;
+rx-tcp-checksum-error: ro;
+tx-rx-64: ro;
+rx-fcs-error: ro;
+rs-fec-uncorrected: ro;
+tx-rx-1024-max: ro;
+running: ro;
+tx-queue-custom0-drop-packet: ro;
+rx-align-error: ro;
+tx-excessive-deferred: ro;
+tx-packet: ro;
+tx-pause-honored: ro;
+tx-rx-1024-1518: ro;
+rx-fragment: ro;
+tx-carrier-sense-error: ro;
+rx-64: ro;
+tx-queue5-byte: ro;
+tx-total-collision: ro;
+tx-queue4-packet: ro;
+custom-drop-packet: ro;
+rx-udp-checksum-error: ro;
+tx-queue6-packet: ro;
+tx-queue6-byte: ro;
+
+/interface/ethernet/switch/port-isolation:
+forwarding-override:
+name: ro;
+about: ro;
+switch: ro; ref=>switch
+invalid: ro;
+
+/interface/ethernet/switch/rule:can-add;
+comment:
+copy-to-cpu: bool
+disabled: bool
+dscp: u8
+dst-address:
+dst-address6:
+dst-mac-address:
+dst-port: u16
+flow-label: u32
+mac-protocol: hex; u16
+mirror: bool
+new-dst-ports:
+new-vlan-id: u16
+new-vlan-priority: u8
+ports:
+protocol: u8
+rate:
+redirect-to-cpu: bool
+src-address:
+src-address6:
+src-mac-address:
+src-port: u16
+switch: ref=>switch
+traffic-class: u8
+vlan-header: enum= not-present, present;
+vlan-id: u16
+vlan-priority: u8
+dynamic: bool; ro;
+about: ro;
+internal-priority: ro;
+invalid: bool; ro;
+
+/interface/ethernet/switch/vlan:can-add;
+comment: o
+disabled: bool
+independent-learning: bool
+ports: mu; ref=>interface;
+switch: ref=>switch
+vlan-id: id; u16
+ingress-mirror: bool
+svl: bool
+learn: bool
+flood: bool
+dynamic: bool; ro
+qos-group:
+message:
+about: ro;
+invalid: bool;ro;

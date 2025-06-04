@@ -70,9 +70,11 @@ impl<'a, W: Write> Generator<'a, W> {
     }
     fn append_field(&mut self, kv: &KeyValuePair) -> std::fmt::Result {
         write!(self.target, "{}=", decode_latin1(kv.key))?;
-        if kv.value.iter().copied().all(|ch| {
-            ch.is_ascii_alphanumeric() || ch == b'_' || ch == b'-' || ch == b',' || ch == b'*'
-        }) {
+        if !kv.value.is_empty()
+            && kv.value.iter().copied().all(|ch| {
+                ch.is_ascii_alphanumeric() || ch == b'_' || ch == b'-' || ch == b',' || ch == b'*'
+            })
+        {
             write!(self.target, "{}", decode_latin1(kv.value.as_ref()))?;
         } else {
             write_script_string(self.target, &kv.value)?;
@@ -126,11 +128,12 @@ fn append_fields<W: Write>(target: &mut W, mutation: &ResourceMutation) -> std::
 
 fn append_field(target: &mut impl Write, kv: &KeyValuePair) -> std::fmt::Result {
     write!(target, "{}=", decode_latin1(kv.key))?;
-    if kv
-        .value
-        .iter()
-        .copied()
-        .all(|ch| ch.is_ascii_alphanumeric() || ch == b'_' || ch == b'-' || ch == b',')
+    if !kv.value.is_empty()
+        && kv
+            .value
+            .iter()
+            .copied()
+            .all(|ch| ch.is_ascii_alphanumeric() || ch == b'_' || ch == b'-' || ch == b',')
     {
         write!(target, "{}", decode_latin1(&kv.value))?;
     } else {
