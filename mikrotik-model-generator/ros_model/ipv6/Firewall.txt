@@ -1,0 +1,301 @@
+/ipv6/firewall/address-list:can-add;
+.id: ro;id;Id
+address: 
+comment: o
+disabled: bool
+dynamic: ro; bool
+list: ref=ipv6-addresslist
+timeout: Duration
+creation-time: ro; 
+about: ro; 
+
+/ipv6/firewall/connection:
+.id: ro;id;Id
+reply-dst-address: ro;
+assured: ro; 
+connection-type: ro; 
+dstnat: ro; 
+connection-mark: ro; 
+about: ro; 
+protocol: ro; 
+gre-protocol: ro; 
+gre-version: ro; 
+srcnat: ro; 
+reply-dst-port: ro; 
+dying: ro; 
+p2p: ro; 
+expected: ro; 
+seen-reply: ro; 
+dst-address: ro; 
+icmp-code: ro; 
+reply-src-port: ro; 
+fasttrack: ro; 
+timeout: ro; 
+tcp-state: ro; 
+reply-src-address: ro; 
+dst-port: ro; 
+icmp-type: ro; 
+src-port: ro; 
+icmp-id: ro; 
+src-address: ro; 
+confirmed: ro; 
+gre-key: ro; 
+
+/ipv6/firewall/filter:can-add;
+.id: ro;id;Id
+action: enum= accept, add-dst-to-address-list, add-src-to-address-list, drop, fasttrack-connection, jump, log, passthrough, reject, return;
+address-list: o;ref=>ipv6-addresslist;
+address-list-timeout: o;Duration
+chain: ref=firewall-chain
+comment: o
+connection-bytes: u32;o
+connection-limit: u8;o
+connection-mark: o
+connection-nat-state:o
+connection-rate: u32;o
+connection-state: o
+connection-type: o
+content: o
+disabled: o;bool
+dscp: u8;o
+dst-address: o; Ipv6Net
+dst-address-list: o; ref=>address-list
+dst-address-type: o;enum=anycast,local,multicast,unicast,unreachable
+dst-limit: o;u32
+dst-port: o;u16
+headers: mu;enum=ah,ah:exact,ah:contains,dst,esp,frag,hop,none,proto,route
+hop-limit: o;enum= equal, greater-than, less-than, not-equal; 
+icmp-options: o; u8
+in-bridge-port: o; ref=>interface; 
+in-bridge-port-list: o; ref=>interface-list; 
+in-interface: o; ref=>interface; 
+in-interface-list: o;ref=>interface-list; 
+ingress-priority: o; u8
+ipsec-policy: o; enum= in, out; 
+jump-target: o; ref=>firewall-chain
+limit: o; u32
+log: o; bool
+log-prefix: o
+nth: o; u32
+out-bridge-port: o; ref=>interface; 
+out-bridge-port-list: o; ref=>interface-list; 
+out-interface: o; ref=>interface; 
+out-interface-list: o; ref=>interface-list 
+packet-mark: o
+packet-size: o; u16
+per-connection-classifier: o; u32
+port: o; u16
+priority: o; u8
+protocol: mu; enum=dccp,encap,gre,icmpv6,ipencap,ipsec-esp,ipv6-nonxt,iso-tp4,pim,rspf,st,udp-lite,xns-idp,ddp,etherip,hmp,idpr-cmtp,ipip,ipv6-encap,ipv6-opts,l2tp,pup,rsvp,tcp,vmtp,xtp,egp,ggp,icmp,igmp,ipsec-ah,ipv6-frag,ipv6-route,ospf,rdp,sctp,udp,vrrp
+random: o; u8
+reject-with: o; enum= icmp-address-unreachable, icmp-admin-prohibited, icmp-err-src-routing-header, icmp-headers-too-long, icmp-no-route, icmp-not-neighbour, icmp-port-unreachable, tcp-reset; 
+routing-mark: o
+src-address: o; Ipv6Net
+src-address-list: o; ref=>address-list
+src-address-type:  o;enum=anycast,local,multicast,unicast,unreachable
+src-mac-address: o; MacAddress
+src-port: o; u16
+tcp-flags: mu; enum=ack,cwr,ece,fin,psh,rst,syn,urg
+tcp-mss: o; u16
+time: o
+tls-host: o 
+invalid: ro; bool
+about: ro; 
+bytes: ro; 
+dynamic: ro; bool
+packets: ro; 
+
+/ipv6/firewall/mangle:can-add;
+.id: ro;id;Id
+action: enum= accept, add-dst-to-address-list, add-src-to-address-list, change-dscp, change-hop-limit, change-mss, dnpt, jump, log, mark-connection, mark-packet, mark-routing, passthrough, return, set-priority, sniff-pc, sniff-tzsp, snpt;
+address-list: enum= bgp-networks; 
+address-list-timeout: 
+chain: 
+comment: 
+connection-bytes: u32
+connection-limit: u8
+connection-mark: 
+connection-nat-state: 
+connection-rate: u32
+connection-state: 
+connection-type: 
+content: 
+disabled: bool
+dscp: u8
+dst-address: 
+dst-address-list: 
+dst-address-type: 
+dst-limit: u32
+dst-port: u16
+dst-prefix: 
+headers: none; 
+hop-limit: enum= equal, greater-than, less-than, not-equal; 
+icmp-options: u8
+in-bridge-port: ref=>interface; 
+in-bridge-port-list: none; 
+in-interface: ref=>interface; 
+in-interface-list: none; 
+ingress-priority: u8
+ipsec-policy: enum= in, out; 
+jump-target: 
+limit: u32
+log: bool
+log-prefix: 
+new-connection-mark: enum= no-mark; 
+new-dscp: u8
+new-hop-limit: enum= decrement, increment, set; 
+new-mss: u16
+new-packet-mark: enum= no-mark; 
+new-priority: u8
+new-routing-mark: 
+nth: u32
+out-bridge-port: ref=>interface; 
+out-bridge-port-list: none; 
+out-interface: ref=>interface; 
+out-interface-list: none; 
+packet-mark: 
+packet-size: u16
+passthrough: bool
+per-connection-classifier: u32
+port: u16
+priority: u8
+protocol: u32
+random: u8
+routing-mark: 
+sniff-id: u32
+sniff-target: 
+sniff-target-port: u16
+src-address: 
+src-address-list: 
+src-address-type: 
+src-mac-address: 
+src-port: u16
+src-prefix: 
+tcp-flags: 
+tcp-mss: u16
+time: 
+tls-host: 
+bytes: ro; 
+invalid: ro; 
+packets: ro; 
+about: ro; 
+dynamic: ro; 
+
+/ipv6/firewall/nat:can-add;
+.id: ro;id;Id
+action: enum= accept, add-dst-to-address-list, add-src-to-address-list, dst-nat, jump, log, masquerade, netmap, passthrough, redirect, return, src-nat;
+address-list: enum= bgp-networks; 
+address-list-timeout: 
+chain: 
+comment: 
+connection-bytes: u32
+connection-limit: u8
+connection-mark: 
+connection-rate: u32
+connection-state: 
+connection-type: 
+content: 
+disabled: bool
+dscp: u8
+dst-address: 
+dst-address-list: 
+dst-address-type: 
+dst-limit: u32
+dst-port: u16
+headers: none; 
+hop-limit: enum= equal, greater-than, less-than, not-equal; 
+icmp-options: u8
+in-bridge-port: ref=>interface; 
+in-bridge-port-list: none; 
+in-interface: ref=>interface; 
+in-interface-list: none; 
+ingress-priority: u8
+ipsec-policy: enum= in, out; 
+jump-target: 
+limit: u32
+log: bool
+log-prefix: 
+nth: u32
+out-bridge-port: ref=>interface; 
+out-bridge-port-list: none; 
+out-interface: ref=>interface; 
+out-interface-list: none; 
+packet-mark: 
+packet-size: u16
+per-connection-classifier: u32
+port: u16
+priority: u8
+protocol: u32
+random: u8
+routing-mark: 
+src-address: 
+src-address-list: 
+src-address-type: 
+src-mac-address: 
+src-port: u16
+tcp-flags: 
+tcp-mss: u16
+time: 
+to-address: 
+to-ports: u16
+about: ro; 
+dynamic: ro; 
+packets: ro; 
+bytes: ro; 
+invalid: ro; 
+
+/ipv6/firewall/raw:can-add;
+.id: ro;id;Id
+action: enum= accept, add-dst-to-address-list, add-src-to-address-list, drop, jump, log, notrack, passthrough, return;
+address-list: enum= bgp-networks; 
+address-list-timeout: 
+chain: 
+comment: 
+content: 
+disabled: bool
+dscp: u8
+dst-address: 
+dst-address-list: 
+dst-address-type: 
+dst-limit: u32
+dst-port: u16
+headers: none; 
+hop-limit: enum= equal, greater-than, less-than, not-equal; 
+icmp-options: u8
+in-bridge-port: ref=>interface; 
+in-bridge-port-list: none; 
+in-interface: ref=>interface; 
+in-interface-list: none; 
+ingress-priority: u8
+ipsec-policy: enum= in, out; 
+jump-target: 
+limit: u32
+log: bool
+log-prefix: 
+nth: u32
+out-bridge-port: ref=>interface; 
+out-bridge-port-list: none; 
+out-interface: ref=>interface; 
+out-interface-list: none; 
+packet-mark: 
+packet-size: u16
+per-connection-classifier: u32
+port: u16
+priority: u8
+protocol: u32
+random: u8
+src-address: 
+src-address-list: 
+src-address-type: 
+src-mac-address: 
+src-port: u16
+tcp-flags: 
+tcp-mss: u16
+time: 
+tls-host: 
+invalid: ro; 
+bytes: ro; 
+about: ro; 
+dynamic: ro; 
+packets: ro; 
+

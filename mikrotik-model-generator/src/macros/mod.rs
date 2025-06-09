@@ -144,6 +144,14 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
                                     target_struct_fields
                                         .named
                                         .push(parse_quote!(#field_name:Vec<mikrotik_model::model::#field_type>));
+                                    generate_mutations_expr = chain(
+                                        generate_mutations_expr,
+                                        parse_quote! {
+                                            mikrotik_model::resource::generate_add_update_remove_by_id(&from.#field_name,
+                                                self.#field_name.iter().map(std::borrow::Cow::<mikrotik_model::model::#field_type>::Borrowed)
+                                            )
+                                        },
+                                    );
                                 } else {
                                     let mut key_type: TypeTuple = parse_quote!(());
                                     let mut key_values: PatTuple = PatTuple {
