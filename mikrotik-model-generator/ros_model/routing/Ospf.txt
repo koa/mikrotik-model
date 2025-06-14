@@ -35,7 +35,7 @@ originate-default: o; RoutingOriginateDefault
 out-filter-chain: o; ref=>routing-filter; 
 out-filter-select: o; ref=>routing-filter-select; 
 redistribute: mu;RoutingRedistribute
-router-id: o; Ipv4Addr
+router-id: o
 routing-table: o; ref=>routing-table;
 use-dn: o; bool
 version: enum= 2, 3; 
