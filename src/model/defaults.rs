@@ -1,4 +1,5 @@
 use super::*;
+use crate::value::HasUnlimited;
 use crate::{
     value,
     value::{HasDisabled, HasNone},
@@ -389,5 +390,99 @@ impl Default for RoutingOspfInterfaceTemplateCfg {
             vlink_neighbor_id: None,
             vlink_transit_area: None,
         }
+    }
+}
+#[allow(clippy::derivable_impls)]
+impl Default for IpDhcpServerConfigCfg {
+    fn default() -> Self {
+        IpDhcpServerConfigCfg {
+            accounting: false,
+            interim_update: Default::default(),
+            radius_password: Default::default(),
+            store_leases_disk: Default::default(),
+        }
+    }
+}
+impl Default for IpDhcpServerCfg {
+    fn default() -> Self {
+        let cfg = IpDhcpServerCfg {
+            add_arp: Some(false),
+            address_lists: Default::default(),
+            address_pool: b"static-only".into(),
+            allow_dual_stack_queue: Some(true),
+            always_broadcast: Some(false),
+            authoritative: Some(IpDhcpServerAuthoritative::Yes),
+            bootp_lease_time: Some(Duration::from_secs(10 * 60)),
+            bootp_support: Some(IpDhcpServerBootpSupport::Static),
+            client_mac_limit: Some(HasUnlimited::Unlimited),
+            comment: Default::default(),
+            conflict_detection: Some(true),
+            delay_threshold: Some(HasNone::NoneValue),
+            dhcp_option_set: None,
+            disabled: false,
+            insert_queue_before: Some(b"first".into()),
+            interface: Default::default(),
+            lease_script: Default::default(),
+            lease_time: Default::default(),
+            name: Default::default(),
+            parent_queue: Some(HasNone::NoneValue),
+            relay: Default::default(),
+            server_address: None,
+            use_framed_as_classless: Some(true),
+            use_radius: IpDhcpServerUseRadius::No,
+        };
+        cfg
+    }
+}
+#[allow(clippy::derivable_impls)]
+impl Default for IpDhcpServerByName {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for IpPoolCfg {
+    fn default() -> Self {
+        IpPoolCfg {
+            comment: Default::default(),
+            name: Default::default(),
+            next_pool: None,
+            ranges: Default::default(),
+        }
+    }
+}
+#[allow(clippy::derivable_impls)]
+impl Default for IpPoolByName {
+    fn default() -> Self {
+        IpPoolByName(IpPoolCfg::default())
+    }
+}
+#[allow(clippy::derivable_impls)]
+impl Default for IpDhcpServerNetworkCfg{
+    fn default() -> Self {
+        IpDhcpServerNetworkCfg{
+            address: Default::default(),
+            boot_file_name: Default::default(),
+            caps_manager: None,
+            comment: Default::default(),
+            dhcp_option: Default::default(),
+            dhcp_option_set: None,
+            dns_none: Some(false),
+            dns_server: Default::default(),
+            domain: Default::default(),
+            gateway: Default::default(),
+            netmask: None,
+            next_server: Default::default(),
+            ntp_server: Default::default(),
+            wins_server: Default::default(),
+        }
+    }
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for IpDhcpServerNetworkByAddress{
+    fn default() -> Self {
+        Self(Default::default())
     }
 }

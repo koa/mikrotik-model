@@ -1,0 +1,129 @@
+/ip/dhcp-server:can-add;
+.id: ro; Id
+add-arp: o; bool
+address-lists: mu; ref=>address-list
+address-pool: ref=>ipv4-pool
+allow-dual-stack-queue: o; bool
+always-broadcast: o; bool
+authoritative: o; enum= after-10sec-delay, after-2sec-delay, no, yes;
+bootp-lease-time: o; Duration
+bootp-support: o; enum=dynamic, static, none;
+client-mac-limit: o; unlimited;
+comment: o
+conflict-detection: o; bool
+delay-threshold: o; none; Duration
+dhcp-option-set: o; ref=>dhcp-v4-option-set
+disabled: bool
+insert-queue-before: o
+interface: ref=>interface; 
+lease-script: o
+lease-time: o
+name: id
+parent-queue: o; none; 
+relay: o; Ipv4Addr
+server-address: o;Ipv4Addr
+use-framed-as-classless: o; bool
+use-radius: enum= accounting, no, yes; 
+about: ro; 
+invalid: ro; 
+dynamic: ro; bool
+
+/ip/dhcp-server/alert:can-add;
+alert-timeout: none; 
+comment: 
+disabled: bool
+interface: ref=>interface; 
+on-alert: 
+valid-server: 
+unknown-server: ro; 
+about: ro; 
+invalid: ro; 
+
+/ip/dhcp-server/config:is-single;
+accounting: bool
+interim-update: 
+radius-password: 
+store-leases-disk: 
+
+/ip/dhcp-server/lease:can-add;
+address: 
+address-lists: 
+allow-dual-stack-queue: bool
+always-broadcast: bool
+block-access: bool
+client-id: 
+comment: 
+dhcp-option: 
+dhcp-option-set: none; 
+disabled: bool
+insert-queue-before: 
+lease-time: 
+mac-address: 
+parent-queue: none; 
+queue-type: 
+rate-limit: 
+routes: 
+server: 
+use-src-mac: bool
+dynamic: ro; bool
+status: ro; 
+active-server: ro; 
+active-address: ro; 
+expires-after: ro; 
+agent-circuit-id: ro; 
+about: ro; 
+host-name: ro; 
+agent-remote-id: ro; 
+blocked: ro; 
+src-mac-address: ro; 
+age: ro; 
+active-client-id: ro; 
+active-mac-address: ro; 
+last-seen: ro; 
+class-id: ro; 
+radius: ro; 
+
+/ip/dhcp-server/matcher:can-add;
+address-pool: none; 
+code: u8
+comment: o
+disabled: bool
+matching-type: enum= exact, substring; 
+name: 
+option-set: none; 
+server: 
+value: 
+about: ro; 
+
+/ip/dhcp-server/network:can-add;
+address: Ipv4Net;id
+boot-file-name: o
+caps-manager: o
+comment: o
+dhcp-option: mu; ref=>dhcp-v4-option-set
+dhcp-option-set: o;
+dns-none: o; bool
+dns-server: mu; Ipv4Addr
+domain: o
+gateway: mu; Ipv4Addr
+netmask: o; u8
+next-server: mu; Ipv4Addr
+ntp-server: mu; Ipv4Addr
+wins-server: mu; Ipv4Addr
+about: ro; 
+dynamic: ro; bool
+
+/ip/dhcp-server/option:can-add;
+code: u8
+comment: o
+force: bool
+name: id; ref=dhcp-v4-option-set
+value: 
+about: ro; 
+raw-value: ro; 
+
+/ip/dhcp-server/option/sets:can-add;
+name: id
+options: 
+about: ro; 
+

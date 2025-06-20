@@ -1,0 +1,17 @@
+/ip/pool:can-add;
+comment: o
+name: id; ref=ipv4-pool
+next-pool: o; ref=>ipv4-pool
+ranges: mu
+about: ro; 
+total: ro; 
+available: ro; 
+used: ro; 
+
+/ip/pool/used:
+address: Ipv4Addr
+info: 
+owner: 
+pool: ref=>ipv4-pool
+about: ro; 
+
