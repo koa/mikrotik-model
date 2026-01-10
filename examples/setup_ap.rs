@@ -15,7 +15,7 @@ use mikrotik_model::{
         InterfaceBridgeProtocolMode, InterfaceBridgeVlanCfg, InterfaceEthernetByDefaultName,
         InterfaceVlanByName, InterfaceVlanCfg, InterfaceVxlanByName, InterfaceVxlanCfg,
         InterfaceVxlanVtepsById, InterfaceVxlanVtepsCfg, InterfaceWifiByDefaultName,
-        InterfaceWifiCapCfg, InterfaceWifiDatapathByName, ReferenceType, SystemIdentityCfg,
+        InterfaceWifiCapCfg, InterfaceWifiDatapathByName, SystemIdentityCfg,
         SystemRouterboardSettingsCfg, VlanFrameTypes, YesNo,
     },
     resource::{
@@ -92,7 +92,7 @@ impl DeviceDataTarget {
         self.identity.name = name.into();
     }
 
-    fn enable_ospf(&mut self, loopback_v4: &Ipv4Addr, loopback_v6: &Ipv6Addr) {}
+    fn enable_ospf(&mut self, _loopback_v4: &Ipv4Addr, _loopback_v6: &Ipv6Addr) {}
 
     fn enable_vxlan<'a>(
         &mut self,

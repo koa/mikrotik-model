@@ -1,20 +1,16 @@
 use config::{Config, Environment, File};
 use env_logger::{Env, TimestampPrecision};
-use mikrotik_model::resource::{ResourceMutation, ResourceMutationError};
 use mikrotik_model::{
     Credentials, MikrotikDevice,
     ascii::{self, AsciiString},
     generator::Generator,
     hwconfig::DeviceType,
-    model::{Data, InterfaceEthernetByDefaultName, InterfaceWifiByDefaultName, ReferenceType},
-    resource::{
-        DeserializeRosBuilder, FieldUpdateHandler, KeyedResource, SetResource, UpdatePairing,
-    },
+    model::{Data, InterfaceEthernetByDefaultName, ReferenceType},
+    resource::{FieldUpdateHandler, KeyedResource, SetResource, UpdatePairing},
     value::{KeyValuePair, RosValue},
 };
 use std::{
     borrow::Cow,
-    iter::repeat,
     net::{IpAddr, Ipv4Addr},
 };
 

@@ -75,7 +75,7 @@ impl<V: Copy> Copy for ParseRosValueResult<V> {}
 
 pub trait RosValue: Sized + Debug + 'static {
     fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self>;
-    fn encode_ros(&self) -> Cow<[u8]>;
+    fn encode_ros(&self) -> Cow<'_, [u8]>;
 }
 
 impl RosValue for Box<[u8]> {
@@ -83,7 +83,7 @@ impl RosValue for Box<[u8]> {
         ParseRosValueResult::Value(value.into())
     }
 
-    fn encode_ros(&self) -> Cow<[u8]> {
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
         self.as_ref().into()
     }
 }
@@ -93,7 +93,7 @@ impl RosValue for AsciiString {
         ParseRosValueResult::Value(AsciiString(Box::from(value)))
     }
 
-    fn encode_ros(&self) -> Cow<[u8]> {
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
         Cow::Borrowed(&self.0)
     }
 }
@@ -116,7 +116,7 @@ macro_rules! parameter_value_impl {
                     }
                 }
 
-                fn encode_ros(&self) -> Cow<[u8]> {
+                fn encode_ros(&self) -> Cow<'_, [u8]> {
                     Cow::Owned(self.to_string().as_bytes().into())
                 }
             }
@@ -134,7 +134,7 @@ impl RosValue for bool {
         }
     }
 
-    fn encode_ros(&self) -> Cow<[u8]> {
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
         match *self {
             true => Cow::Borrowed(b"yes"),
             false => Cow::Borrowed(b"no"),
@@ -165,7 +165,7 @@ macro_rules! hex_value_impl {
                     }
                 }
 
-                fn encode_ros(&self) -> Cow<[u8]> {
+                fn encode_ros(&self) -> Cow<'_, [u8]> {
                     Cow::Owned( Vec::from( format!("0x{:X}", self.0).as_bytes()))
                 }
             }
@@ -217,7 +217,7 @@ impl RosValue for Duration {
         }
     }
 
-    fn encode_ros(&self) -> Cow<[u8]> {
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
         Cow::Owned(Vec::from(format!("{}s", self.as_secs()).as_bytes()))
     }
 }
@@ -235,7 +235,7 @@ impl RosValue for ClockFrequency {
         }
     }
 
-    fn encode_ros(&self) -> Cow<[u8]> {
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
         Cow::Owned(Vec::from(format!("{}MHz", self.0).as_bytes()))
     }
 }
@@ -248,7 +248,7 @@ impl RosValue for MacAddress {
         }
     }
 
-    fn encode_ros(&self) -> Cow<[u8]> {
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
         self.to_string().into_bytes().into()
     }
 }
@@ -265,7 +265,7 @@ impl<V: RosValue> RosValue for Option<V> {
         }
     }
 
-    fn encode_ros(&self) -> Cow<[u8]> {
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
         match self {
             None => b"".into(),
             Some(v) => v.encode_ros(),
@@ -283,7 +283,7 @@ impl<V: RosValue + Hash + Eq> RosValue for HashSet<V> {
         }
     }
 
-    fn encode_ros(&self) -> Cow<[u8]> {
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
         encode_ros_multiple(self.iter())
     }
 }
@@ -298,7 +298,7 @@ impl<V: RosValue + Ord + Eq> RosValue for BTreeSet<V> {
         }
     }
 
-    fn encode_ros(&self) -> Cow<[u8]> {
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
         encode_ros_multiple(self.iter())
     }
 }
@@ -348,7 +348,7 @@ impl<V: RosValue> RosValue for Auto<V> {
         }
     }
 
-    fn encode_ros(&self) -> Cow<[u8]> {
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
         match self {
             Auto::Auto => b"auto".into(),
             Auto::Value(v) => v.encode_ros(),
@@ -404,7 +404,7 @@ impl<V: RosValue + Clone + PartialEq> RosValue for PossibleRangeDash<V> {
         }
     }
 
-    fn encode_ros(&self) -> Cow<[u8]> {
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
         match self {
             PossibleRangeDash::Range { start, end } => {
                 [start.encode_ros().as_ref(), b"-", end.encode_ros().as_ref()]
@@ -438,7 +438,7 @@ impl<V: RosValue + Clone + PartialEq> RosValue for PossibleRangeDot<V> {
         }
     }
 
-    fn encode_ros(&self) -> Cow<[u8]> {
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
         match self {
             PossibleRangeDot::Range { start, end } => [
                 start.encode_ros().as_ref(),
@@ -478,7 +478,7 @@ impl<V: RosValue> RosValue for RxTxPair<V> {
         }
     }
 
-    fn encode_ros(&self) -> Cow<[u8]> {
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
         [
             self.rx.encode_ros().as_ref(),
             b"/",
@@ -514,7 +514,7 @@ impl<V: RosValue> RosValue for HasNone<V> {
         }
     }
 
-    fn encode_ros(&self) -> Cow<[u8]> {
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
         match self {
             HasNone::NoneValue => b"none".into(),
             HasNone::Value(v) => v.encode_ros(),
@@ -540,7 +540,7 @@ impl<V: RosValue> RosValue for HasUnlimited<V> {
         }
     }
 
-    fn encode_ros(&self) -> Cow<[u8]> {
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
         match self {
             HasUnlimited::Unlimited => b"unlimited".into(),
             HasUnlimited::Value(v) => v.encode_ros(),
@@ -565,7 +565,7 @@ impl<V: RosValue> RosValue for HasDisabled<V> {
         }
     }
 
-    fn encode_ros(&self) -> Cow<[u8]> {
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
         match self {
             HasDisabled::Disabled => b"disabled".into(),
             HasDisabled::Value(v) => v.encode_ros(),
@@ -585,7 +585,7 @@ impl RosValue for IpAddr {
         }
     }
 
-    fn encode_ros(&self) -> Cow<[u8]> {
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
         Vec::from(encode_latin1_lossy(&self.to_string())).into()
     }
 }
@@ -601,7 +601,7 @@ impl RosValue for Ipv4Addr {
         }
     }
 
-    fn encode_ros(&self) -> Cow<[u8]> {
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
         Vec::from(encode_latin1_lossy(&self.to_string())).into()
     }
 }
@@ -617,7 +617,7 @@ impl RosValue for Ipv6Addr {
         }
     }
 
-    fn encode_ros(&self) -> Cow<[u8]> {
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
         Vec::from(encode_latin1_lossy(&self.to_string())).into()
     }
 }
@@ -645,7 +645,7 @@ impl RosValue for IpNet {
         }
     }
 
-    fn encode_ros(&self) -> Cow<[u8]> {
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
         Vec::from(encode_latin1_lossy(&format!("{}", self))).into()
     }
 }
@@ -661,7 +661,7 @@ impl RosValue for Ipv4Net {
         }
     }
 
-    fn encode_ros(&self) -> Cow<[u8]> {
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
         Vec::from(encode_latin1_lossy(&format!("{}", self))).into()
     }
 }
@@ -677,7 +677,7 @@ impl RosValue for Ipv6Net {
         }
     }
 
-    fn encode_ros(&self) -> Cow<[u8]> {
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
         Vec::from(encode_latin1_lossy(&format!("{}", self))).into()
     }
 }
@@ -695,7 +695,7 @@ impl RosValue for Id {
         }
     }
 
-    fn encode_ros(&self) -> Cow<[u8]> {
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
         Cow::Owned(Vec::from(format!("*{:X}", self.0).as_bytes()))
     }
 }
@@ -717,7 +717,7 @@ impl RosValue for IpWithInterface {
         }
     }
 
-    fn encode_ros(&self) -> Cow<[u8]> {
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
         [
             self.ip.encode_ros().as_ref(),
             b"%",
@@ -767,7 +767,7 @@ impl RosValue for IpOrInterface {
         }
     }
 
-    fn encode_ros(&self) -> Cow<[u8]> {
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
         match self {
             IpOrInterface::Ip(ip) => ip.encode_ros(),
             IpOrInterface::Interface(ifname) => ifname.encode_ros(),

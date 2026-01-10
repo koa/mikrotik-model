@@ -5,7 +5,7 @@ use mikrotik_model::{
     Credentials, MikrotikDevice, ascii,
     ascii::AsciiString,
     generator::Generator,
-    hwconfig::{ADVERTISE_1G, DeviceType, EthernetNamePattern, generate_ethernet},
+    hwconfig::{ADVERTISE_1G, EthernetNamePattern, generate_ethernet},
     resource::ResourceMutation,
 };
 use mikrotik_model_generator_macro::mikrotik_model;
@@ -29,7 +29,7 @@ mikrotik_model!(
 );
 
 impl DeviceDataTarget {
-    fn new(device_type: &[u8]) -> Self {
+    fn new(_device_type: &[u8]) -> Self {
         Self {
             ethernet: repeat_n(
                 generate_ethernet(EthernetNamePattern::Ether, &ADVERTISE_1G, 1596, false),

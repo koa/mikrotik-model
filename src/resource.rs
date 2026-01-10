@@ -68,8 +68,8 @@ pub trait DeserializeRosResource: Sized + FieldUpdateHandler {
     #[inline]
     fn generate_derived_updates<V: FieldUpdateHandler>(
         &self,
-        before_value: &Self,
-        handler: &mut V,
+        _before_value: &Self,
+        _handler: &mut V,
     ) {
     }
 }
