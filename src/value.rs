@@ -863,4 +863,40 @@ mod tests {
         let encoded = Id(10).encode_ros();
         assert_eq!(encoded.as_ref(), b"*A");
     }
+    #[test]
+    fn test_address_ranges() {
+        let parsed: ParseRosValueResult<BTreeSet<PossibleRangeDash<IpAddr>>> =
+            RosValue::parse_ros(b"172.16.1.1-172.16.1.3,172.16.2.1,::1-::2");
+        assert_eq!(
+            parsed,
+            ParseRosValueResult::Value(
+                [
+                    PossibleRangeDash::Range {
+                        start: IpAddr::from_str("172.16.1.1").unwrap(),
+                        end: IpAddr::from_str("172.16.1.3").unwrap()
+                    },
+                    PossibleRangeDash::Single(IpAddr::from_str("172.16.2.1").unwrap()),
+                    PossibleRangeDash::Range {
+                        start: IpAddr::from_str("::1").unwrap(),
+                        end: IpAddr::from_str("::2").unwrap()
+                    }
+                ]
+                .into_iter()
+                .collect()
+            )
+        );
+        if let ParseRosValueResult::Value(parsed) = parsed {
+            let encoded = parsed.encode_ros();
+            assert_eq!(
+                encoded.as_ref(),
+                b"172.16.1.1-172.16.1.3,::1-::2,172.16.2.1"
+            );
+        }
+    }
+    #[test]
+    fn test_error_str() {
+        let parsed: ParseRosValueResult<BTreeSet<PossibleRangeDash<IpAddr>>> =
+            RosValue::parse_ros(b"172.16.1.1-172.16.1.3,172.16.2.1-172.16.2.1,::1-::2");
+        println!("parsed: {:?}", parsed);
+    }
 }

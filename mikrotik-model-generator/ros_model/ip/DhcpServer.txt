@@ -6,7 +6,7 @@ address-pool: ref=>ipv4-pool
 allow-dual-stack-queue: o; bool
 always-broadcast: o; bool
 authoritative: o; enum= after-10sec-delay, after-2sec-delay, no, yes;
-bootp-lease-time: o; Duration
+bootp-lease-time: o; enum=forever, lease-time;
 bootp-support: o; enum=dynamic, static, none;
 client-mac-limit: o; unlimited;
 comment: o
@@ -116,7 +116,7 @@ dynamic: ro; bool
 /ip/dhcp-server/option:can-add;
 code: u8
 comment: o
-force: bool
+force: bool; o
 name: id; ref=dhcp-v4-option-set
 value: 
 about: ro; 

@@ -10,6 +10,7 @@ pub mod repository;
 pub mod resource;
 mod util;
 pub mod value;
+pub use mac_address::MacAddress;
 pub use mikrotik_model_generator_macro::mikrotik_model;
 
 #[derive(Deserialize, Debug)]

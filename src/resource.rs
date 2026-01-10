@@ -7,7 +7,7 @@ use crate::{
 };
 use encoding_rs::mem::decode_latin1;
 use itertools::{EitherOrBoth, Itertools};
-use log::{debug, error, info};
+use log::{debug, info};
 use mikrotik_api::prelude::{CommandBuilder, ParsedMessage, TrapCategory, TrapResult};
 use std::{
     borrow::Cow,
@@ -164,9 +164,9 @@ pub async fn collect_resource<R: DeserializeRosResource + RosResource>(
 
 pub trait RosResource: Sized {
     fn path() -> &'static [u8];
-    fn provides_reference(&self) -> impl Iterator<Item = (ReferenceType, Cow<[u8]>)>;
-    fn consumes_reference(&self) -> impl Iterator<Item = (ReferenceType, Cow<[u8]>)>;
-    fn create_resource_ref(&self) -> ResourceRef;
+    fn provides_reference(&'_ self) -> impl Iterator<Item = (ReferenceType, Cow<[u8]>)>;
+    fn consumes_reference(&'_ self) -> impl Iterator<Item = (ReferenceType, Cow<[u8]>)>;
+    fn create_resource_ref(&'_ self) -> ResourceRef;
 }
 
 pub trait SingleResource: DeserializeRosResource + RosResource {
@@ -657,22 +657,67 @@ pub struct UpdatePairing<'c, 't, Current: RosResource, Target: CfgResource + Clo
     pub new_entries: Box<[Cow<'t, Target>]>,
 }
 
-/*impl<'t, Current, Target> UpdatePairing<'_, 't, Current, Target>
+impl<'t, Current, Target> UpdatePairing<'_, 't, Current, Target>
 where
-    Target: KeyedResource + Clone + CfgResource + Updatable<From = Current>,
+    Target: KeyedResource + Clone + CfgResource + Updatable<Current>,
     Current: KeyedResource + Clone,
     Current::Value: 'static + Sized,
 {
-    pub fn generate_update<'r, 's>(
+    pub fn generate_updates_or_error<'r, 's>(
         &'s self,
-    ) -> Result<impl Iterator<Item = ResourceMutation<'r>>, ResourceMutationError<Current, Target>>
+    ) -> impl Iterator<Item = Result<ResourceMutation<'r>, ResourceMutationError>>
     where
         't: 'r,
         's: 'r,
     {
-        if let Some(entry) = self.orphaned_entries.iter().cloned().next().cloned() {
+        self.orphaned_entries
+            .iter()
+            .cloned()
+            .map(Current::create_resource_ref)
+            .map(|e| e.cloned())
+            .map(|entry| ResourceMutationError::Remove { entry })
+            .map(Err)
+            .chain(
+                self.new_entries
+                    .iter()
+                    .map(|v| v.as_ref())
+                    .map(|r| r.create_resource_ref())
+                    .map(|e| e.cloned())
+                    .map(|entry| ResourceMutationError::Add { entry })
+                    .map(Err),
+            )
+            .chain(
+                self.matched_entries
+                    .iter()
+                    .map(|(original, target)| target.calculate_update(*original))
+                    .map(Ok),
+            )
+    }
+    pub fn generate_update<'r, 's>(
+        &'s self,
+    ) -> Result<impl Iterator<Item = ResourceMutation<'r>>, ResourceMutationError>
+    where
+        't: 'r,
+        's: 'r,
+    {
+        if let Some(entry) = self
+            .orphaned_entries
+            .iter()
+            .next()
+            .cloned()
+            .map(Current::create_resource_ref)
+            .map(|e| e.cloned())
+        {
             Err(ResourceMutationError::Remove { entry })
-        } else if let Some(entry) = self.new_entries.iter().cloned().next().cloned() {
+        } else if let Some(entry) = self
+            .new_entries
+            .iter()
+            .map(|v| v.as_ref())
+            .next()
+            .map(|r| r.create_resource_ref())
+            .map(|e| e.cloned())
+        {
+            let entry = Resource::from(entry);
             Err(ResourceMutationError::Add { entry })
         } else {
             Ok(self
@@ -681,7 +726,7 @@ where
                 .map(|(original, target)| target.calculate_update(*original)))
         }
     }
-}*/
+}
 
 impl<'c, 't, Current, Target> UpdatePairing<'c, 't, Current, Target>
 where

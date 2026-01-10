@@ -57,9 +57,9 @@ ospf:o;ro;bool
 pref-src:o;ro;IpAddr
 rip:o;ro;bool
 routing-table:o;ref=>routing-table
-scope:u8
+scope:u8; o
 static:o;ro;bool
 suppress-hw-offload:o;bool
-target-scope:u8
+target-scope:u8; o
 vpn:o;ro;bool
 vrf-interface:o;ref=>interface

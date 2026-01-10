@@ -21,7 +21,7 @@ completed: ro;
 /system/package/local-update/mirror:is-single;
 check-interval: Duration
 enabled: bool
-password: 
+password: o
 primary-server: IpAddr
 secondary-server: IpAddr
 user: 

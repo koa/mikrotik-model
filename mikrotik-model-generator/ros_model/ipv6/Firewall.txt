@@ -1,11 +1,11 @@
 /ipv6/firewall/address-list:can-add;
 .id: ro;id;Id
-address: 
+address: Ipv6Net;
 comment: o
 disabled: bool
 dynamic: ro; bool
 list: ref=ipv6-addresslist
-timeout: Duration
+timeout: o; Duration
 creation-time: ro; 
 about: ro; 
 

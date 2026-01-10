@@ -100,7 +100,7 @@ impl Default for InterfaceVxlanCfg {
             name: Default::default(),
             port: 8472,
             vni: 1,
-            vrf: b"main".into(),
+            vrf: Some(b"main".into()),
             vteps_ip_version: InterfaceVxlanVtepsIpVersion::Ipv4,
         }
     }
@@ -213,13 +213,13 @@ impl Default for InterfaceVlanCfg {
             comment: None,
             disabled: false,
             interface: Default::default(),
-            l_2_mtu: 1556,
+            l_2_mtu: Some(1556),
             loop_protect: InterfaceVlanLoopProtect::Default,
             loop_protect_disable_time: Duration::from_secs(5 * 60),
             loop_protect_send_interval: Duration::from_secs(5),
             loop_protect_status: InterfaceVlanLoopProtectStatus::Off,
             mac_address: None,
-            mtu: 1500,
+            mtu: Some(1500),
             name: Default::default(),
             use_service_tag: false,
             vlan_id: 0,
@@ -412,7 +412,7 @@ impl Default for IpDhcpServerCfg {
             allow_dual_stack_queue: Some(true),
             always_broadcast: Some(false),
             authoritative: Some(IpDhcpServerAuthoritative::Yes),
-            bootp_lease_time: Some(Duration::from_secs(10 * 60)),
+            bootp_lease_time: Some(IpDhcpServerBootpLeaseTime::Forever),
             bootp_support: Some(IpDhcpServerBootpSupport::Static),
             client_mac_limit: Some(HasUnlimited::Unlimited),
             comment: Default::default(),
@@ -459,9 +459,9 @@ impl Default for IpPoolByName {
     }
 }
 #[allow(clippy::derivable_impls)]
-impl Default for IpDhcpServerNetworkCfg{
+impl Default for IpDhcpServerNetworkCfg {
     fn default() -> Self {
-        IpDhcpServerNetworkCfg{
+        IpDhcpServerNetworkCfg {
             address: Default::default(),
             boot_file_name: Default::default(),
             caps_manager: None,
@@ -481,8 +481,168 @@ impl Default for IpDhcpServerNetworkCfg{
 }
 
 #[allow(clippy::derivable_impls)]
-impl Default for IpDhcpServerNetworkByAddress{
+impl Default for IpDhcpServerNetworkByAddress {
     fn default() -> Self {
         Self(Default::default())
+    }
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for InterfaceWifiDatapathByName {
+    fn default() -> Self {
+        InterfaceWifiDatapathByName(Default::default())
+    }
+}
+#[allow(clippy::derivable_impls)]
+impl Default for InterfaceWifiDatapathCfg {
+    fn default() -> Self {
+        InterfaceWifiDatapathCfg {
+            bridge: None,
+            bridge_cost: None,
+            bridge_horizon: None,
+            client_isolation: None,
+            comment: None,
+            disabled: false,
+            interface_list: None,
+            name: Default::default(),
+            vlan_id: None,
+        }
+    }
+}
+#[allow(clippy::derivable_impls)]
+impl Default for InterfaceWifiConfigurationByName {
+    fn default() -> Self {
+        InterfaceWifiConfigurationByName(Default::default())
+    }
+}
+#[allow(clippy::derivable_impls)]
+impl Default for InterfaceWifiConfigurationCfg {
+    fn default() -> Self {
+        InterfaceWifiConfigurationCfg {
+            aaa: None,
+            aaa_called_format: None,
+            aaa_calling_format: None,
+            aaa_interim_update: None,
+            aaa_mac_caching: None,
+            aaa_nas_identifier: None,
+            aaa_password_format: None,
+            aaa_username_format: None,
+            antenna_gain: None,
+            beacon_interval: None,
+            chains: Default::default(),
+            channel: None,
+            channel_band: None,
+            channel_frequency: Default::default(),
+            channel_reselect_interval: None,
+            channel_secondary_frequency: None,
+            channel_skip_dfs_channels: None,
+            channel_width: None,
+            comment: None,
+            country: None,
+            datapath: None,
+            datapath_bridge: None,
+            datapath_bridge_cost: None,
+            datapath_bridge_horizon: None,
+            datapath_client_isolation: None,
+            datapath_interface_list: None,
+            datapath_vlan_id: None,
+            disabled: false,
+            distance: None,
+            dtim_period: None,
+            hide_ssid: None,
+            installation: None,
+            interworking: None,
+            interworking_3_gpp_info: Default::default(),
+            interworking_authentication_types: Default::default(),
+            interworking_connection_capabilities: Default::default(),
+            interworking_domain_names: Default::default(),
+            interworking_esr: None,
+            interworking_hessid: None,
+            interworking_hotspot_20: None,
+            interworking_hotspot_20_dgaf: None,
+            interworking_internet: None,
+            interworking_ipv_4_availability: None,
+            interworking_ipv_6_availability: None,
+            interworking_network_type: None,
+            interworking_operational_classes: Default::default(),
+            interworking_operator_names: Default::default(),
+            interworking_realms: Default::default(),
+            interworking_roaming_ois: Default::default(),
+            interworking_uesa: None,
+            interworking_venue: None,
+            interworking_venue_names: Default::default(),
+            interworking_wan_at_capacity: None,
+            interworking_wan_downlink: None,
+            interworking_wan_downlink_load: None,
+            interworking_wan_measurement_duration: None,
+            interworking_wan_status: None,
+            interworking_wan_symmetric: None,
+            interworking_wan_uplink: None,
+            interworking_wan_uplink_load: None,
+            manager: None,
+            mode: None,
+            multicast_enhance: None,
+            name: Default::default(),
+            qos_classifier: None,
+            security: None,
+            security_authentication_types: Default::default(),
+            security_connect_group: None,
+            security_connect_priority: None,
+            security_dh_groups: Default::default(),
+            security_disable_pmkid: None,
+            security_eap_accounting: None,
+            security_eap_anonymous_identity: None,
+            security_eap_certificate_mode: None,
+            security_eap_methods: Default::default(),
+            security_eap_password: None,
+            security_eap_tls_certificate: None,
+            security_eap_username: None,
+            security_encryption: None,
+            security_ft: None,
+            security_ft_mobility_domain: None,
+            security_ft_nas_identifier: None,
+            security_ft_over_ds: None,
+            security_ft_preserve_vlanid: None,
+            security_ft_r_0_key_lifetime: None,
+            security_ft_reassociation_deadline: None,
+            security_group_encryption: None,
+            security_group_key_update: None,
+            security_management_encryption: None,
+            security_management_protection: None,
+            security_multi_passphrase_group: None,
+            security_owe_transition_interface: None,
+            security_passphrase: None,
+            security_sae_anti_clogging_threshold: None,
+            security_sae_max_failure_rate: None,
+            security_sae_pwe: None,
+            security_wps: None,
+            ssid: None,
+            station_roaming: None,
+            steering: None,
+            steering_neighbor_group: None,
+            steering_rrm: None,
+            steering_wnm: None,
+            tx_chains: Default::default(),
+            tx_power: None,
+        }
+    }
+}
+
+impl Default for InterfaceWifiProvisioningCfg {
+    fn default() -> Self {
+        InterfaceWifiProvisioningCfg {
+            action: InterfaceWifiProvisioningAction::CreateDisabled,
+            address_ranges: Default::default(),
+            comment: None,
+            common_name_regexp: None,
+            disabled: false,
+            identity_regexp: None,
+            master_configuration: None,
+            name_format: None,
+            radio_mac: None,
+            slave_configurations: None,
+            slave_name_format: None,
+            supported_bands: Default::default(),
+        }
     }
 }

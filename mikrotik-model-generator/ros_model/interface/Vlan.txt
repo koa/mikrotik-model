@@ -1,0 +1,19 @@
+/interface/vlan:can-add
+.id:ro
+arp: enum=disabled,enabled,local-proxy-arp, proxy-arp, reply-only
+arp-timeout: auto;u16
+comment: o
+disabled: bool
+interface: ref=>interface
+l2mtu: u16; o
+loop-protect: enum=default, off, on
+loop-protect-disable-time: Duration
+loop-protect-send-interval: Duration
+loop-protect-status: enum=on, off, disable
+mac-address: o;k;MacAddress
+mtu: u16; o
+name:id;ref=interface
+running: ro;bool
+use-service-tag: bool
+vlan-id: u16
+mvrp: k;o;bool

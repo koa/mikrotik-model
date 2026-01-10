@@ -1,4 +1,5 @@
 /interface/wifi:can-add;id=default-name
+.id: id;ro;Id
 aaa: o;ref=wifi-aaa
 aaa.called-format:o;
 aaa.calling-format: o;
@@ -224,9 +225,9 @@ channel.reselect-interval: o;Duration
 channel.secondary-frequency: o;disabled; u32
 channel.skip-dfs-channels: o;disabled; WifiSkipDfsChannels;
 channel.width: o; WifiChannelWidth;
-comment: 
+comment: o
 country: o;WifiCountry
-datapath: ref=>wifi-datapath;
+datapath: o; ref=>wifi-datapath;
 datapath.bridge: o; ref=>interface
 datapath.bridge-cost: o;u32
 datapath.bridge-horizon: o;none;
@@ -257,60 +258,60 @@ interworking.realms: mu
 interworking.roaming-ois: mu
 interworking.uesa: o;bool
 interworking.venue: o; InterworkingVenue;
-interworking.venue-names: 
-interworking.wan-at-capacity: bool
-interworking.wan-downlink: u32
-interworking.wan-downlink-load: u32
-interworking.wan-measurement-duration: u32
-interworking.wan-status:InterworkingWanStatus;
-interworking.wan-symmetric: bool
-interworking.wan-uplink: u32
-interworking.wan-uplink-load: u32
-manager: WifiManagement;
-mode: WifiMode;
-multicast-enhance: EnabledDisabled;
-name: ref=wifi-configuration
-qos-classifier:QosClassifier;
-security: ref=>wifi-security
-security.authentication-types: 
-security.connect-group: 
-security.connect-priority: u32
-security.dh-groups: 
-security.disable-pmkid: bool
-security.eap-accounting: bool
-security.eap-anonymous-identity: 
-security.eap-certificate-mode:WifiSecurityEapCertificateMode;
-security.eap-methods: WifiSecurityEapMode;
-security.eap-password: 
-security.eap-tls-certificate: 
-security.eap-username: 
+interworking.venue-names: mu
+interworking.wan-at-capacity: o; bool
+interworking.wan-downlink: o; u32
+interworking.wan-downlink-load: o; u32
+interworking.wan-measurement-duration: o; u32
+interworking.wan-status: o; InterworkingWanStatus;
+interworking.wan-symmetric: o; bool
+interworking.wan-uplink: o; u32
+interworking.wan-uplink-load: o; u32
+manager: o; WifiManagement
+mode: o; WifiMode
+multicast-enhance: o; EnabledDisabled
+name: id;ref=wifi-configuration
+qos-classifier:o; QosClassifier;
+security: o; ref=>wifi-security
+security.authentication-types: mu; WifiAuthenticationTypes
+security.connect-group: o
+security.connect-priority: o;u32
+security.dh-groups: mu; WifiDhGroups
+security.disable-pmkid: o; bool
+security.eap-accounting: o; bool
+security.eap-anonymous-identity: o
+security.eap-certificate-mode: o; WifiSecurityEapCertificateMode;
+security.eap-methods: mu; WifiSecurityEapMode;
+security.eap-password: o
+security.eap-tls-certificate: o
+security.eap-username: o
 security.encryption: o;mu;WifiSecurityGroupEncryption
-security.ft: bool
-security.ft-mobility-domain: hex; u16
-security.ft-nas-identifier: 
-security.ft-over-ds: bool
-security.ft-preserve-vlanid: bool
-security.ft-r0-key-lifetime: 
-security.ft-reassociation-deadline: 
-security.group-encryption:WifiSecurityGroupEncryption;
-security.group-key-update: 
-security.management-encryption:WifiSecurityManagementEncryption;
-security.management-protection: WifiSecurityManagementProtection;
-security.multi-passphrase-group: 
-security.owe-transition-interface: auto; 
-security.passphrase: 
-security.sae-anti-clogging-threshold: disabled; 
-security.sae-max-failure-rate: disabled; 
-security.sae-pwe: WifiSecuritySaePwe;
-security.wps: WifiSecurityWps;
-ssid: 
-station-roaming: bool
-steering: 
-steering.neighbor-group: 
-steering.rrm: bool
-steering.wnm: bool
-tx-chains: 
-tx-power: u8
+security.ft: o; bool
+security.ft-mobility-domain: o; hex; u16
+security.ft-nas-identifier: o
+security.ft-over-ds: o; bool
+security.ft-preserve-vlanid: o; bool
+security.ft-r0-key-lifetime: o; Duration
+security.ft-reassociation-deadline: o; Duration
+security.group-encryption: o; WifiSecurityGroupEncryption;
+security.group-key-update: o; Duration
+security.management-encryption: o; WifiSecurityManagementEncryption;
+security.management-protection: o; WifiSecurityManagementProtection;
+security.multi-passphrase-group: o
+security.owe-transition-interface: o; auto;
+security.passphrase: o
+security.sae-anti-clogging-threshold: o; disabled; u16
+security.sae-max-failure-rate: o; disabled; u16
+security.sae-pwe: o; WifiSecuritySaePwe;
+security.wps: o; WifiSecurityWps;
+ssid: o
+station-roaming: o; bool
+steering: o; ref=>wifi-steering
+steering.neighbor-group: o
+steering.rrm: o; bool
+steering.wnm: o; bool
+tx-chains: mu;u8
+tx-power: o; u8
 about: ro; 
 
 /interface/wifi/datapath:can-add;id=name
@@ -359,9 +360,10 @@ wan-uplink-load: o; u32
 about: ro; 
 
 /interface/wifi/provisioning:can-add;
+.id: id;ro;Id
 action: enum= create-disabled, create-dynamic-enabled, create-enabled, none;
-address-ranges: mu
-comment: 
+address-ranges: mu;range;IpAddr
+comment: o
 common-name-regexp: o
 disabled: bool
 identity-regexp: o
@@ -370,7 +372,7 @@ name-format: o
 radio-mac: o;MacAddress
 slave-configurations: o;mu;ref=>wifi-configuration
 slave-name-format: o
-supported-bands: WifiChannelBand;
+supported-bands: mu; WifiChannelBand;
 about: ro; 
 
 /interface/wifi/radio:
@@ -472,7 +474,7 @@ about: ro;
 expired: ro; 
 
 /interface/wifi/steering:can-add;
-comment: 
+comment: o
 disabled: bool
 name: ref=wifi-steering
 neighbor-group: o

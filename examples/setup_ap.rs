@@ -180,7 +180,7 @@ impl DeviceDataTarget {
     fn generate_mutations<'a>(
         &'a self,
         from: &'a DeviceDataCurrent,
-    ) -> Result<Box<[ResourceMutation<'a>]>, ResourceMutationError<'a>> {
+    ) -> Result<Box<[ResourceMutation<'a>]>, ResourceMutationError> {
         let remaining_updates = generate_add_update_remove_by_key(
             &from.vxlan,
             self.vxlans().map(Cow::<InterfaceVxlanByName>::Owned),

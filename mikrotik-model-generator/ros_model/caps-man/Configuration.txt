@@ -1,19 +1,19 @@
 /caps-man/configuration:can-add;
 channel: o; ref=>caps-channel
-channel.band: enum= 2ghz-b, 2ghz-b/g, 2ghz-b/g/n, 2ghz-g/n, 2ghz-onlyg, 2ghz-onlyn, 5ghz-a, 5ghz-a/n, 5ghz-a/n/ac, 5ghz-n/ac, 5ghz-onlyac, 5ghz-onlyn; 
-channel.control-channel-width: enum= 10mhz, 20mhz, 40mhz-turbo, 5mhz; 
-channel.extension-channel: disabled; enum= Ce, Ceee, Ceeeeeee, XX, XXXX, XXXXXXXX, eC, eCee, eCeeeeee, eeCe, eeCeeeee, eeeC, eeeCeeee, eeeeCeee, eeeeeCee, eeeeeeCe, eeeeeeeC; 
-channel.frequency: u32
-channel.reselect-interval: 
-channel.save-selected: bool
-channel.secondary-frequency: disabled; u32
-channel.skip-dfs-channels: bool
-channel.tx-power: u8
-comment: 
-country: 
+channel.band: enum= 2ghz-b, 2ghz-b/g, 2ghz-b/g/n, 2ghz-g/n, 2ghz-onlyg, 2ghz-onlyn, 5ghz-a, 5ghz-a/n, 5ghz-a/n/ac, 5ghz-n/ac, 5ghz-onlyac, 5ghz-onlyn; o
+channel.control-channel-width: enum= 10mhz, 20mhz, 40mhz-turbo, 5mhz; o
+channel.extension-channel: disabled; enum= Ce, Ceee, Ceeeeeee, XX, XXXX, XXXXXXXX, eC, eCee, eCeeeeee, eeCe, eeCeeeee, eeeC, eeeCeeee, eeeeCeee, eeeeeCee, eeeeeeCe, eeeeeeeC; o
+channel.frequency: u32; o
+channel.reselect-interval: o; Duration
+channel.save-selected: bool; o
+channel.secondary-frequency: disabled; u32; o
+channel.skip-dfs-channels: bool; o
+channel.tx-power: u8; o
+comment: o
+country: o; WifiCountry
 datapath: o; ref=>caps-datapath
 datapath.arp: o; disabled; enum= enabled, local-proxy-arp, proxy-arp, reply-only;
-datapath.bridge: ref=>interface
+datapath.bridge: o; ref=>interface
 datapath.bridge-cost: o; u32
 datapath.bridge-horizon: o; none;
 datapath.client-to-client-forwarding: o; bool
@@ -24,7 +24,7 @@ datapath.mtu: o; u16
 datapath.openflow-switch: o
 datapath.vlan-id: o; none; u16
 datapath.vlan-mode: o; enum= no-tag, use-service-tag, use-tag;
-disconnect-timeout: 
+disconnect-timeout: Duration; o
 distance: o
 frame-lifetime: o
 guard-interval: o;enum= any, long;
@@ -50,14 +50,14 @@ security: o; ref=>caps-security
 security.authentication-types: mu; CapsAuthenticationTypes
 security.disable-pmkid: o; bool
 security.eap-methods:  o; CapsSecurityEapMode
-security.eap-radius-accounting: bool
+security.eap-radius-accounting: bool; o
 security.encryption: mu; CapsEncryption
 security.group-encryption: o; CapsEncryption;
 security.group-key-update: o; Duration
 security.passphrase: o
-security.tls-certificate: none; 
-security.tls-mode: enum= dont-verify-certificate, no-certificates, verify-certificate, verify-certificate-with-crl; 
-ssid: 
+security.tls-certificate: none; o
+security.tls-mode: enum= dont-verify-certificate, no-certificates, verify-certificate, verify-certificate-with-crl; o
+ssid: o
 tx-chains: mu; u8
 about: ro; 
 

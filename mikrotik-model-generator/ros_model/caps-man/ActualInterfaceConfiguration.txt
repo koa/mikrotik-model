@@ -1,60 +1,60 @@
 /caps-man/actual-interface-configuration:
-arp: disabled; enum= enabled, local-proxy-arp, proxy-arp, reply-only; 
+arp: o; enum=enabled, disabled, local-proxy-arp, proxy-arp, reply-only;
 arp-timeout: auto; 
 channel.band: o;CapsChannelBand;
 channel.control-channel-width: o;CapsChannelWidth;
 channel.extension-channel: o; disabled; CapsExtensionChannel
-channel.frequency: o; u16
+channel.frequency: mu; u16
 channel.reselect-interval: o; Duration
 channel.save-selected: o; bool
 channel.secondary-frequency: o; disabled; u32
 channel.skip-dfs-channels: o; bool
 channel.tx-power: o; u8
-comment: 
+comment: o
 configuration.country: o; WifiCountry
-configuration.disconnect-timeout: 
-configuration.distance: hex; i64
-configuration.frame-lifetime: 
-configuration.guard-interval: enum= any, long; 
-configuration.hide-ssid: bool
-configuration.hw-protection-mode: none; enum= cts-to-self, rts-cts; 
-configuration.hw-retries: u8
-configuration.installation: enum= any, indoor, outdoor; 
-configuration.keepalive-frames: disabled; enum= enabled; 
-configuration.load-balancing-group: 
-configuration.max-sta-count: u16
-configuration.mode: enum= ap; 
-configuration.multicast-helper: disabled; enum= default, dhcp, full; 
-configuration.rx-chains: 
+configuration.disconnect-timeout: o
+configuration.distance: hex; i64; o
+configuration.frame-lifetime: o
+configuration.guard-interval: enum= any, long;o
+configuration.hide-ssid: bool; o
+configuration.hw-protection-mode: none; enum= cts-to-self, rts-cts; o
+configuration.hw-retries: u8; o
+configuration.installation: enum= any, indoor, outdoor; o
+configuration.keepalive-frames: disabled; enum= enabled;  o
+configuration.load-balancing-group: o
+configuration.max-sta-count: u16; o
+configuration.mode: enum= ap; o
+configuration.multicast-helper: disabled; enum= default, dhcp, full;o
+configuration.rx-chains: o
 configuration.ssid: 
-configuration.tx-chains: 
-datapath.bridge: 
-datapath.bridge-cost: u32
-datapath.bridge-horizon: none; 
-datapath.client-to-client-forwarding: bool
-datapath.interface-list: none; 
-datapath.local-forwarding: bool
-datapath.openflow-switch: 
-datapath.vlan-id: u16
-datapath.vlan-mode: enum= no-tag, use-service-tag, use-tag; 
-disable-running-check: bool
+configuration.tx-chains: o
+datapath.bridge: o; ref=>interface
+datapath.bridge-cost: u32; o
+datapath.bridge-horizon: none;o
+datapath.client-to-client-forwarding: bool; o
+datapath.interface-list: none; ref=>interface-list; o
+datapath.local-forwarding: bool; o
+datapath.openflow-switch: o
+datapath.vlan-id: u16; o
+datapath.vlan-mode: enum= no-tag, use-service-tag, use-tag; o
+disable-running-check: bool; o
 disabled: bool
 l2mtu: u16
-mac-address: 
-master-interface: none; 
-mtu: u16
-name: 
-radio-mac: 
-security.authentication-types: 
-security.disable-pmkid: bool
-security.eap-methods: enum= eap-tls, passthrough; 
-security.eap-radius-accounting: bool
-security.encryption: 
-security.group-encryption: enum= aes-ccm, tkip; 
-security.group-key-update: 
-security.passphrase: 
-security.tls-certificate: none; 
-security.tls-mode: enum= dont-verify-certificate, no-certificates, verify-certificate, verify-certificate-with-crl; 
+mac-address: MacAddress;
+master-interface: none; o; ref=>interface
+mtu: u16; o
+name: ref=>interface
+radio-mac: MacAddress;
+security.authentication-types: o
+security.disable-pmkid: bool; o
+security.eap-methods: enum= eap-tls, passthrough; o
+security.eap-radius-accounting: bool; o
+security.encryption: o
+security.group-encryption: enum= aes-ccm, tkip; o
+security.group-key-update: o
+security.passphrase: o
+security.tls-certificate: none; o
+security.tls-mode: enum= dont-verify-certificate, no-certificates, verify-certificate, verify-certificate-with-crl; o
 inactive: ro; 
 about: ro; 
 master: ro; 

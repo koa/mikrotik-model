@@ -3,7 +3,7 @@ band: o;CapsChannelBand;
 comment: o
 control-channel-width: o;CapsChannelWidth;
 extension-channel: o; disabled; CapsExtensionChannel
-frequency: o; u16
+frequency: mu; u16
 name: id; ref=caps-channel
 reselect-interval: o;Duration
 save-selected: o; bool

@@ -305,3 +305,35 @@ qos-group:
 message:
 about: ro;
 invalid: bool;ro;
+
+
+/interface/ethernet/switch/egress-vlan-tag:can-add
+vlan-id:u16
+tagged-ports: mu;ref=>interface
+comment
+disabled: bool
+dynamic: bool
+
+/interface/ethernet/switch/ingress-vlan-translation:can-add
+.nextid
+comment
+customer-pcp
+customer-vlan-format: enum=any, priority-tagged-or-tagged, tagged, untagged-or-tagged
+new-customer-vid: u16
+ports: mu;ref=>interface
+sa-learning: bool
+service-pcp
+service-vlan-format: enum=any, priority-tagged-or-tagged, tagged, untagged-or-tagged
+customer-dei
+customer-vid:u16
+disabled:bool
+new-service-vid:u16
+pcp-propagation: bool
+protocol: enum=802.2,arp,homeplug-av,ip,ipv6,ipx,length,llc-bpdu,lldp,loop-protect,mpls-multicast,mpls-unicast,packing-compr,packing-simple,pppoe,pppoe-discovery,rarp,service-vlan,vlan
+service-dei
+service-vid:u16
+swap-vids: enum=assign-cvid-to-svid,no
+message
+
+dynamic:bool
+

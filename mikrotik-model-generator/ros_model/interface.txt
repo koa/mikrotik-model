@@ -125,38 +125,6 @@ custom-drop-packet:o;ro;u64
 current-learned:o;ro;u64
 not-learned:o;ro;u64
 
-/interface/ethernet/switch/egress-vlan-tag:can-add
-vlan-id:u16
-tagged-ports: mu;ref=>interface
-comment
-disabled: bool
-dynamic: bool
-
-/interface/ethernet/switch/ingress-vlan-translation:can-add
-.nextid
-comment
-customer-pcp
-customer-vlan-format: enum=any, priority-tagged-or-tagged, tagged, untagged-or-tagged
-new-customer-vid: u16
-ports: mu;ref=>interface
-sa-learning: bool
-service-pcp
-service-vlan-format: enum=any, priority-tagged-or-tagged, tagged, untagged-or-tagged
-customer-dei
-customer-vid:u16
-disabled:bool
-new-service-vid:u16
-pcp-propagation: bool
-protocol: enum=802.2,arp,homeplug-av,ip,ipv6,ipx,length,llc-bpdu,lldp,loop-protect,mpls-multicast,mpls-unicast,packing-compr,packing-simple,pppoe,pppoe-discovery,rarp,service-vlan,vlan
-service-dei
-service-vid:u16
-swap-vids: enum=assign-cvid-to-svid,no
-message
-
-dynamic:bool
-
-
-
 /interface/wireless
 adaptive-noise-immunity: o; enum=none, ap-and-client-mode, client-mode
 allow-sharedkey: o; bool
@@ -272,22 +240,3 @@ static-virtual: bool
 locked-caps-man-common-name: ro;
 requested-certificate: ro;
 
-/interface/vlan:can-add
-.id:ro
-arp: enum=disabled,enabled,local-proxy-arp, proxy-arp, reply-only
-arp-timeout: auto;u16
-comment: o
-disabled: bool
-interface: ref=>interface
-l2mtu: u16
-loop-protect: enum=default, off, on
-loop-protect-disable-time: Duration
-loop-protect-send-interval: Duration
-loop-protect-status: enum=on, off, disable
-mac-address: o;k;MacAddress
-mtu: u16
-name:id;ref=interface
-running: ro;bool
-use-service-tag: bool
-vlan-id: u16
-mvrp: k;o;bool

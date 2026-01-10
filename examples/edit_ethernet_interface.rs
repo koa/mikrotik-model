@@ -1,5 +1,6 @@
 use config::{Config, Environment, File};
 use env_logger::{Env, TimestampPrecision};
+use mikrotik_model::resource::{ResourceMutation, ResourceMutationError};
 use mikrotik_model::{
     Credentials, MikrotikDevice,
     ascii::{self, AsciiString},
@@ -54,7 +55,7 @@ impl FieldUpdateHandler for InterfaceEthernetSet {
 
 impl SetResource<InterfaceEthernetByDefaultName> for InterfaceEthernetSet {
     fn changed_values(
-        &self,
+        &'_ self,
         before: &InterfaceEthernetByDefaultName,
     ) -> impl Iterator<Item = KeyValuePair> {
         let mut ret = Vec::new();
@@ -89,8 +90,8 @@ async fn main() -> anyhow::Result<()> {
     //let router = IpAddr::V4(Ipv4Addr::new(10, 192, 5, 7));
     //let router = IpAddr::V4(Ipv4Addr::new(172, 16, 1, 51));
     //let router = IpAddr::V4(Ipv4Addr::new(172, 16, 1, 54));
-    //let router = IpAddr::V4(Ipv4Addr::new(172, 16, 1, 1));
-    let router = IpAddr::V4(Ipv4Addr::new(10, 192, 69, 2));
+    let router = IpAddr::V4(Ipv4Addr::new(172, 16, 1, 1));
+    //let router = IpAddr::V4(Ipv4Addr::new(10, 192, 69, 2));
     println!("{router}");
     let device = MikrotikDevice::connect(
         (router, 8728),
@@ -106,18 +107,38 @@ async fn main() -> anyhow::Result<()> {
 
     let ethernet_updates = UpdatePairing::match_updates_by_key(
         &mut current_data.interface_ethernet_by_default_name,
-        &target_data.interface_ethernet_by_default_name,
+        target_data
+            .interface_ethernet_by_default_name
+            .iter()
+            .map(Cow::Borrowed),
     );
     dump_changes(&ethernet_updates);
 
-    ethernet_updates.generate_updates(&mut generator)?;
+    for result in ethernet_updates.generate_updates_or_error() {
+        match result {
+            Ok(mutation) => generator.append_mutation(&mutation)?,
+            Err(e) => {
+                println!("Ethernet update Error: {}", e);
+            }
+        }
+    }
 
     let wifi_updates = UpdatePairing::match_updates_by_key(
         &mut current_data.interface_wifi_by_default_name,
-        &target_data.interface_wifi_by_default_name,
+        target_data
+            .interface_wifi_by_default_name
+            .iter()
+            .map(Cow::Borrowed),
     );
     dump_changes(&wifi_updates);
-    wifi_updates.generate_updates(&mut generator)?;
+    for result in wifi_updates.generate_updates_or_error() {
+        match result {
+            Ok(mutation) => generator.append_mutation(&mutation)?,
+            Err(e) => {
+                println!("Wifi update Error: {}", e);
+            }
+        }
+    }
 
     /*let res: Box<[_]> =
         <(InterfaceEthernetByDefaultName, InterfaceEthernetState)>::fetch_all(&device).await?;
@@ -155,8 +176,9 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn dump_changes<T: KeyedResource>(updated: &UpdatePairing<T, T>)
-where
+fn dump_changes<T: KeyedResource + mikrotik_model::resource::CfgResource + std::clone::Clone>(
+    updated: &UpdatePairing<T, T>,
+) where
     <T as KeyedResource>::Key: std::fmt::Debug,
 {
     if !updated.orphaned_entries.is_empty() {
