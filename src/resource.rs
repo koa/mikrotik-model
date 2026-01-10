@@ -164,9 +164,9 @@ pub async fn collect_resource<R: DeserializeRosResource + RosResource>(
 
 pub trait RosResource: Sized {
     fn path() -> &'static [u8];
-    fn provides_reference(&'_ self) -> impl Iterator<Item = (ReferenceType, Cow<[u8]>)>;
-    fn consumes_reference(&'_ self) -> impl Iterator<Item = (ReferenceType, Cow<[u8]>)>;
-    fn create_resource_ref(&'_ self) -> ResourceRef;
+    fn provides_reference(&'_ self) -> impl Iterator<Item = (ReferenceType, Cow<'_, [u8]>)>;
+    fn consumes_reference(&'_ self) -> impl Iterator<Item = (ReferenceType, Cow<'_, [u8]>)>;
+    fn create_resource_ref(&'_ self) -> ResourceRef<'_>;
 }
 
 pub trait SingleResource: DeserializeRosResource + RosResource {

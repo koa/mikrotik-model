@@ -404,7 +404,7 @@ fn generate_enums<'a, T: Iterator<Item = (Ident, Box<[Box<str>]>)>>(
                         fn parse_ros(value: &[u8]) -> crate::value::ParseRosValueResult<Self> {
                             #parse_match
                         }
-                        fn encode_ros(&self) -> std::borrow::Cow<[u8]> {
+                        fn encode_ros(&self) -> std::borrow::Cow<'_, [u8]> {
                             #encode_match
                         }
                     }

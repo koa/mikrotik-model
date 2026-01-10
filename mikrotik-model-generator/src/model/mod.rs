@@ -312,14 +312,14 @@ impl Entity {
                 fn path()->&'static [u8]{
                     #path
                 }
-                fn create_resource_ref(&self)->ResourceRef{
+                fn create_resource_ref(&self)->ResourceRef<'_>{
                     ResourceRef::#struct_ident(self)
                 }
 
-                fn provides_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<[u8]>)>{
+                fn provides_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<'_, [u8]>)>{
                     self.cfg.provides_reference().chain(self.status.provides_reference())
                 }
-                fn consumes_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<[u8]>)>{
+                fn consumes_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<'_, [u8]>)>{
                     self.cfg.consumes_reference().chain(self.status.consumes_reference())
                 }
             }
@@ -911,14 +911,14 @@ impl Entity {
                 fn path()->&'static [u8]{
                     #path
                 }
-                fn create_resource_ref(&self)->ResourceRef{
+                fn create_resource_ref(&self)->ResourceRef<'_>{
                     ResourceRef::#resource_enum_ident(self)
                 }
 
-                fn provides_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<[u8]>)>{
+                fn provides_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<'_, [u8]>)>{
                     #provides
                 }
-                fn consumes_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<[u8]>)>{
+                fn consumes_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<'_, [u8]>)>{
                     #consumes
                 }
             }
@@ -1490,13 +1490,13 @@ impl Entity {
                 fn path()->&'static [u8]{
                     #path
                 }
-                fn create_resource_ref(&self)->ResourceRef{
+                fn create_resource_ref(&self)->ResourceRef<'_>{
                     ResourceRef::#ident(self)
                 }
-                fn provides_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<[u8]>)>{
+                fn provides_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<'_, [u8]>)>{
                     #provides_array.into_iter()
                 }
-                fn consumes_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<[u8]>)>{
+                fn consumes_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<'_, [u8]>)>{
                     #consumes_array.into_iter()
                 }
 

@@ -57,7 +57,7 @@ impl SetResource<InterfaceEthernetByDefaultName> for InterfaceEthernetSet {
     fn changed_values(
         &'_ self,
         before: &InterfaceEthernetByDefaultName,
-    ) -> impl Iterator<Item = KeyValuePair> {
+    ) -> impl Iterator<Item = KeyValuePair<'_>> {
         let mut ret = Vec::new();
         if before.data.name != self.name {
             ret.push(KeyValuePair {
