@@ -1,17 +1,17 @@
 /caps-man/datapath:can-add;
-arp: disabled; enum= enabled, local-proxy-arp, proxy-arp, reply-only; 
-bridge: 
-bridge-cost: u32
-bridge-horizon: none; 
-client-to-client-forwarding: bool
-comment: 
-interface-list: none; 
-l2mtu: u16
-local-forwarding: bool
-mtu: u16
-name: 
-openflow-switch: 
-vlan-id: u16
-vlan-mode: enum= no-tag, use-service-tag, use-tag; 
+arp: o; disabled; enum= enabled, local-proxy-arp, proxy-arp, reply-only;
+bridge: o; ref=>interface
+bridge-cost: o; u32
+bridge-horizon: o; none;
+client-to-client-forwarding: o; bool
+comment: o
+interface-list: o; none; ref=>interface-list
+l2mtu: o; u16
+local-forwarding: o; bool
+mtu: o; u16
+name: ref=datapath
+openflow-switch: o
+vlan-id: o; u16
+vlan-mode: o; enum= no-tag, use-service-tag, use-tag;
 about: ro; 
 

@@ -61,8 +61,9 @@ async fn main() -> anyhow::Result<()> {
         )
         .build()?;
     let credentials: Credentials = cfg.get("credentials")?;
-    let router = IpAddr::V4(Ipv4Addr::new(10, 192, 5, 7));
+    //let router = IpAddr::V4(Ipv4Addr::new(10, 192, 5, 7));
     //let router = IpAddr::V4(Ipv4Addr::new(172, 16, 1, 51));
+    let router = IpAddr::V4(Ipv4Addr::new(172, 16, 1, 1));
     println!("{router}");
     let device: MikrotikDevice = MikrotikDevice::connect(
         (router, 8728),

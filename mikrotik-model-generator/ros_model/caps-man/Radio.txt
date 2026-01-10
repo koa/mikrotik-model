@@ -1,9 +1,10 @@
 /caps-man/radio:
 local: ro; 
 remote-cap-name: ro; 
-interface: ro; 
-about: ro; 
+interface: ro; id
+about: ro; o
 provisioned: ro; 
 radio-mac: ro; 
-remote-cap-identity: ro; 
+remote-cap-identity: ro;
+.id: ro; Id
 

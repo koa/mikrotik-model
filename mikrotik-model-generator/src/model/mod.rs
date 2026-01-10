@@ -1702,6 +1702,7 @@ pub struct Field {
     pub has_unlimited: bool,
     pub has_disabled: bool,
     pub is_rxtx_pair: bool,
+    pub is_stats_pair: bool,
     pub keep_if_none: bool,
     pub default: Option<Box<str>>,
 }
@@ -1745,6 +1746,7 @@ impl Field {
                         "none" => field.has_none = true,
                         "unlimited" => field.has_unlimited = true,
                         "rxtxpair" => field.is_rxtx_pair = true,
+                        "statspair" => field.is_stats_pair = true,
                         "disabled" => field.has_disabled = true,
                         "k" => field.keep_if_none = true,
                         name => {
@@ -1797,6 +1799,9 @@ impl Field {
         }
         if self.is_rxtx_pair {
             write!(writer, "rxtxpair; ")?;
+        }
+        if self.is_stats_pair {
+            write!(writer, "statspair; ")?;
         }
         if self.has_disabled {
             write!(writer, "disabled; ")?;
@@ -1948,8 +1953,13 @@ impl Field {
         } else {
             field_type
         };
-        if self.is_rxtx_pair {
+        let field_type = if self.is_rxtx_pair {
             parse_quote!(value::RxTxPair<#field_type>)
+        } else {
+            field_type
+        };
+        if self.is_stats_pair {
+            parse_quote!(value::StatsPair<#field_type>)
         } else {
             field_type
         }

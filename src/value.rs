@@ -496,11 +496,67 @@ impl<V: Default + RosValue> Default for RxTxPair<V> {
         }
     }
 }
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct StatsPair<V: RosValue> {
+    pub rx: V,
+    pub tx: V,
+}
+impl<V: RosValue> RosValue for StatsPair<V> {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
+        if value.is_empty() {
+            ParseRosValueResult::None
+        } else {
+            let mut values = value.splitn(2, |ch| *ch == b',').map(V::parse_ros);
+            let rx = values.next();
+            let tx = values.next();
+            match (rx, tx) {
+                (Some(ParseRosValueResult::Value(rx)), Some(ParseRosValueResult::Value(tx))) => {
+                    ParseRosValueResult::Value(StatsPair { rx, tx })
+                }
+                (None, _)
+                | (_, None)
+                | (Some(ParseRosValueResult::Invalid), _)
+                | (_, Some(ParseRosValueResult::Invalid)) => ParseRosValueResult::Invalid,
+                _ => ParseRosValueResult::None,
+            }
+        }
+    }
+
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
+        [
+            self.rx.encode_ros().as_ref(),
+            b",",
+            self.tx.encode_ros().as_ref(),
+        ]
+        .concat()
+        .into()
+    }
+}
+impl<V: Default + RosValue> Default for StatsPair<V> {
+    fn default() -> Self {
+        Self {
+            rx: V::default(),
+            tx: V::default(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Ord, Eq, PartialOrd, Hash)]
 pub enum HasNone<V: RosValue> {
     NoneValue,
     Value(V),
 }
+
+impl<V: RosValue> HasNone<V> {
+    pub fn value(&self) -> Option<&V> {
+        match self {
+            HasNone::NoneValue => None,
+            HasNone::Value(v) => Some(v),
+        }
+    }
+}
+
 impl<V: RosValue> RosValue for HasNone<V> {
     fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
         if value == b"none" {

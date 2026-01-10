@@ -1,6 +1,6 @@
 /caps-man/rates:can-add;
 basic: mu;CapsRates
-comment: 
+comment: o
 ht-basic-mcs: mu; CapsMcs
 ht-supported-mcs: mu; CapsMcs
 name: id; ref=caps-rate

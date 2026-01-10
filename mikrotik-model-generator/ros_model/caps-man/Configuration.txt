@@ -37,7 +37,7 @@ load-balancing-group: o
 max-sta-count: o; u16
 mode: o; enum= ap;
 multicast-helper: o; disabled; enum= default, dhcp, full;
-name: id
+name: id; ref=caps-configuration
 rates: o; ref=>caps-rate
 rates.basic: mu;CapsRates
 rates.ht-basic-mcs: mu; CapsMcs

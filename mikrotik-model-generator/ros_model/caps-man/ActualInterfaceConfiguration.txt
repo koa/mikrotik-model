@@ -55,10 +55,10 @@ security.group-key-update: o
 security.passphrase: o
 security.tls-certificate: none; o
 security.tls-mode: enum= dont-verify-certificate, no-certificates, verify-certificate, verify-certificate-with-crl; o
-inactive: ro; 
+inactive: ro; bool
 about: ro; 
 master: ro; 
-bound: ro; 
-dynamic: ro; 
-running: ro; 
+bound: ro; bool
+dynamic: ro; bool
+running: ro; bool
 .id: ro; id

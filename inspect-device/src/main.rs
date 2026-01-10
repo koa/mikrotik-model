@@ -329,6 +329,7 @@ async fn process_entry<'a>(
             has_unlimited: false,
             has_disabled: false,
             is_rxtx_pair: false,
+            is_stats_pair: false,
             keep_if_none: false,
             default: None,
         });
@@ -492,6 +493,7 @@ async fn guess_field(
             has_unlimited: false,
             has_disabled: false,
             is_rxtx_pair: false,
+            is_stats_pair: false,
             keep_if_none: false,
             default: None,
         });

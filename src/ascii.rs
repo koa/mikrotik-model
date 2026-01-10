@@ -1,5 +1,7 @@
 use encoding_rs::mem::decode_latin1;
+use std::borrow::Cow;
 use std::fmt::{Debug, Display, Formatter, Write};
+use std::ops::Deref;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub struct AsciiStringRef<'a>(pub &'a [u8]);
@@ -62,6 +64,17 @@ impl From<String> for AsciiString {
 impl From<&str> for AsciiString {
     fn from(value: &str) -> Self {
         AsciiString(Box::from(value.as_bytes()))
+    }
+}
+impl Deref for AsciiString {
+    type Target = [u8];
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<'a> From<&'a AsciiString> for Cow<'a, str> {
+    fn from(value: &'a AsciiString) -> Self {
+        decode_latin1(&value.0)
     }
 }
 /*impl<I: IntoIterator<Item = u8>> From<I> for AsciiString {
