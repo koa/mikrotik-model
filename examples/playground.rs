@@ -45,21 +45,6 @@ impl FieldUpdateHandler for InterfaceEthernetSet {
     }
 }
 
-impl SetResource for InterfaceEthernetSet {
-    type Base = InterfaceEthernetCfg;
-
-    fn changed_values(&self, before: &Self::Base) -> impl Iterator<Item = KeyValuePair> {
-        let mut ret = Vec::new();
-        if before.name != self.name {
-            ret.push(KeyValuePair {
-                key: b"name",
-                value: Cow::Borrowed(&self.name.0),
-            })
-        }
-        ret.into_iter()
-    }
-}
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::builder()
@@ -95,7 +80,7 @@ async fn main() -> anyhow::Result<()> {
         match result {
             SentenceResult::Row { value, warnings } => {
                 println!("{value:?}");
-                for warning in warnings {
+                for warning in warnings.iter() {
                     println!("warning: {}", warning);
                 }
             }
