@@ -1,0 +1,192 @@
+/interface/ethernet: id=default-name
+.id:ro; Id;
+default-name: ro;id
+advertise: mu;EthernetSpeed
+arp: enum=enabled, disabled, local-proxy-arp, proxy-arp, reply-only; default=enabled
+arp-timeout: o;auto;Duration;default=30s
+auto-negotiation: bool;default=true
+bandwidth: unlimited;rxtxpair;u32
+cable-setting: o;enum=default , short , standard
+combo-mode: o;enum=auto, copper, sfp
+comment:o
+disable-running-check: o;bool
+fec-mode: o;enum=auto, fec74, fec91, off
+tx-flow-control: o;auto;OnOff
+rx-flow-control: o;auto;OnOff
+full-duplex: o;bool
+l2mtu:u16
+mac-address: o;k; MacAddress
+mdix-enable:o;bool
+mtu:u16
+name: ref=interface
+orig-mac-address: ro;MacAddress
+passthrough-interface: o
+poe-out: o;enum=off, auto-on, forced-on
+poe-priority: o;u8
+poe-voltage: o; auto; enum= high, low;
+power-cycle-interval: none; Duration; o
+power-cycle-ping-address: o; IpAddr
+power-cycle-ping-enabled: bool; o
+power-cycle-ping-timeout: Duration; o
+sfp-shutdown-temperature:o;u8
+sfp-rate-select: o;enum=high,low
+speed: o;EthernetSpeed
+sfp-ignore-rx-los: o;bool
+
+disabled: bool
+switch: ro;o
+running: ro;bool
+slave: o;ro;bool
+
+loop-protect-status:ro;OnOff
+loop-protect-disable-time:Duration
+loop-protect-send-interval:Duration
+#sfp-ignore-rx-los:o;bool
+loop-protect: enum=default, on, off
+
+
+driver-rx-byte: o;ro;u64
+driver-tx-byte: o;ro;u64
+driver-rx-packet: o;ro;u64
+driver-tx-packet: o;ro;u64
+rx-bytes: o;ro;u64
+tx-bytes: o;ro;u64
+rx-too-short: o;ro;u64
+rx-64:o;ro;u64
+rx-65-127:o;ro;u64
+rx-128-255:o;ro;u64
+rx-256-511:o;ro;u64
+rx-512-1023:o;ro;u64
+rx-1024-1518:o;ro;u64
+rx-1519-max:o;ro;u64
+rx-too-long:o;ro;u64
+rx-broadcast:o;ro;u64
+rx-pause:o;ro;u64
+rx-multicast:o;ro;u64
+rx-fcs-error:o;ro;u64
+rx-align-error:o;ro;u64
+rx-fragment:o;ro;u64
+rx-overflow:o;ro;u64
+rx-jabber: o;ro;u64
+rx-unicast: o;ro;u64
+rx-error-events:o;ro;u64
+rx-drop:o;ro;u64
+rx-packet:o;ro;u64
+tx-64:o;ro;u64
+tx-65-127:o;ro;u64
+tx-128-255:o;ro;u64
+tx-256-511:o;ro;u64
+tx-512-1023:o;ro;u64
+tx-1024-1518:o;ro;u64
+tx-1519-max:o;ro;u64
+tx-too-long:o;ro;u64
+tx-broadcast:o;ro;u64
+tx-pause:o;ro;u64
+tx-multicast:o;ro;u64
+tx-unicast: o;ro;u64
+tx-underrun:o;ro;u64
+tx-collision:o;ro;u64
+tx-excessive-collision:o;ro;u64
+tx-multiple-collision:o;ro;u64
+tx-single-collision:o;ro;u64
+tx-excessive-deferred:o;ro;u64
+tx-deferred:o;ro;u64
+tx-late-collision:o;ro;u64
+tx-drop: o;ro;u64
+tx-queue0-packet:o;ro;u64
+tx-queue0-byte:o;ro;u64
+tx-queue1-packet:o;ro;u64
+tx-queue1-byte:o;ro;u64
+tx-queue2-packet:o;ro;u64
+tx-queue2-byte:o;ro;u64
+tx-queue3-packet:o;ro;u64
+tx-queue3-byte:o;ro;u64
+tx-queue4-packet:o;ro;u64
+tx-queue4-byte:o;ro;u64
+tx-queue5-packet:o;ro;u64
+tx-queue5-byte:o;ro;u64
+tx-queue6-packet:o;ro;u64
+tx-queue6-byte:o;ro;u64
+tx-queue7-packet:o;ro;u64
+tx-queue7-byte:o;ro;u64
+tx-all-queue-drop-packet:o;ro;u64
+tx-all-queue-drop-byte:o;ro;u64
+tx-queue-custom0-drop-packet:o;ro;u64
+tx-queue-custom0-drop-byte:o;ro;u64
+tx-queue-custom1-drop-packet:o;ro;u64
+tx-queue-custom1-drop-byte:o;ro;u64
+tx-rx-64:o;ro;u64
+tx-rx-65-127:o;ro;u64
+tx-rx-128-255:o;ro;u64
+tx-rx-256-511:o;ro;u64
+tx-rx-512-1023:o;ro;u64
+tx-rx-1024-max:o;ro;u64
+tx-fcs-error:o;ro;u64
+tx-packet:o;ro;u64
+rx-code-error:o;ro;u64
+rx-ip-header-checksum-error:o;ro;u64
+rx-length-error:o;ro;u64
+rx-tcp-checksum-error:o;ro;u64
+rx-udp-checksum-error:o;ro;u64
+tx-carrier-sense-error:o;ro;u64
+
+tx-drop-byte:o;ro;u64
+tx-drop-packet:o;ro;u64
+tx-drop-queue0-byte:o;ro;u64
+tx-drop-queue0-packet:o;ro;u64
+tx-drop-queue1-byte:o;ro;u64
+tx-drop-queue1-packet:o;ro;u64
+tx-drop-queue2-byte:o;ro;u64
+tx-drop-queue2-packet:o;ro;u64
+tx-drop-queue3-byte:o;ro;u64
+tx-drop-queue3-packet:o;ro;u64
+tx-drop-queue4-byte:o;ro;u64
+tx-drop-queue4-packet:o;ro;u64
+tx-drop-queue5-byte:o;ro;u64
+tx-drop-queue5-packet:o;ro;u64
+tx-drop-queue6-byte:o;ro;u64
+tx-drop-queue6-packet:o;ro;u64
+tx-drop-queue7-byte:o;ro;u64
+tx-drop-queue7-packet:o;ro;u64
+
+rx-carrier-error:o;ro;u64
+rx-control:o;ro;u64
+rx-unknown-op:o;ro;u64
+tx-control:o;ro;u64
+tx-fragment:o;ro;u64
+tx-jabber:o;ro;u64
+tx-rx-1024-1518:o;ro;u64
+tx-rx-1519-max:o;ro;u64
+tx-too-short:o;ro;u64
+tx-total-collision:o;ro;u64
+
+
+
+policy-drop-packet:o;ro;u64
+custom-drop-packet:o;ro;u64
+current-learned:o;ro;u64
+not-learned:o;ro;u64
+
+
+/interface/ethernet/poe:
+.id:ro;Id;id
+name: id
+poe-out: enum= auto-on, forced-on, off;
+poe-priority: u8
+poe-voltage: o; auto; enum= high, low;
+power-cycle-interval: o; none;
+power-cycle-ping-address: o;
+power-cycle-ping-enabled: o; bool
+power-cycle-ping-timeout: o; Duration
+about: ro;o
+
+/interface/ethernet/poe/monitor:
+name: ro
+poe-out: ro; enum= auto-on, forced-on, off;
+poe-out-voltage: o; ro; f64
+poe-out-current: o; ro; f64
+poe-out-power: o; ro; f64
+poe-out-power-pair: ro; o; enum=a,b,bt;
+poe-out-status: ro;enum=waiting-for-load, short-circuit, powered-on, overload, voltage-too-low, voltage-too-high,current-too-low, voltage_on_poe_in,off,power_reset,controller_init,controller_upgrade,controller_error
+poe-voltage: ro;o; auto; enum= high, low;
+.section:ro; u32

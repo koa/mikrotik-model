@@ -1,0 +1,23 @@
+/system/health:
+.id: ro; Id; id
+value: ro; f64
+about: ro; o
+name: ro; 
+type: ro; enum=W,C,V,RPM,A
+
+/system/health/settings:is-single;
+cpu-overtemp-check: bool
+cpu-overtemp-startup-delay: 
+cpu-overtemp-threshold: u32
+fan-control-interval: 
+fan-full-speed-temp: u8
+fan-min-speed-percent: u8
+fan-mode: auto; enum= manual; 
+fan-on-threshold: u32
+fan-switch: auto; enum= off, on; 
+fan-target-temp: u8
+use-fan: enum= auxiliary, main; 
+use-fan2: enum= auxiliary, main; 
+active-fan: ro; 
+active-fan2: ro; 
+

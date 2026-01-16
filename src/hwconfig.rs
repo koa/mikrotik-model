@@ -146,7 +146,7 @@ impl DeviceType {
     }
     pub fn build_wifi_ports(&self) -> Vec<InterfaceWifiByDefaultName> {
         match self {
-            DeviceType::C52iG5haxD2haxD => repeat_n(generate_wifi(1560), 2)
+            DeviceType::C52iG5haxD2haxD => repeat_n(generate_wifi(), 2)
                 .enumerate()
                 .map(|(idx, generator)| generator(idx + 1))
                 .collect(),
@@ -316,6 +316,11 @@ pub fn generate_ethernet(
                 None
             },
             poe_priority: if has_poe_out { Some(10) } else { None },
+            poe_voltage: None,
+            power_cycle_interval: None,
+            power_cycle_ping_address: None,
+            power_cycle_ping_enabled: None,
+            power_cycle_ping_timeout: None,
             sfp_shutdown_temperature: name.default_sfp_shutdown_temperature(),
             sfp_rate_select: name.default_sfp_rate_select(),
             speed: None,
@@ -328,7 +333,7 @@ pub fn generate_ethernet(
     }
 }
 
-pub fn generate_wifi(l_2_mtu: u16) -> impl Fn(usize) -> InterfaceWifiByDefaultName + Clone {
+pub fn generate_wifi() -> impl Fn(usize) -> InterfaceWifiByDefaultName + Clone {
     move |idx| {
         let default_name: AsciiString = format!("wifi{idx}").into();
         let name: AsciiString = format!("wi{idx:02}").into();
@@ -407,7 +412,7 @@ pub fn generate_wifi(l_2_mtu: u16) -> impl Fn(usize) -> InterfaceWifiByDefaultNa
                 interworking_wan_symmetric: None,
                 interworking_wan_uplink: None,
                 interworking_wan_uplink_load: None,
-                l_2_mtu,
+                l_2_mtu: None,
                 mac_address: None,
                 master_interface: None,
                 mtu: None,

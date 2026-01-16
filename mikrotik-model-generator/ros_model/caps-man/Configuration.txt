@@ -10,7 +10,7 @@ channel.secondary-frequency: disabled; u32; o
 channel.skip-dfs-channels: bool; o
 channel.tx-power: u8; o
 comment: o
-country: o; WifiCountry
+country: o; WifiCountryLower
 datapath: o; ref=>caps-datapath
 datapath.arp: o; disabled; enum= enabled, local-proxy-arp, proxy-arp, reply-only;
 datapath.bridge: o; ref=>interface

@@ -72,11 +72,11 @@ interworking.wan-status:o;InterworkingWanStatus;
 interworking.wan-symmetric: o;bool
 interworking.wan-uplink: o;u32
 interworking.wan-uplink-load: o;u32
-l2mtu: u16
+l2mtu: o; u16
 mac-address: o;k;MacAddress
 master-interface: o;ref=>interface
 mtu: o; u16
-name: ref=interface
+name: ref=interface; id
 radio-mac: o;k;MacAddress
 security: o; ref=>wifi-security
 security.authentication-types: o;mu;WifiAuthenticationTypes
@@ -120,7 +120,7 @@ master: ro; bool; ref=>interface
 bound: ro; bool
 default-name: ro; id; o
 running: ro; bool
-about: ro; 
+.about: ro;
 
 /interface/wifi/aaa:can-add;id=name
 called-format: o
@@ -373,57 +373,60 @@ radio-mac: o;MacAddress
 slave-configurations: o;mu;ref=>wifi-configuration
 slave-name-format: o
 supported-bands: mu; WifiChannelBand;
-about: ro; 
+about: ro; o
 
 /interface/wifi/radio:
-about: ro; 
-hw-caps: ro; 
-current-country: ro; WifiCountry
+about: ro; o
+hw-caps: ro; mu
+current-country: ro; o; WifiCountry
 interface: ro; 
-current-channels: ro; 
+current-channels: ro; mu
 hw-type: ro; 
-min-antenna-gain: ro; 
-ciphers: ro; 
-local: ro; 
-rx-chains: ro; 
-bands: ro; 
-current-gopclasses: ro; 
+min-antenna-gain: ro; u8
+ciphers: ro; mu
+local: ro; o; bool
+rx-chains: ro; mu; u8
+bands: ro; mu
+current-gopclasses: ro; mu; u8
 radio-mac: ro; MacAddress
-current-max-reg-power: ro; 
-max-interfaces: ro; 
+current-max-reg-power: ro; o; i16
+max-interfaces: ro; u16
 max-vlans: ro; u16
-countries: ro; 
-5g-channels: ro; 
-max-station-interfaces: ro; 
-cap: ro; 
-max-peers: ro; 
-tx-chains: ro; 
-afc-deployment: ro; 
-2g-channels: ro; 
+countries: ro; mu
+5g-channels: ro; mu; u16
+max-station-interfaces: ro; u8
+cap: ro; o
+max-peers: ro; u16
+tx-chains: ro; mu; u8
+afc-deployment: ro; o
+2g-channels: ro; mu; u16
+current-max-tx-power: i16
+.id: ro; Id; id
 
 /interface/wifi/radio/settings:is-single;
 external-antenna: o; bool
 wifi-band: o; enum= 2.4GHz, 5GHz;
 
 /interface/wifi/registration-table:
-about: ro; 
-auth-type: ro; 
-packets: ro; 
-uptime: ro; 
-vlan-id: ro; 
-rx-rate: ro; 
-tx-bits-per-second: ro; 
-comment: ro; 
-tx-rate: ro; 
+about: ro; o
+auth-type: ro;
+packets: ro; u64; statspair
+uptime:Duration;ro;
+vlan-id: ro; o; u16
+rx-rate: ro; u64
+tx-bits-per-second: ro; u64
+comment: ro; o
+tx-rate: ro; u64
 ssid: ro; 
-authorized: ro; 
+authorized: ro; bool
 band: ro; 
-bytes: ro; 
-rx-bits-per-second: ro; 
+bytes: ro; u64; statspair
+rx-bits-per-second: ro; u64
 mac-address: ro; MacAddress
-last-activity: ro; 
-signal: ro; 
-interface: ro; 
+last-activity: ro; Duration;
+signal: ro; i16
+interface: ro;
+.id: Id;ro;
 
 /interface/wifi/security:can-add;
 authentication-types: o;mu;WifiAuthenticationTypes

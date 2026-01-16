@@ -46,42 +46,43 @@ radius-password:
 store-leases-disk: 
 
 /ip/dhcp-server/lease:can-add;
-address: 
-address-lists: 
-allow-dual-stack-queue: bool
-always-broadcast: bool
-block-access: bool
-client-id: 
-comment: 
-dhcp-option: 
-dhcp-option-set: none; 
+.id: ro; Id; id
+address: IpAddr;
+address-lists: mu; ref=>address-list
+allow-dual-stack-queue: o; bool
+always-broadcast: o; bool
+block-access: o; bool
+client-id: o
+comment: o
+dhcp-option: o
+dhcp-option-set: o; none;
 disabled: bool
-insert-queue-before: 
-lease-time: 
-mac-address: 
-parent-queue: none; 
-queue-type: 
-rate-limit: 
-routes: 
+insert-queue-before: o;
+lease-time: Duration;o
+mac-address: MacAddress
+parent-queue: none; o
+queue-type: o
+rate-limit: o
+routes: o
 server: 
-use-src-mac: bool
+use-src-mac: bool; o
 dynamic: ro; bool
-status: ro; 
-active-server: ro; 
-active-address: ro; 
-expires-after: ro; 
-agent-circuit-id: ro; 
-about: ro; 
-host-name: ro; 
-agent-remote-id: ro; 
-blocked: ro; 
-src-mac-address: ro; 
-age: ro; 
-active-client-id: ro; 
-active-mac-address: ro; 
-last-seen: ro; 
-class-id: ro; 
-radius: ro; 
+status: ro; o
+active-server: ro; o
+active-address: o; ro;
+expires-after: ro; Duration; o
+agent-circuit-id: ro; o
+about: ro; o
+host-name: ro; o
+agent-remote-id: ro; o
+blocked: ro; bool; o
+src-mac-address: ro;MacAddress; o
+age: ro; Duration; o
+active-client-id: ro; o
+active-mac-address: o; ro; MacAddress
+last-seen: ro; Duration; o
+class-id: ro; o
+radius: ro; o
 
 /ip/dhcp-server/matcher:can-add;
 address-pool: none; 

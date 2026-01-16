@@ -1,5 +1,7 @@
 /interface/ethernet/switch:
-cpu-flow-control: bool
+l3-hw-offloading: bool; o
+qos-hw-offloading: bool; o
+cpu-flow-control: bool; o
 mirror-source: none;
 mirror-target: none;
 name: ref=switch;id

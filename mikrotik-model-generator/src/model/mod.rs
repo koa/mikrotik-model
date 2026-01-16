@@ -1735,6 +1735,7 @@ impl Field {
                     }
                 } else {
                     match comp {
+                        "" => {}
                         "id" => field.is_key = true,
                         "ro" => field.is_read_only = true,
                         "auto" => field.has_auto = true,

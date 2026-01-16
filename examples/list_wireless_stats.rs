@@ -80,14 +80,17 @@ async fn main() -> anyhow::Result<()> {
             .as_ref()
             .map(Cow::as_ref)
             .unwrap_or_default();
-        let cfg_name_option= if_data
+        let cfg_name_option = if_data
             .and_then(|(i, _)| i.configuration.as_ref())
             .map(<&AsciiString>::into);
         let cfg_name = cfg_name_option
             .as_ref()
             .map(Cow::as_ref)
             .unwrap_or_default();
-        println!("{}, {cap_identity}, {}, {if_name}", value.mac_address, value.ssid);
+        println!(
+            "{}, {cap_identity}, {}, {if_name}",
+            value.mac_address, value.ssid
+        );
     }
 
     Ok(())

@@ -1,4 +1,5 @@
 use super::*;
+use crate::value::Auto;
 use crate::value::HasUnlimited;
 use crate::{
     value,
@@ -643,6 +644,24 @@ impl Default for InterfaceWifiProvisioningCfg {
             slave_configurations: None,
             slave_name_format: None,
             supported_bands: Default::default(),
+        }
+    }
+}
+impl Default for SystemHealthSettingsCfg {
+    fn default() -> Self {
+        SystemHealthSettingsCfg {
+            cpu_overtemp_check: false,
+            cpu_overtemp_startup_delay: Default::default(),
+            cpu_overtemp_threshold: 0,
+            fan_control_interval: Default::default(),
+            fan_full_speed_temp: 0,
+            fan_min_speed_percent: 0,
+            fan_mode: Auto::Auto,
+            fan_on_threshold: 0,
+            fan_switch: Auto::Auto,
+            fan_target_temp: 0,
+            use_fan: SystemHealthSettingsUseFan::Auxiliary,
+            use_fan_2: SystemHealthSettingsUseFan2::Auxiliary,
         }
     }
 }

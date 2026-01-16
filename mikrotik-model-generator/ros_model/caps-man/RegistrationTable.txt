@@ -1,4 +1,4 @@
-/caps-man/registration-table: id=mac-address
+/caps-man/registration-table:
 .id: ro; id; Id
 ssid: ro; 
 tx-rate: ro; 
