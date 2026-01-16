@@ -80,7 +80,7 @@ src-mac-address: ro;MacAddress; o
 age: ro; Duration; o
 active-client-id: ro; o
 active-mac-address: o; ro; MacAddress
-last-seen: ro; Duration; o
+last-seen: ro; Duration;  never
 class-id: ro; o
 radius: ro; o
 

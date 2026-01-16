@@ -1701,6 +1701,7 @@ pub struct Field {
     pub has_none: bool,
     pub has_unlimited: bool,
     pub has_disabled: bool,
+    pub has_never: bool,
     pub is_rxtx_pair: bool,
     pub is_stats_pair: bool,
     pub keep_if_none: bool,
@@ -1746,6 +1747,7 @@ impl Field {
                         "hex" => field.is_hex = true,
                         "none" => field.has_none = true,
                         "unlimited" => field.has_unlimited = true,
+                        "never" => field.has_never = true,
                         "rxtxpair" => field.is_rxtx_pair = true,
                         "statspair" => field.is_stats_pair = true,
                         "disabled" => field.has_disabled = true,
@@ -1797,6 +1799,9 @@ impl Field {
         }
         if self.has_unlimited {
             write!(writer, "unlimited; ")?;
+        }
+        if self.has_never {
+            write!(writer, "never; ")?;
         }
         if self.is_rxtx_pair {
             write!(writer, "rxtxpair; ")?;
@@ -1951,6 +1956,11 @@ impl Field {
         };
         let field_type = if self.has_disabled {
             parse_quote!(value::HasDisabled<#field_type>)
+        } else {
+            field_type
+        };
+        let field_type = if self.has_never {
+            parse_quote!(value::HasNever<#field_type>)
         } else {
             field_type
         };

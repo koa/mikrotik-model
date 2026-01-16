@@ -207,7 +207,7 @@ impl RosValue for Duration {
                 Some(b'd') => Duration::from_secs(24 * 3600 * number),
                 Some(b'w') => Duration::from_secs(7 * 24 * 3600 * number),
                 Some(&u) => {
-                    warn!("Invalid time unit {} on {value:?}", u as char);
+                    warn!("Invalid time unit {} on {}", decode_latin1(value), u as char);
                     return ParseRosValueResult::Invalid;
                 }
             };
@@ -628,6 +628,31 @@ impl<V: RosValue> RosValue for HasDisabled<V> {
         }
     }
 }
+#[derive(Debug, Clone, PartialEq, Ord, Eq, Hash, PartialOrd)]
+pub enum HasNever<V: RosValue> {
+    Never,
+    Value(V),
+}
+impl<V: RosValue> RosValue for HasNever<V> {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
+        if value == b"never" {
+            ParseRosValueResult::Value(HasNever::Never)
+        } else {
+            match RosValue::parse_ros(value) {
+                ParseRosValueResult::Value(v) => ParseRosValueResult::Value(HasNever::Value(v)),
+                ParseRosValueResult::None => ParseRosValueResult::None,
+                ParseRosValueResult::Invalid => ParseRosValueResult::Invalid,
+            }
+        }
+    }
+
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
+        match self {
+            HasNever::Never => b"never".into(),
+            HasNever::Value(v) => v.encode_ros(),
+        }
+    }
+}
 
 impl RosValue for IpAddr {
     fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
@@ -738,11 +763,11 @@ impl RosValue for Ipv6Net {
     }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
-pub struct Id(pub u16);
+pub struct Id(pub u32);
 impl RosValue for Id {
     fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
         if let Some(number) = value.strip_prefix(b"*") {
-            match u16::from_str_radix(decode_latin1(number).as_ref(), 16) {
+            match u32::from_str_radix(decode_latin1(number).as_ref(), 16) {
                 Ok(n) => ParseRosValueResult::Value(Id(n)),
                 Err(_) => ParseRosValueResult::Invalid,
             }
