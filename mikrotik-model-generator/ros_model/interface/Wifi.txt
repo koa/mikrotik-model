@@ -12,7 +12,7 @@ arp: o;disabled; enum= enabled, local-proxy-arp, proxy-arp, reply-only;
 arp-timeout: o;auto;
 channel: o;ref=wifi-channel
 channel.band: o;WifiChannelBand;
-channel.frequency: o;u16
+channel.frequency: mu;u16
 channel.reselect-interval:o;Duration
 channel.secondary-frequency: o;disabled; u32
 channel.skip-dfs-channels: o;disabled; WifiSkipDfsChannels;
@@ -114,13 +114,13 @@ steering: o;
 steering.neighbor-group:o;
 steering.rrm: o;bool
 steering.wnm: o;bool
-dynamic: ro; bool
+dynamic: ro; bool; o
 inactive: ro; bool
 master: ro; bool; ref=>interface
 bound: ro; bool
 default-name: ro; id; o
 running: ro; bool
-.about: ro;
+.about: ro; o
 
 /interface/wifi/aaa:can-add;id=name
 called-format: o
@@ -198,7 +198,7 @@ about: ro;
 band: o; WifiChannelBand;
 comment: 
 disabled: bool
-frequency: o; mu; range; u16
+frequency: mu; range; u16
 name: ref=wifi-channel
 reselect-interval: o; range-dot; Duration
 secondary-frequency: mu; disabled; u32

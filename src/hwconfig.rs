@@ -1,16 +1,15 @@
-use crate::model::{InterfaceWirelessByDefaultName, InterfaceWirelessCfg};
 use crate::{
     ascii::AsciiString,
     model::{
         Data, EthernetSpeed, InterfaceEthernetArp, InterfaceEthernetByDefaultName,
         InterfaceEthernetCfg, InterfaceEthernetComboMode, InterfaceEthernetFecMode,
         InterfaceEthernetLoopProtect, InterfaceEthernetPoeOut, InterfaceEthernetSfpRateSelect,
-        InterfaceWifiByDefaultName, InterfaceWifiCfg, OnOff,
+        InterfaceWifiByDefaultName, InterfaceWifiCfg, InterfaceWirelessByDefaultName,
+        InterfaceWirelessCfg, OnOff,
     },
     value::{Auto, HasUnlimited, RxTxPair},
 };
-use std::{iter::repeat_n, time::Duration};
-
+use std::{collections::BTreeSet, iter::repeat_n, time::Duration};
 #[derive(Debug, Copy, Clone, PartialEq, Hash)]
 pub enum DeviceType {
     RB750Gr3,
@@ -352,7 +351,7 @@ pub fn generate_wifi() -> impl Fn(usize) -> InterfaceWifiByDefaultName + Clone {
                 arp_timeout: Some(Auto::Auto),
                 channel: None,
                 channel_band: None,
-                channel_frequency: None,
+                channel_frequency: BTreeSet::default(),
                 channel_reselect_interval: None,
                 channel_secondary_frequency: None,
                 channel_skip_dfs_channels: None,
