@@ -1,9 +1,9 @@
 /system/health:
 .id: ro; Id; id
-value: ro; f64
+value: ro;
 about: ro; o
 name: ro; 
-type: ro; enum=W,C,V,RPM,A
+type: ro;
 
 /system/health/settings:is-single;
 cpu-overtemp-check: bool

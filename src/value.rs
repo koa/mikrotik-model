@@ -207,7 +207,11 @@ impl RosValue for Duration {
                 Some(b'd') => Duration::from_secs(24 * 3600 * number),
                 Some(b'w') => Duration::from_secs(7 * 24 * 3600 * number),
                 Some(&u) => {
-                    warn!("Invalid time unit {} on {}", decode_latin1(value), u as char);
+                    warn!(
+                        "Invalid time unit {} on {}",
+                        decode_latin1(value),
+                        u as char
+                    );
                     return ParseRosValueResult::Invalid;
                 }
             };
