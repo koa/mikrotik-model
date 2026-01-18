@@ -413,10 +413,10 @@ auth-type: ro;
 packets: ro; u64; statspair
 uptime:Duration;ro;
 vlan-id: ro; o; u16
-rx-rate: ro; u64
+rx-rate: ro; u64; o
 tx-bits-per-second: ro; u64
 comment: ro; o
-tx-rate: ro; u64
+tx-rate: ro; u64; o
 ssid: ro; 
 authorized: ro; bool
 band: ro; 

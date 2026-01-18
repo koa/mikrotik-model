@@ -1,7 +1,7 @@
 /caps-man/registration-table:
 .id: ro; id; Id
 ssid: ro; 
-tx-rate: ro; 
+tx-rate: ro; o
 eap-identity: o; ro;
 uptime: ro; Duration
 comment: o; ro;
@@ -12,7 +12,7 @@ vlan-id: ro; o; u16
 radio-name: ro; o
 tx-rate-set: ro; o
 mac-address: ro; MacAddress
-rx-rate: ro; 
+rx-rate: ro; o
 bytes: ro; u64; statspair
 tx-signal: ro; o
 interface: ro; 
