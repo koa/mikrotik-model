@@ -1,3 +1,4 @@
+use crate::value::Id;
 use crate::{
     MikrotikDevice,
     ascii::AsciiString,
@@ -17,7 +18,8 @@ use std::{
     sync::Arc,
 };
 use thiserror::Error;
-use tokio_stream::{FromStream, Stream, StreamExt};
+use tokio_stream::{FromStream, Stream, StreamExt, empty};
+use tokio_util::either::Either;
 
 #[derive(Debug, Error, Clone)]
 pub enum ResourceAccessError {
@@ -150,6 +152,36 @@ pub async fn stream_resource<R: DeserializeRosResource + RosResource>(
         .send_simple_command(&[b"/", R::path(), b"/print"], R::resource_type())
         .await
         .map(|entry| entry.map(|r| R::unwrap_resource(r).expect("Unexpected result type")))
+}
+pub async fn monitor_once_resource<R: DeserializeRosResource + RosResource>(
+    entries: impl Iterator<Item = Id>,
+    device: &MikrotikDevice,
+) -> impl Stream<Item = SentenceResult<R>> {
+    let mut id_list = Vec::<u8>::new();
+    for id in entries {
+        if !id_list.is_empty() {
+            id_list.extend(b",");
+        }
+        id_list.extend(id.encode_ros().as_ref());
+    }
+
+    if id_list.is_empty() {
+        Either::Left(empty())
+    } else {
+        Either::Right(
+            device
+                .send_command(
+                    &[b"/", R::path(), b"/monitor"],
+                    |cb| {
+                        cb.attribute(b".id", id_list.as_slice())
+                            .attribute(b"once", b"true")
+                    },
+                    R::resource_type(),
+                )
+                .await
+                .map(|entry| entry.map(|r| R::unwrap_resource(r).expect("Unexpected result type"))),
+        )
+    }
 }
 
 pub async fn collect_resource<R: DeserializeRosResource + RosResource>(

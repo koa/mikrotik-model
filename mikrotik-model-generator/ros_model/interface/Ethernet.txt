@@ -170,23 +170,17 @@ not-learned:o;ro;u64
 
 /interface/ethernet/poe:
 .id:ro;Id;id
-name: id
-poe-out: enum= auto-on, forced-on, off;
+name: id; monitor
+poe-out: enum= auto-on, forced-on, off;monitor
 poe-priority: u8
-poe-voltage: o; auto; enum= high, low;
+poe-voltage: o; auto; enum= high, low; monitor
 power-cycle-interval: o; none;
 power-cycle-ping-address: o;
 power-cycle-ping-enabled: o; bool
 power-cycle-ping-timeout: o; Duration
 about: ro;o
-
-/interface/ethernet/poe/monitor:
-name: ro
-poe-out: ro; enum= auto-on, forced-on, off;
-poe-out-voltage: o; ro; f64
-poe-out-current: o; ro; f64
-poe-out-power: o; ro; f64
-poe-out-power-pair: ro; o; enum=a,b,bt;
-poe-out-status: ro;enum=waiting-for-load, short-circuit, powered-on, overload, voltage-too-low, voltage-too-high,current-too-low, voltage_on_poe_in,off,power_reset,controller_init,controller_upgrade,controller_error
-poe-voltage: ro;o; auto; enum= high, low;
-.section:ro; u32
+poe-out-voltage: o; ro; f64; monitor-only
+poe-out-current: o; ro; f64;monitor-only
+poe-out-power: o; ro; f64; monitor-only
+poe-out-power-pair: ro; o; enum=a,b,bt;monitor-only
+poe-out-status: ro;enum=waiting-for-load, short-circuit, powered-on, overload, voltage-too-low, voltage-too-high,current-too-low, voltage_on_poe_in,off,power_reset,controller_init,controller_upgrade,controller_error; monitor-only

@@ -1,4 +1,3 @@
-use crate::{cleanup_field_name, generate_enums, name2field_ident, KEYWORDS};
 use convert_case::{Case, Casing};
 use proc_macro2::{Ident, Literal, Span};
 use serde::{Deserialize, Serialize};
@@ -160,6 +159,7 @@ impl Entity {
 
         let has_cfg_struct = self.modifiable_fields_iterator().next().is_some();
         let has_readonly_fields = self.read_only_fields_iterator().next().is_some();
+        let has_monitor_fields = self.monitor_fields_iterator().next().is_some();
 
         if has_cfg_struct {
             items.push(self.create_cfg_struct());
@@ -236,6 +236,15 @@ impl Entity {
                 items.push(self.create_state_single_impl());
             }
         }
+        if has_monitor_fields {
+            items.push(self.create_monitor_struct());
+            items.push(self.create_monitor_builder_struct());
+            items.push(self.generate_has_reference_for_monitor_struct());
+            items.push(self.generate_deserialize_for_monitor_struct());
+            items.push(self.create_ros_resource_for_monitor());
+            items.push(self.create_deserialize_builder_for_monitor());
+            enum_entries.push(self.create_monitor_enum_entry());
+        }
         if has_cfg_struct && has_readonly_fields {
             enum_entries.push(self.create_enum_entry());
             items.push(self.generate_combined_struct());
@@ -249,7 +258,7 @@ impl Entity {
             }
         }
         (
-            generate_enums(self.collect_enum_field_types())
+            crate::generate_enums(self.collect_enum_field_types())
                 .chain(items)
                 .collect::<Vec<_>>(),
             enum_entries,
@@ -765,7 +774,7 @@ impl Entity {
     fn id_struct_builder_ident(&self, id_field: &Field) -> Type {
         let struct_name = self.struct_name();
         name2type(
-            cleanup_field_name(&format!("{struct_name}By_{}_Builder", id_field.name))
+            crate::cleanup_field_name(&format!("{struct_name}By_{}_Builder", id_field.name))
                 .to_case(Case::UpperCamel)
                 .as_str(),
         )
@@ -776,19 +785,43 @@ impl Entity {
             self.struct_status_type(),
             self.struct_ident_builder_status(),
             self.struct_status_ident(),
-            self.generate_derived_updates(|f| f.is_read_only),
+            self.generate_derived_updates(|f| {
+                f.is_read_only && f.monitor != MonitorVariant::Exclusive
+            }),
+        )
+    }
+    fn generate_deserialize_for_monitor_struct(&self) -> Item {
+        Self::generate_deserialize(
+            self.struct_monitor_type(),
+            self.struct_ident_builder_monitor(),
+            self.struct_monitor_ident(),
+            self.generate_derived_updates(|f| f.monitor != MonitorVariant::No),
         )
     }
     fn generate_has_reference_for_status_struct(&self) -> Item {
         Self::generate_has_reference(
             self.struct_status_type(),
-            self.update_reference_fn(|f| f.is_read_only),
+            self.update_reference_fn(|f| f.is_read_only && f.monitor != MonitorVariant::Exclusive),
+        )
+    }
+    fn generate_has_reference_for_monitor_struct(&self) -> Item {
+        Self::generate_has_reference(
+            self.struct_monitor_type(),
+            self.update_reference_fn(|f| f.monitor != MonitorVariant::No),
         )
     }
 
     fn create_status_struct(&self) -> Item {
         let fields_named_status = self.create_status_fields(|f| self.struct_field_type(f));
         let struct_ident_status = self.struct_status_type();
+        parse_quote! {
+            #[derive(Debug, Clone, PartialEq)]
+            pub struct #struct_ident_status #fields_named_status
+        }
+    }
+    fn create_monitor_struct(&self) -> Item {
+        let fields_named_status = self.create_monitor_fields(|f| self.struct_field_type(f));
+        let struct_ident_status = self.struct_monitor_type();
         parse_quote! {
             #[derive(Debug, Clone, PartialEq)]
             pub struct #struct_ident_status #fields_named_status
@@ -1129,13 +1162,29 @@ impl Entity {
             is_single: false,
         }
     }
+    fn create_monitor_enum_entry(&self) -> RosTypeEntry {
+        let type_name = self.struct_monitor_ident();
+        let builder = self.struct_ident_builder_monitor();
+        let data = self.struct_monitor_type();
+        let field_name = self.struct_monitor_ident_field();
+        RosTypeEntry {
+            type_name,
+            field_name,
+            builder,
+            data,
+            can_update: false,
+            can_add: false,
+            is_single: false,
+        }
+    }
+
     fn create_enum_entry(&self) -> RosTypeEntry {
         let type_name = self.struct_ident();
         let builder = self.struct_builder();
         let data = self.struct_type();
         RosTypeEntry {
             type_name,
-            field_name: name2field_ident(&self.struct_name()),
+            field_name: crate::name2field_ident(&self.struct_name()),
             builder,
             data,
             can_update: false,
@@ -1179,30 +1228,25 @@ impl Entity {
     }
 
     fn modifiable_field_declarations(&self, type_builder: impl Fn(&Field) -> Type) -> FieldsNamed {
-        let mut fields_named_cfg = FieldsNamed {
-            brace_token: Default::default(),
-            named: Default::default(),
-        };
-        for f in self.modifiable_fields_iterator() {
-            let field_name = f.generate_field_name();
-            let field_type = type_builder(f);
-            fields_named_cfg
-                .named
-                .push(parse_quote!(pub #field_name: #field_type));
-        }
-        fields_named_cfg
+        self.create_struct_fields(self.modifiable_fields_iterator(), type_builder)
     }
 
     fn modifiable_fields_iterator(&self) -> impl Iterator<Item = &Field> {
-        self.fields.iter().filter(|f| !f.is_read_only)
+        self.fields
+            .iter()
+            .filter(|f| !f.is_read_only && MonitorVariant::Exclusive != f.monitor)
     }
 
-    fn create_status_fields(&self, type_builder: impl Fn(&Field) -> Type) -> FieldsNamed {
+    fn create_struct_fields<'a>(
+        &self,
+        fields: impl Iterator<Item = &'a Field>,
+        type_builder: impl Fn(&Field) -> Type,
+    ) -> FieldsNamed {
         let mut fields_named_status = FieldsNamed {
             brace_token: Default::default(),
             named: Default::default(),
         };
-        for field in self.read_only_fields_iterator() {
+        for field in fields {
             let field_name = field.generate_field_name();
             let field_type = type_builder(field);
             let field_def = parse_quote!(
@@ -1213,8 +1257,22 @@ impl Entity {
         fields_named_status
     }
 
+    fn create_status_fields(&self, type_builder: impl Fn(&Field) -> Type) -> FieldsNamed {
+        self.create_struct_fields(self.read_only_fields_iterator(), type_builder)
+    }
+    fn create_monitor_fields(&self, type_builder: impl Fn(&Field) -> Type) -> FieldsNamed {
+        self.create_struct_fields(self.monitor_fields_iterator(), type_builder)
+    }
+
     fn read_only_fields_iterator(&self) -> impl Iterator<Item = &Field> {
-        self.fields.iter().filter(|f| f.is_read_only)
+        self.fields
+            .iter()
+            .filter(|f| f.is_read_only && MonitorVariant::Exclusive != f.monitor)
+    }
+    fn monitor_fields_iterator(&self) -> impl Iterator<Item = &Field> {
+        self.fields
+            .iter()
+            .filter(|f| MonitorVariant::No != f.monitor)
     }
 
     fn builder_field_type(&self, field: &Field) -> Type {
@@ -1275,6 +1333,14 @@ impl Entity {
         let struct_name = self.struct_name();
         name2type(&format!("{struct_name}StateBuilder"))
     }
+    fn struct_ident_builder_monitor(&self) -> Type {
+        let struct_name = self.struct_name();
+        name2type(&format!("{struct_name}MonitorBuilder"))
+    }
+    fn struct_monitor_ident_field(&self) -> Ident {
+        let struct_name = self.struct_name();
+        crate::name2field_ident(&format!("{struct_name}Monitor"))
+    }
 
     fn struct_type(&self) -> Type {
         ident2type(self.struct_ident())
@@ -1295,12 +1361,19 @@ impl Entity {
             .map(|c| c.as_ref().to_case(Case::UpperCamel))
             .collect()
     }
+    fn struct_monitor_ident(&self) -> Ident {
+        let struct_name = self.struct_name();
+        crate::name2ident(&format!("{struct_name}Monitor"))
+    }
+    fn struct_monitor_type(&self) -> Type {
+        ident2type(self.struct_monitor_ident())
+    }
 
     fn create_deserialize_builder_for_cfg(&self) -> Item {
         Self::generate_deserialize_for_builder(
             self.struct_ident_cfg_builder(),
             self.struct_type_cfg(),
-            || self.fields.iter().filter(|f| !f.is_read_only),
+            || self.modifiable_fields_iterator(),
         )
     }
 
@@ -1472,6 +1545,14 @@ impl Entity {
             pub struct #struct_name #fields
         }
     }
+    fn create_monitor_builder_struct(&self) -> Item {
+        let struct_name = self.struct_ident_builder_monitor();
+        let fields = self.create_monitor_fields(|f| self.builder_field_type(f));
+        parse_quote! {
+            #[derive(Debug, Clone, PartialEq, Default)]
+            pub struct #struct_name #fields
+        }
+    }
 
     fn create_ros_resource_for_status(&self) -> Item {
         let struct_ident_status = self.struct_status_type();
@@ -1503,12 +1584,49 @@ impl Entity {
             }
         }
     }
+    fn create_ros_resource_for_monitor(&self) -> Item {
+        let struct_ident_status = self.struct_monitor_type();
+        let ident = self.struct_monitor_ident();
+        let path = self.generate_path();
+        let (provides_array, consumes_array) = self.consume_and_provides(|field| {
+            if field.monitor != MonitorVariant::No {
+                let name = field.generate_field_name();
+                Some(parse_quote! {&self.#name})
+            } else {
+                None
+            }
+        });
+        parse_quote! {
+            impl resource::RosResource for #struct_ident_status {
+                fn path()->&'static [u8]{
+                    #path
+                }
+                fn create_resource_ref(&self)->ResourceRef<'_>{
+                    ResourceRef::#ident(self)
+                }
+                fn provides_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<'_, [u8]>)>{
+                    #provides_array.into_iter()
+                }
+                fn consumes_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<'_, [u8]>)>{
+                    #consumes_array.into_iter()
+                }
+
+            }
+        }
+    }
 
     fn create_deserialize_builder_for_status(&self) -> Item {
         Self::generate_deserialize_for_builder(
             self.struct_ident_builder_status(),
             self.struct_status_type(),
-            || self.fields.iter().filter(|f| f.is_read_only),
+            || self.read_only_fields_iterator(),
+        )
+    }
+    fn create_deserialize_builder_for_monitor(&self) -> Item {
+        Self::generate_deserialize_for_builder(
+            self.struct_ident_builder_monitor(),
+            self.struct_monitor_type(),
+            || self.monitor_fields_iterator(),
         )
     }
 
@@ -1651,7 +1769,7 @@ impl Entity {
     }
     fn id_struct_ident_combined_field(&self, id_field: &Field) -> Ident {
         let struct_name = self.struct_name();
-        name2field_ident(&format!("{struct_name}By_{}WithState", id_field.name))
+        crate::name2field_ident(&format!("{struct_name}By_{}WithState", id_field.name))
     }
 
     fn generate_has_reference_for_cfg_struct(&self) -> Item {
@@ -1706,6 +1824,14 @@ pub struct Field {
     pub is_stats_pair: bool,
     pub keep_if_none: bool,
     pub default: Option<Box<str>>,
+    pub monitor: MonitorVariant,
+}
+#[derive(Default, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub enum MonitorVariant {
+    #[default]
+    No,
+    Enabled,
+    Exclusive,
 }
 
 impl Field {
@@ -1752,6 +1878,8 @@ impl Field {
                         "statspair" => field.is_stats_pair = true,
                         "disabled" => field.has_disabled = true,
                         "k" => field.keep_if_none = true,
+                        "monitor" => field.monitor = MonitorVariant::Enabled,
+                        "monitor-only" => field.monitor = MonitorVariant::Exclusive,
                         name => {
                             field.field_type = Some(name.trim())
                                 .filter(|t| !t.is_empty())
@@ -1981,9 +2109,9 @@ impl Field {
     }
 
     pub fn generate_field_name(&self) -> Ident {
-        let field_name = cleanup_field_name(self.name.as_ref()).to_case(Case::Snake);
+        let field_name = crate::cleanup_field_name(self.name.as_ref()).to_case(Case::Snake);
 
-        let field_name = if KEYWORDS.contains(field_name.as_str())
+        let field_name = if crate::KEYWORDS.contains(field_name.as_str())
             || field_name
                 .chars()
                 .next()

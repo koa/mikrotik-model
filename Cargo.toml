@@ -12,6 +12,7 @@ serde = { version = "1.0.216", features = ["derive"] }
 thiserror = "2.0.9"
 log = "0.4.22"
 tokio-stream = "0.1.17"
+tokio-util = "0.7.18"
 mac_address = "1.1.8"
 ipnet = "2.5.0"
 itertools = "0.13.0"
