@@ -12,6 +12,9 @@ mod util;
 pub mod value;
 pub use mac_address::MacAddress;
 pub use mikrotik_model_generator_macro::mikrotik_model;
+pub mod mikrotik_api {
+    pub use mikrotik_api::prelude::*;
+}
 
 #[derive(Deserialize, Debug)]
 pub struct Credentials {
@@ -19,4 +22,4 @@ pub struct Credentials {
     pub password: Box<str>,
 }
 
-pub type MikrotikDevice = mikrotik_api::prelude::MikrotikDevice<SentenceResult<Resource>>;
+pub type MikrotikDevice = mikrotik_api::MikrotikDevice<SentenceResult<Resource>>;
