@@ -17,7 +17,7 @@ mtu: u16
 name: id;ref=interface
 port: u16
 vni: u32
-vrf: o; ref=>routing-table;
+vtep-vrf: o; ref=>routing-table;
 vteps-ip-version: enum= ipv4, ipv6; 
 running: ro; 
 loop-protect-status: ro; 
@@ -35,5 +35,6 @@ remote-ip: ro;
 comment: o
 interface: id; ref=>interface;
 remote-ip: id; IpAddr
-about: ro; 
+about: ro;
+disabled: bool
 

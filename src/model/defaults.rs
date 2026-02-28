@@ -101,7 +101,7 @@ impl Default for InterfaceVxlanCfg {
             name: Default::default(),
             port: 8472,
             vni: 1,
-            vrf: Some(b"main".into()),
+            vtep_vrf: Some(b"main".into()),
             vteps_ip_version: InterfaceVxlanVtepsIpVersion::Ipv4,
         }
     }
@@ -231,6 +231,7 @@ impl Default for InterfaceVlanCfg {
 impl Default for InterfaceVxlanVtepsCfg {
     fn default() -> Self {
         InterfaceVxlanVtepsCfg {
+            disabled: false,
             comment: None,
             interface: Default::default(),
             remote_ip: IpAddr::V4(Ipv4Addr::LOCALHOST),
