@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-mikrotik-api={version="0.1.0", git="https://github.com/koa/mikrotik-api"}
-#mikrotik-api={version="0.1.0", path="../mikrotik-api"}
+#mikrotik-api={version="0.1.0", git="https://github.com/koa/mikrotik-api"}
+mikrotik-api={version="0.1.0", path="../mikrotik-api"}
 config = "0.14.1"
 lazy_static = "1.5.0"
 serde = { version = "1.0.216", features = ["derive"] }
