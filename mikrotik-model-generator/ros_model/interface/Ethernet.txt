@@ -5,16 +5,16 @@ advertise: mu;EthernetSpeed
 arp: enum=enabled, disabled, local-proxy-arp, proxy-arp, reply-only; default=enabled
 arp-timeout: o;auto;Duration;default=30s
 auto-negotiation: bool;default=true
-bandwidth: unlimited;rxtxpair;u32
+bandwidth: o;k;unlimited;rxtxpair;u32
 cable-setting: o;enum=default , short , standard
 combo-mode: o;enum=auto, copper, sfp
 comment:o
-disable-running-check: o;bool
+disable-running-check: o;k;bool
 fec-mode: o;enum=auto, fec74, fec91, off
 tx-flow-control: o;auto;OnOff
 rx-flow-control: o;auto;OnOff
 full-duplex: o;bool
-l2mtu:u16
+l2mtu: o;k;u16
 mac-address: o;k; MacAddress
 mdix-enable:o;bool
 mtu:u16

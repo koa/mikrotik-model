@@ -291,10 +291,10 @@ pub fn generate_ethernet(
             arp: InterfaceEthernetArp::Enabled,
             arp_timeout: Some(Auto::Auto),
             auto_negotiation: true,
-            bandwidth: RxTxPair {
+            bandwidth: Some(RxTxPair {
                 rx: HasUnlimited::Unlimited,
                 tx: HasUnlimited::Unlimited,
-            },
+            }),
             cable_setting: None,
             combo_mode: name.default_combo_mode(),
             comment: None,
@@ -303,7 +303,7 @@ pub fn generate_ethernet(
             tx_flow_control: Some(Auto::Value(OnOff::Off)),
             rx_flow_control: Some(Auto::Value(OnOff::Off)),
             full_duplex: None,
-            l_2_mtu,
+            l_2_mtu: Some(l_2_mtu),
             mac_address: None,
             mdix_enable: None,
             mtu: 1500,
