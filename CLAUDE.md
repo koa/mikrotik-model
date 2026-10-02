@@ -23,3 +23,5 @@ generator source changes needed for a simple addition.
 - Update this file in the same commit as the change it describes.
 - Commits by Claude end with the `Co-Authored-By: Claude …` trailer, without a session link.
 - Push to `master` only when asked.
+- Verify with `cargo clippy` in addition to `cargo check`/`cargo test` — not every pre-existing
+  warning needs fixing, but a change shouldn't leave new, avoidable ones behind.
