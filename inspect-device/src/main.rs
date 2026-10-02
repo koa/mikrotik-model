@@ -328,10 +328,12 @@ async fn process_entry<'a>(
             has_none: false,
             has_unlimited: false,
             has_disabled: false,
+            has_never: false,
             is_rxtx_pair: false,
             is_stats_pair: false,
             keep_if_none: false,
             default: None,
+            monitor: Default::default(),
         });
     }
     entity.fields = fields;
@@ -492,10 +494,12 @@ async fn guess_field(
             has_none: false,
             has_unlimited: false,
             has_disabled: false,
+            has_never: false,
             is_rxtx_pair: false,
             is_stats_pair: false,
             keep_if_none: false,
             default: None,
+            monitor: Default::default(),
         });
     field.is_read_only = false;
     if let Some((field_type, is_hex)) = number_type {
