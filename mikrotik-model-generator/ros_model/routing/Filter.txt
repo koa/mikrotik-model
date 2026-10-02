@@ -1,0 +1,8 @@
+/routing/filter/rule:can-add;
+.id: id;ro;Id
+chain: ref=>routing-filter;
+comment: o
+disabled: bool
+rule: o
+about: ro;
+inactive: ro;

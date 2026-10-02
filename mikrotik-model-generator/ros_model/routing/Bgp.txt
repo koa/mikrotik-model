@@ -1,0 +1,77 @@
+/routing/bgp/instance:can-add;
+as: u32
+cluster-id: o
+comment: o
+disabled: bool
+ignore-as-path-len: o; bool
+multipath: o; u32
+name: id; ref=bgp-instance
+router-id: o; Ipv4Addr
+routing-table: o
+vrf: ref=>routing-table;
+about: ro;
+inactive: ro;
+
+/routing/bgp/connection:can-add;
+afi: enum= ip, ipv6;
+as: o; u32
+cisco-vpls-nlri-len-fmt: o; enum= auto-bits, auto-bytes, bits, bytes;
+comment: o
+connect: bool
+disabled: bool
+hold-time: o
+input.accept-communities: o
+input.accept-ext-communities: o
+input.accept-large-communities: o
+input.accept-nlri: o
+input.add-path: o
+input.affinity: o; hex; i64
+input.allow-as: o; u8
+input.attr-error-handling: o; enum= default, revised;
+input.filter: o; ref=>routing-filter;
+input.filter-communities: o
+input.filter-ext-communities: o
+input.filter-large-communities: o
+input.filter-nlri: o
+input.filter-unknown: o
+input.limit-process-routes-ipv4: o; hex; i64
+input.limit-process-routes-ipv6: o; hex; i64
+instance: ref=>bgp-instance;
+keepalive-time: o
+listen: bool
+local.address: o; ref=>interface; IpOrInterface
+local.port: o; u32
+local.role: enum= ebgp, ebgp-customer, ebgp-peer, ebgp-provider, ebgp-rs, ebgp-rs-client, ibgp, ibgp-rr;
+local.ttl: o; u8
+multihop: bool
+name: id; ref=bgp-connection
+nexthop-choice: o; enum= default, force-self, propagate;
+output.add-path: o
+output.affinity: o; hex; i64
+output.as-override: o; bool
+output.default-originate: o; RoutingOriginateDefault
+output.default-prepend: o; u8
+output.filter-chain: o; ref=>routing-filter;
+output.filter-select: o
+output.keep-sent-attributes: o; bool
+output.network: o;
+output.network-blackhole: o; bool
+output.no-client-to-client-reflection: o; bool
+output.no-early-cut: o; bool
+output.redistribute: mu; RoutingRedistribute
+output.remove-private-as: o; bool
+remote.address: ref=>interface; IpOrInterface
+remote.allowed-as: o
+remote.as: o; u32
+remote.port: o; u32; default=179
+remote.ttl: o; u8
+routing-table: ref=>routing-table;
+save-to: o
+tcp-md5-key: o
+templates: mu; ref=>bgp-template;
+use-bfd: bool
+vrf: o
+about: ro;
+dynamic: ro;
+inactive: ro;
+local.default-address: ro;
