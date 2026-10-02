@@ -10,6 +10,7 @@ use encoding_rs::mem::decode_latin1;
 use itertools::{EitherOrBoth, Itertools};
 use log::{debug, info};
 use mikrotik_api::prelude::{CommandBuilder, ParsedMessage, TrapCategory, TrapResult};
+use mikrotik_api::simple::SimpleResult;
 use std::{
     borrow::Cow,
     collections::HashSet,
@@ -117,6 +118,12 @@ pub enum Error {
     ErrorFetchingSingleItem,
     #[error("Cannot identify type {0}")]
     UnknownType(AsciiString),
+    #[error("No {} entry found matching {}={}", decode_latin1(.resource), decode_latin1(.key), decode_latin1(.value))]
+    KeyNotFound {
+        resource: &'static [u8],
+        key: &'static [u8],
+        value: Box<[u8]>,
+    },
 }
 
 #[derive(Debug, Eq, PartialEq, Hash)]
@@ -474,6 +481,122 @@ impl<'a> ResourceMutationOperation<'a> {
             }
         }
     }
+}
+
+/// Applies a single [`ResourceMutation`] to a live device over the native API.
+///
+/// Only for disposable test devices right now, not production use: this has
+/// no awareness of the managed-marker scheme that will be needed before it's
+/// safe to run against a real, already-configured device (it would propose
+/// removing/overwriting entries NetBox never created).
+///
+/// RouterOS's native API only accepts a query filter (`?key=value`) on
+/// `/print`; `/set` and `/remove` both require an explicit `.id` (confirmed
+/// against a live device - a query-filtered `/set` is rejected with "missing
+/// =.id="). `RemoveByKey`/`UpdateByKey` therefore need a `/print` round trip
+/// first to resolve the key into a `.id` before the actual write.
+pub async fn apply_mutation(
+    device: &mikrotik_api::prelude::MikrotikDevice<SimpleResult>,
+    mutation: &ResourceMutation<'_>,
+) -> Result<(), Error> {
+    match &mutation.operation {
+        ResourceMutationOperation::Add => {
+            write_command(device, mutation.resource, b"add", |cmd| {
+                with_fields(cmd, &mutation.fields)
+            })
+            .await
+        }
+        ResourceMutationOperation::UpdateSingle => {
+            write_command(device, mutation.resource, b"set", |cmd| {
+                with_fields(cmd, &mutation.fields)
+            })
+            .await
+        }
+        ResourceMutationOperation::RemoveByKey(key) => {
+            let id = find_id_by_key(device, mutation.resource, key).await?;
+            write_command(device, mutation.resource, b"remove", |cmd| {
+                cmd.attribute(b".id".as_slice(), id.as_bytes())
+            })
+            .await
+        }
+        ResourceMutationOperation::UpdateByKey(key) => {
+            let id = find_id_by_key(device, mutation.resource, key).await?;
+            write_command(device, mutation.resource, b"set", |cmd| {
+                with_fields(
+                    cmd.attribute(b".id".as_slice(), id.as_bytes()),
+                    &mutation.fields,
+                )
+            })
+            .await
+        }
+    }
+}
+
+fn with_fields<'a>(cmd: CommandBuilder, fields: &[KeyValuePair<'a>]) -> CommandBuilder {
+    fields
+        .iter()
+        .fold(cmd, |cmd, kv| cmd.attribute(kv.key, kv.value.as_ref()))
+}
+
+async fn write_command<F: FnOnce(CommandBuilder) -> CommandBuilder>(
+    device: &mikrotik_api::prelude::MikrotikDevice<SimpleResult>,
+    resource: &'static [u8],
+    verb: &'static [u8],
+    command_builder: F,
+) -> Result<(), Error> {
+    let path = [b"/".as_slice(), resource, b"/".as_slice(), verb].concat();
+    let mut stream = device
+        .send_command(path.as_slice(), command_builder, ())
+        .await;
+    while let Some(result) = stream.next().await {
+        match result {
+            SimpleResult::Sentence(_) => {}
+            SimpleResult::Error(e) => return Err(Error::Device(e)),
+            SimpleResult::Trap { category, message } => {
+                return Err(Error::Trap(TrapResponse {
+                    category,
+                    message: message.into_boxed_bytes(),
+                }));
+            }
+        }
+    }
+    Ok(())
+}
+
+async fn find_id_by_key(
+    device: &mikrotik_api::prelude::MikrotikDevice<SimpleResult>,
+    resource: &'static [u8],
+    key: &KeyValuePair<'_>,
+) -> Result<Box<str>, Error> {
+    let path = [b"/".as_slice(), resource, b"/print".as_slice()].concat();
+    let mut stream = device
+        .send_command(
+            path.as_slice(),
+            |cmd| cmd.query_equal(key.key, key.value.as_ref()),
+            (),
+        )
+        .await;
+    while let Some(result) = stream.next().await {
+        match result {
+            SimpleResult::Sentence(mut row) => {
+                if let Some(Some(id)) = row.remove(".id") {
+                    return Ok(id);
+                }
+            }
+            SimpleResult::Error(e) => return Err(Error::Device(e)),
+            SimpleResult::Trap { category, message } => {
+                return Err(Error::Trap(TrapResponse {
+                    category,
+                    message: message.into_boxed_bytes(),
+                }));
+            }
+        }
+    }
+    Err(Error::KeyNotFound {
+        resource,
+        key: key.key,
+        value: key.value.clone().into_owned().into_boxed_slice(),
+    })
 }
 
 pub trait Updatable<From: RosResource>: DeserializeRosResource {
