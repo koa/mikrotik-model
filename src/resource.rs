@@ -532,6 +532,62 @@ pub async fn apply_mutation(
     }
 }
 
+/// Renders `mutations` as a RouterOS script and runs it as an independent,
+/// device-local job via `/system/script`, instead of applying each mutation
+/// one command at a time over this connection the way [`apply_mutation`]
+/// does.
+///
+/// This is what makes a config change survive the connection breaking
+/// mid-apply - including the most severe case, where the change being
+/// applied is itself what severs the connection (e.g. reconfiguring the
+/// very interface/route this API session is reachable through). Once
+/// `/system/script/run` is acknowledged, RouterOS keeps executing the
+/// script as its own job, completely decoupled from the API session that
+/// started it - confirmed live against a real CHR: a script still runs to
+/// completion with the triggering connection already closed and no
+/// connection open at all for the rest of its duration.
+///
+/// Does not wait for the script to finish, and does not implement any
+/// rollback-on-failure yet (planned as a separate, later addition: schedule
+/// a revert script via `/system/scheduler` before running this one, then
+/// cancel it once the device is confirmed reachable again with the new
+/// config). A stale `/system/script` entry named `script_name` from a
+/// previous, crashed call is removed first (best-effort - "no such item" is
+/// the expected case on a first call), so repeated calls with the same name
+/// don't drift; the entry itself is intentionally left on the device
+/// afterward for operator visibility rather than cleaned up immediately,
+/// since this function returns before knowing whether the script actually
+/// finished successfully.
+pub async fn apply_mutations_via_script(
+    device: &mikrotik_api::prelude::MikrotikDevice<SimpleResult>,
+    mutations: &[ResourceMutation<'_>],
+    script_name: &str,
+) -> Result<(), Error> {
+    let mut source = String::new();
+    let mut generator = crate::generator::Generator::new(&mut source);
+    for mutation in mutations {
+        generator
+            .append_mutation(mutation)
+            .expect("writing to a String cannot fail");
+    }
+
+    let _ = write_command(device, b"system/script", b"remove", |cmd| {
+        cmd.attribute(b"numbers".as_slice(), script_name.as_bytes())
+    })
+    .await;
+
+    write_command(device, b"system/script", b"add", |cmd| {
+        cmd.attribute(b"name".as_slice(), script_name.as_bytes())
+            .attribute(b"source".as_slice(), source.as_bytes())
+    })
+    .await?;
+
+    write_command(device, b"system/script", b"run", |cmd| {
+        cmd.attribute(b"number".as_slice(), script_name.as_bytes())
+    })
+    .await
+}
+
 fn with_fields<'a>(cmd: CommandBuilder, fields: &[KeyValuePair<'a>]) -> CommandBuilder {
     fields
         .iter()
