@@ -5,11 +5,11 @@ arp-timeout: auto;u16
 comment: o
 disabled: bool
 interface: ref=>interface
-l2mtu: u16; o
+l2mtu: ro; u16
 loop-protect: enum=default, off, on
 loop-protect-disable-time: Duration
 loop-protect-send-interval: Duration
-loop-protect-status: enum=on, off, disable
+loop-protect-status: ro; enum=on, off, disable
 mac-address: o;k;MacAddress
 mtu: u16; o
 name:id;ref=interface
