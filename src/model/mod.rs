@@ -4,3 +4,5 @@ mod defaults;
 mod enums;
 #[cfg(test)]
 mod bgp_tests;
+#[cfg(test)]
+mod wireless_tests;
