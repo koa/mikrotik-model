@@ -4,19 +4,19 @@ default-name: ro; id
 name: ref=interface
 comment: o
 disabled: bool
-mode: o; k; enum=ap-bridge, bridge, sniff, station-bridge
-ssid: o; k
-password: o; k
-frequency: o; k; auto; u32
-region: o; k; enum=asia, australia, canada, china, eu, japan, no-region-set, usa
-put-stations-in-bridge: o; k; ref=>interface
-isolate-stations: o; k; bool
-tx-sector: o; k; auto; u8
-default-scan-list: o; k
-scan-list: o; k
-arp: o; k; enum=enabled, disabled, local-proxy-arp, proxy-arp, reply-only
-arp-timeout: o; k; auto; Duration
-mtu: o; k; u16
+mode: o; enum=ap-bridge, bridge, sniff, station-bridge
+ssid: o
+password: o
+frequency: o; auto; u32
+region: o; enum=asia, australia, canada, china, eu, japan, no-region-set, usa
+put-stations-in-bridge: o; ref=>interface
+isolate-stations: o; bool
+tx-sector: o; auto; u8
+default-scan-list: ro; o
+scan-list: o
+arp: o; enum=enabled, disabled, local-proxy-arp, proxy-arp, reply-only
+arp-timeout: o; auto; Duration
+mtu: o; u16
 l2mtu: o; k; u16
 mac-address: ro; o; MacAddress
 running: ro; o; bool

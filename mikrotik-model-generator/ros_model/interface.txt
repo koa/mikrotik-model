@@ -1,98 +1,98 @@
 /interface/wireless
-adaptive-noise-immunity: o; k; enum=none, ap-and-client-mode, client-mode
-allow-sharedkey: o; k; bool
-ampdu-priorities: o; k; u8
-amsdu-limit: o; k; u16
-amsdu-threshold: o; k; u16
-antenna-gain: o; k; u32
-antenna-mode: o; k; enum=ant-a, ant-b, rxa-txb,txa-rxb
-area: o; k
-arp: o; k; enum=enabled, disabled, local-proxy-arp, proxy-arp, reply-only
-arp-timeout: o; k; auto; Duration
-band: o; k; enum=2ghz-b,2ghz-b/g,2ghz-b/g/n,2ghz-g/n,2ghz-onlyg,2ghz-onlyn,5ghz-a,5ghz-a/n,5ghz-a/n/ac,5ghz-n/ac,5ghz-onlyac,5ghz-onlyn
-basic-rates-a/g: o; k; enum=6Mbps,9Mbps,12Mbps,18Mbps,24Mbps,36Mbps,48Mbps,54Mbps
-basic-rates-b: o; k; enum=1Mbps,2Mbps,5.5Mbps,11Mbps
-bridge-mode: o; k; EnabledDisabled
-burst-time: o; k; u32
-channel-width: o; k; enum=20mhz,20/40/80/160mhz-Ceeeeeee,20/40/80/160mhz-XXXXXXXX,20/40/80/160mhz-eCeeeeee,20/40/80/160mhz-eeCeeeee,20/40/80/160mhz-eeeCeeee,20/40/80/160mhz-eeeeCeee,20/40/80/160mhz-eeeeeCee,20/40/80/160mhz-eeeeeeCe,20/40/80/160mhz-eeeeeeeC,20/40/80mhz-Ceee,20/40/80mhz-eCee,20/40/80mhz-eeCe,20/40/80mhz-eeeC,20/40/80mhz-XXXX,20/40mhz-Ce,20/40mhz-eC,20/40mhz-XX,40mhz-turbo,10mhz,5mhz
-comment: o; k
-compression: o; k; bool
-country: o; k
-default-ap-tx-limit: o; k; u32
-default-authentication: o; k; bool
-default-client-tx-limit: o; k; u32
-default-forwarding: o; k; bool
-disable-running-check: o; k; bool
+adaptive-noise-immunity: o; enum=none, ap-and-client-mode, client-mode
+allow-sharedkey: o; bool
+ampdu-priorities: o; mu; u8
+amsdu-limit: o; u16
+amsdu-threshold: o; u16
+antenna-gain: o; u32
+antenna-mode: o; enum=ant-a, ant-b, rxa-txb,txa-rxb
+area: o
+arp: o; enum=enabled, disabled, local-proxy-arp, proxy-arp, reply-only
+arp-timeout: o; auto; Duration
+band: o; enum=2ghz-b,2ghz-b/g,2ghz-b/g/n,2ghz-g/n,2ghz-onlyg,2ghz-onlyn,5ghz-a,5ghz-a/n,5ghz-a/n/ac,5ghz-n/ac,5ghz-onlyac,5ghz-onlyn
+basic-rates-a/g: o; mu; enum=6Mbps,9Mbps,12Mbps,18Mbps,24Mbps,36Mbps,48Mbps,54Mbps
+basic-rates-b: o; mu; enum=1Mbps,2Mbps,5.5Mbps,11Mbps
+bridge-mode: o; EnabledDisabled
+burst-time: o; u32
+channel-width: o; enum=20mhz,20/40/80/160mhz-Ceeeeeee,20/40/80/160mhz-XXXXXXXX,20/40/80/160mhz-eCeeeeee,20/40/80/160mhz-eeCeeeee,20/40/80/160mhz-eeeCeeee,20/40/80/160mhz-eeeeCeee,20/40/80/160mhz-eeeeeCee,20/40/80/160mhz-eeeeeeCe,20/40/80/160mhz-eeeeeeeC,20/40/80mhz-Ceee,20/40/80mhz-eCee,20/40/80mhz-eeCe,20/40/80mhz-eeeC,20/40/80mhz-XXXX,20/40mhz-Ce,20/40mhz-eC,20/40mhz-XX,40mhz-turbo,10mhz,5mhz
+comment: o
+compression: o; bool
+country: o
+default-ap-tx-limit: o; u32
+default-authentication: o; bool
+default-client-tx-limit: o; u32
+default-forwarding: o; bool
+disable-running-check: o; bool
 disabled:bool
-disconnect-timeout: o; k; Duration
-distance: o; k
-frame-lifetime: o; k; u32
-frequency: auto; k; o; u32
-frequency-mode: o; k; enum=manual-txpower,regulatory-domain,superchannel
-frequency-offset: o; k; u32
-guard-interval: o; k; enum=any,long
-hide-ssid: o; k; bool
-ht-basic-mcs: o; k; mu
-ht-supported-mcs: o; k; mu
-hw-fragmentation-threshold: o; k
-hw-protection-mode: o; k; enum=none, cts-to-self, rts-cts
-hw-protection-threshold: o; k; u16
-hw-retries: o; k; u8
-installation: o; k; enum=any, indoor, outdoor
-interworking-profile: o; k; EnabledDisabled
-keepalive-frames: o; k; EnabledDisabled
+disconnect-timeout: o; Duration
+distance: o
+frame-lifetime: o; u32
+frequency: auto; o; u32
+frequency-mode: o; enum=manual-txpower,regulatory-domain,superchannel
+frequency-offset: o; i32
+guard-interval: o; enum=any,long
+hide-ssid: o; bool
+ht-basic-mcs: o; mu
+ht-supported-mcs: o; mu
+hw-fragmentation-threshold: o
+hw-protection-mode: o; enum=none, cts-to-self, rts-cts
+hw-protection-threshold: o; u16
+hw-retries: o; u8
+installation: o; enum=any, indoor, outdoor
+interworking-profile: o; EnabledDisabled
+keepalive-frames: o; EnabledDisabled
 l2mtu: o; k; u16
 mac-address: o; k; MacAddress
-master-interface: o; k; ref=>interface
-max-station-count: o; k; u16
-mode: o; k; enum=station,station-wds,ap-bridge,bridge,alignment-only,nstreme-dual-slave,wds-slave,station-pseudobridge,station-pseudobridge-clone,station-bridge
-mtu: o; k; u16
-multicast-buffering: o; k; EnabledDisabled
-multicast-helper: o; k; enum=default, disabled, full
+master-interface: o; ref=>interface
+max-station-count: o; u16
+mode: o; enum=station,station-wds,ap-bridge,bridge,alignment-only,nstreme-dual-slave,wds-slave,station-pseudobridge,station-pseudobridge-clone,station-bridge
+mtu: o; u16
+multicast-buffering: o; EnabledDisabled
+multicast-helper: o; enum=default, disabled, full
 name:ref=interface
-noise-floor-threshold: o; k
-nv2-cell-radius: o; k; u8
-nv2-downlink-ratio: o; k
-nv2-mode: o; k; enum=dynamic-downlink,fixed-downlink,sync-master,sync-slave
-nv2-noise-floor-offset: o; k
-nv2-preshared-key: o; k
-nv2-qos: o; k; enum=default, frame-priority
-nv2-queue-count: o; k; u8
-nv2-security: o; k; EnabledDisabled
-nv2-sync-secret: o; k
-on-fail-retry-time: o; k; Duration
-preamble-mode: o; k; enum=both, long, short
-prism-cardtype: o; k; enum=100mW, 200mW, 300mW
+noise-floor-threshold: o
+nv2-cell-radius: o; u8
+nv2-downlink-ratio: o
+nv2-mode: o; enum=dynamic-downlink,fixed-downlink,sync-master,sync-slave
+nv2-noise-floor-offset: o
+nv2-preshared-key: o
+nv2-qos: o; enum=default, frame-priority
+nv2-queue-count: o; u8
+nv2-security: o; EnabledDisabled
+nv2-sync-secret: o
+on-fail-retry-time: o; Duration
+preamble-mode: o; enum=both, long, short
+prism-cardtype: o; enum=100mW, 200mW, 300mW
 radio-name: o; k
-rate-selection: o; k; enum=advanced, legacy
-rate-set: o; k; enum=default, configured
-rx-chains: o; k; mu; u8
-scan-list: o; k
-secondary-frequency: o; k; u32
-security-profile: o; k
-skip-dfs-channels: o; k
-ssid: o; k
-station-bridge-clone-mac: o; k; MacAddress
-station-roaming: o; k; EnabledDisabled
-supported-rates-a/g: o; k; mu; enum=6Mbps,9Mbps,12Mbps,18Mbps,24Mbps,36Mbps,48Mbps,54Mbps
-supported-rates-b: o; k; mu; enum=1Mbps,2Mbps,5.5Mbps,11Mbps
-tdma-period-size: o; k; u8
-tx-chains: o; k; mu; u8
-tx-power: o; k; i8
-tx-power-mode: o; k; enum=default, card-rates, all-rates-fixed, manual-table
-update-stats-interval: o; k
-vht-basic-mcs: o; k; enum=MCS 0-7,none,MCS 0-8,MCS 0-9
-vht-supported-mcs: o; k; enum=MCS 0-9,MCS 0-7,none,MCS 0-8
-vlan-id: o; k; u16
-vlan-mode: o; k; enum=no-tag, use-service-tag, use-tag
-wds-cost-range: o; k; range; u32
-wds-default-bridge: o; k
-wds-default-cost: o; k
-wds-ignore-ssid: o; k
-wds-mode: o; k; enum=disabled,dynamic,dynamic-mesh,static,static-mesh
-wireless-protocol: o; k; enum=802.11,any,nstreme,nv2,nv2-nstreme,nv2-nstreme-802.11,unspecified
-wmm-support: o; k; EnabledDisabled
-wps-mode: o; k; enum=disabled,push-button,push-button-5s,push-button-virtual-only
+rate-selection: o; enum=advanced, legacy
+rate-set: o; enum=default, configured
+rx-chains: o; mu; u8
+scan-list: o
+secondary-frequency: o; u32
+security-profile: o
+skip-dfs-channels: o
+ssid: o
+station-bridge-clone-mac: o; MacAddress
+station-roaming: o; EnabledDisabled
+supported-rates-a/g: o; mu; enum=6Mbps,9Mbps,12Mbps,18Mbps,24Mbps,36Mbps,48Mbps,54Mbps
+supported-rates-b: o; mu; enum=1Mbps,2Mbps,5.5Mbps,11Mbps
+tdma-period-size: o; auto; u8
+tx-chains: o; mu; u8
+tx-power: o; i8
+tx-power-mode: o; enum=default, card-rates, all-rates-fixed, manual-table
+update-stats-interval: o
+vht-basic-mcs: o
+vht-supported-mcs: o
+vlan-id: o; u16
+vlan-mode: o; enum=no-tag, use-service-tag, use-tag
+wds-cost-range: o; range; u32
+wds-default-bridge: o
+wds-default-cost: o
+wds-ignore-ssid: o; bool
+wds-mode: o; enum=disabled,dynamic,dynamic-mesh,static,static-mesh
+wireless-protocol: o; enum=802.11,any,nstreme,nv2,nv2-nstreme,nv2-nstreme-802.11,unspecified
+wmm-support: o; EnabledDisabled
+wps-mode: o; enum=disabled,push-button,push-button-5s,push-button-virtual-only
 
 default-name: ro;o;id
 interface-type: ro; o
