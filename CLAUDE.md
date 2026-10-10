@@ -18,6 +18,13 @@ Adding a new RouterOS config path is normally just a new `.txt` file in `ros_mod
 the existing DSL (`id`/`ref=X`, `ref=>X`, `o`, `ro`, `mu`, `k`, `enum=...`, scalar types) — no
 generator source changes needed for a simple addition.
 
+`k` (keep-if-none: a `None` target leaves the device's value alone) is only for fields where the
+existing value can't falsify the result, e.g. a hardware `mac-address`. A field that is merely
+missing from some devices' output (RouterOS hides `mvrp` on a bridge without vlan filtering) or
+that the generator doesn't care about is plain `o`, and the target then sets it explicitly. Note
+that a `None` target clears the field, which RouterOS rejects for booleans (`mvrp=`), so such a
+field needs a concrete value in `defaults.rs` or the generator.
+
 `mikrotik-model-generator/build.rs` emits `cargo:rerun-if-changed=ros_model` — without it, editing
 or adding a `ros_model/*.txt` file does not invalidate cargo's build cache (`include_dir!` doesn't
 register per-file dependencies on stable Rust), so `cargo check`/`build` can silently keep using

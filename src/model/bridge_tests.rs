@@ -1,0 +1,61 @@
+//! Static decode tests for `/interface/bridge` (`ros_model/bridge.txt`).
+//!
+//! RouterOS only reports `mvrp` on a bridge with `vlan-filtering=yes` (checked on CHR
+//! 7.24.5 and seen on `ap-klr-solar`, 7.23.7), so the field must stay optional, or
+//! fetching a device with a plain bridge fails.
+
+use crate::model::{InterfaceBridgeByName, InterfaceBridgeByNameBuilder};
+use crate::resource::{DeserializeRosBuilder, DeserializeRosResource};
+
+fn build<B, R>(fields: &[(&[u8], &[u8])]) -> R
+where
+    B: DeserializeRosBuilder<R> + Default,
+    B::Context: Default,
+    R: DeserializeRosResource,
+{
+    let mut builder = B::init(&B::Context::default());
+    for (key, value) in fields {
+        let result = builder.append_field(key, Some(value));
+        assert!(
+            matches!(result, crate::resource::AppendFieldResult::Appended),
+            "field {} = {} was not accepted: {:?}",
+            String::from_utf8_lossy(key),
+            String::from_utf8_lossy(value),
+            result
+        );
+    }
+    builder.build().expect("all required fields were supplied")
+}
+
+/// The required configuration fields of a bridge, without any MVRP field.
+const BRIDGE_WITHOUT_MVRP: &[(&[u8], &[u8])] = &[
+    (b"name", b"bridge"),
+    (b"ageing-time", b"5m"),
+    (b"arp", b"enabled"),
+    (b"arp-timeout", b"auto"),
+    (b"auto-mac", b"true"),
+    (b"dhcp-snooping", b"false"),
+    (b"disabled", b"false"),
+    (b"fast-forward", b"true"),
+    (b"igmp-snooping", b"false"),
+    (b"max-learned-entries", b"auto"),
+    (b"mtu", b"auto"),
+    (b"port-cost-mode", b"long"),
+    (b"protocol-mode", b"rstp"),
+    (b"vlan-filtering", b"false"),
+];
+
+#[test]
+fn test_bridge_without_mvrp() {
+    let bridge: InterfaceBridgeByName =
+        build::<InterfaceBridgeByNameBuilder, _>(BRIDGE_WITHOUT_MVRP);
+    assert_eq!(bridge.0.mvrp, None);
+}
+
+#[test]
+fn test_bridge_with_mvrp() {
+    let mut fields = BRIDGE_WITHOUT_MVRP.to_vec();
+    fields.push((b"mvrp", b"false"));
+    let bridge: InterfaceBridgeByName = build::<InterfaceBridgeByNameBuilder, _>(&fields);
+    assert_eq!(bridge.0.mvrp, Some(false));
+}

@@ -22,7 +22,7 @@ horizon:o;none;u32
 point-to-point: auto;YesNo
 restricted-role:bool
 trusted:bool
-hw: k;o;bool
+hw: o;bool
 disabled: bool
 port-number: ro;o;u16
 bpdu-guard: bool
@@ -79,7 +79,7 @@ mld-version: o; enum= 1, 2;
 mtu: auto; u16
 multicast-querier: o; bool
 multicast-router: o; enum= disabled, permanent, temporary-query;
-mvrp: bool
+mvrp: o; bool
 name: id; ref=interface;
 port-cost-mode: enum= short, long;
 priority: o; hex; u16

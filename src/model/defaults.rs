@@ -137,7 +137,7 @@ impl Default for InterfaceBridgeCfg {
             mtu: value::Auto::Auto,
             multicast_querier: None,
             multicast_router: None,
-            mvrp: false,
+            mvrp: None,
             name: Default::default(),
             port_cost_mode: InterfaceBridgePortCostMode::Long,
             priority: Some(value::Hex(0x8000)),
@@ -189,7 +189,7 @@ impl Default for InterfaceBridgePortCfg {
             bpdu_guard: false,
             auto_isolate: false,
             pvid: 1,
-            hw: None,
+            hw: Some(true),
         }
     }
 }
@@ -222,7 +222,7 @@ impl Default for InterfaceVlanCfg {
             name: Default::default(),
             use_service_tag: false,
             vlan_id: 0,
-            mvrp: None,
+            mvrp: Some(false),
         }
     }
 }
