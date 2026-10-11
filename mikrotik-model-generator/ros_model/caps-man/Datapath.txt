@@ -9,7 +9,7 @@ interface-list: o; none; ref=>interface-list
 l2mtu: o; u16
 local-forwarding: o; bool
 mtu: o; u16
-name: ref=datapath
+name: id; ref=caps-datapath
 openflow-switch: o
 vlan-id: o; u16
 vlan-mode: o; enum= no-tag, use-service-tag, use-tag;

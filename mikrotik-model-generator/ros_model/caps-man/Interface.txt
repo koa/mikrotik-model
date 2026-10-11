@@ -30,7 +30,7 @@ configuration.multicast-helper: o; disabled; enum= default, dhcp, full;
 configuration.rx-chains: o
 configuration.ssid: o
 configuration.tx-chains:o
-datapath: o; ref=>datapath
+datapath: o; ref=>caps-datapath
 datapath.bridge: o; ref=>interface
 datapath.bridge-cost: o; u32
 datapath.bridge-horizon: o; none;

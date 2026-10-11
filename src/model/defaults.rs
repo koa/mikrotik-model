@@ -690,6 +690,150 @@ impl Default for InterfaceWifiProvisioningCfg {
         }
     }
 }
+#[allow(clippy::derivable_impls)]
+impl Default for CapsManSecurityByName {
+    fn default() -> Self {
+        CapsManSecurityByName(Default::default())
+    }
+}
+#[allow(clippy::derivable_impls)]
+impl Default for CapsManSecurityCfg {
+    fn default() -> Self {
+        CapsManSecurityCfg {
+            authentication_types: Default::default(),
+            comment: None,
+            disable_pmkid: None,
+            eap_methods: None,
+            eap_radius_accounting: None,
+            encryption: Default::default(),
+            group_encryption: None,
+            group_key_update: None,
+            name: Default::default(),
+            passphrase: None,
+            tls_certificate: None,
+            tls_mode: None,
+        }
+    }
+}
+#[allow(clippy::derivable_impls)]
+impl Default for CapsManDatapathByName {
+    fn default() -> Self {
+        CapsManDatapathByName(Default::default())
+    }
+}
+#[allow(clippy::derivable_impls)]
+impl Default for CapsManDatapathCfg {
+    fn default() -> Self {
+        CapsManDatapathCfg {
+            arp: None,
+            bridge: None,
+            bridge_cost: None,
+            bridge_horizon: None,
+            client_to_client_forwarding: None,
+            comment: None,
+            interface_list: None,
+            l_2_mtu: None,
+            local_forwarding: None,
+            mtu: None,
+            name: Default::default(),
+            openflow_switch: None,
+            vlan_id: None,
+            vlan_mode: None,
+        }
+    }
+}
+#[allow(clippy::derivable_impls)]
+impl Default for CapsManConfigurationByName {
+    fn default() -> Self {
+        CapsManConfigurationByName(Default::default())
+    }
+}
+#[allow(clippy::derivable_impls)]
+impl Default for CapsManConfigurationCfg {
+    fn default() -> Self {
+        CapsManConfigurationCfg {
+            channel: None,
+            channel_band: None,
+            channel_control_channel_width: None,
+            channel_extension_channel: None,
+            channel_frequency: None,
+            channel_reselect_interval: None,
+            channel_save_selected: None,
+            channel_secondary_frequency: None,
+            channel_skip_dfs_channels: None,
+            channel_tx_power: None,
+            comment: None,
+            country: None,
+            datapath: None,
+            datapath_arp: None,
+            datapath_bridge: None,
+            datapath_bridge_cost: None,
+            datapath_bridge_horizon: None,
+            datapath_client_to_client_forwarding: None,
+            datapath_interface_list: None,
+            datapath_l_2_mtu: None,
+            datapath_local_forwarding: None,
+            datapath_mtu: None,
+            datapath_openflow_switch: None,
+            datapath_vlan_id: None,
+            datapath_vlan_mode: None,
+            disconnect_timeout: None,
+            distance: None,
+            frame_lifetime: None,
+            guard_interval: None,
+            hide_ssid: None,
+            hw_protection_mode: None,
+            hw_retries: None,
+            installation: None,
+            keepalive_frames: None,
+            load_balancing_group: None,
+            max_sta_count: None,
+            mode: None,
+            multicast_helper: None,
+            name: Default::default(),
+            rates: None,
+            rates_basic: Default::default(),
+            rates_ht_basic_mcs: Default::default(),
+            rates_ht_supported_mcs: Default::default(),
+            rates_supported: Default::default(),
+            rates_vht_basic_mcs: Default::default(),
+            rates_vht_supported_mcs: Default::default(),
+            rx_chains: Default::default(),
+            security: None,
+            security_authentication_types: Default::default(),
+            security_disable_pmkid: None,
+            security_eap_methods: None,
+            security_eap_radius_accounting: None,
+            security_encryption: Default::default(),
+            security_group_encryption: None,
+            security_group_key_update: None,
+            security_passphrase: None,
+            security_tls_certificate: None,
+            security_tls_mode: None,
+            ssid: None,
+            tx_chains: Default::default(),
+        }
+    }
+}
+/// A rule that matches every radio (RouterOS reports the empty `radio-mac` as zeros).
+impl Default for CapsManProvisioningCfg {
+    fn default() -> Self {
+        CapsManProvisioningCfg {
+            action: HasNone::NoneValue,
+            comment: None,
+            common_name_regexp: Default::default(),
+            disabled: false,
+            hw_supported_modes: Default::default(),
+            identity_regexp: Default::default(),
+            ip_address_ranges: Default::default(),
+            master_configuration: Default::default(),
+            name_format: CapsManProvisioningNameFormat::Cap,
+            name_prefix: Default::default(),
+            radio_mac: b"00:00:00:00:00:00".into(),
+            slave_configurations: Default::default(),
+        }
+    }
+}
 impl Default for SystemHealthSettingsCfg {
     fn default() -> Self {
         SystemHealthSettingsCfg {
