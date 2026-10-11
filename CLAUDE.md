@@ -20,10 +20,19 @@ generator source changes needed for a simple addition.
 
 `k` (keep-if-none: a `None` target leaves the device's value alone) is only for fields where the
 existing value can't falsify the result, e.g. a hardware `mac-address`. A field that is merely
-missing from some devices' output (RouterOS hides `mvrp` on a bridge without vlan filtering) or
-that the generator doesn't care about is plain `o`, and the target then sets it explicitly. Note
-that a `None` target clears the field, which RouterOS rejects for booleans (`mvrp=`), so such a
-field needs a concrete value in `defaults.rs` or the generator.
+missing from some devices' output or that the generator doesn't care about is plain `o`, and the
+target then sets it explicitly. Note that a `None` target clears the field, which RouterOS rejects
+for booleans (`mvrp=`), so such a field needs a concrete value in `defaults.rs` or the generator.
+A field RouterOS accepts but never reports in some state (a bridge without vlan filtering hides
+`ether-type`, `frame-types`, `ingress-filtering`, `pvid`, and without mstp `max-hops`,
+`region-revision`) needs a `None` target in that state, or it is a diff forever. `mvrp` on a
+bridge is `k`: without vlan filtering it has no effect, and whether it is reported then depends
+on the version (7.20.8 reports `false`, 7.24.5 nothing), so neither a value nor a clearing `None`
+works there.
+
+`can-add` says the menu adds entries (`/interface/wifi` adds virtual interfaces). A
+`by_key` field on a read-only key (`default-name`) still only updates: what has that key is
+hardware, it can't be added or removed, so the macro doesn't ask for `Creatable` there.
 
 `mikrotik-model-generator/build.rs` emits `cargo:rerun-if-changed=ros_model` — without it, editing
 or adding a `ros_model/*.txt` file does not invalidate cargo's build cache (`include_dir!` doesn't

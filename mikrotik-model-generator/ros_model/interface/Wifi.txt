@@ -173,13 +173,13 @@ requested-certificate: ro;
 current-caps-man-address: ro; 
 
 /interface/wifi/capsman:is-single;
-ca-certificate: o; none; auto;
-certificate: o; auto;
+ca-certificate: o; k; none; auto;
+certificate: o; k; auto;
 enabled: YesNo 
-interfaces: mu; none; ref=>interface;
-package-path: 
-require-peer-certificate: bool
-upgrade-policy: enum= require-same-version, suggest-same-version, none;
+interfaces: o; k; mu; none;
+package-path: o; k;
+require-peer-certificate: o; k; bool
+upgrade-policy: o; k; enum= require-same-version, suggest-same-version, none;
 generated-ca-certificate: ro; 
 generated-certificate: ro; 
 

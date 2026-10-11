@@ -185,6 +185,8 @@ pub enum EthernetNamePattern {
     Combo,
     Sfp,
     SfpSfpPlus,
+    /// `sfp28-N`, 25G SFP28 cages (e.g. CCR2004-1G-12S+2XS)
+    Sfp28,
     QsfpPlus,
 }
 impl EthernetNamePattern {
@@ -196,6 +198,9 @@ impl EthernetNamePattern {
                 }
                 EthernetNamePattern::SfpSfpPlus => {
                     format!("sfp-sfpplus{idx}")
+                }
+                EthernetNamePattern::Sfp28 => {
+                    format!("sfp28-{idx}")
                 }
                 EthernetNamePattern::QsfpPlus => {
                     format!("qsfpplus{}-{}", ((idx - 1) / 4) + 1, ((idx - 1) % 4) + 1)
@@ -218,6 +223,10 @@ impl EthernetNamePattern {
                 }
                 EthernetNamePattern::SfpSfpPlus => {
                     format!("s{idx:02}")
+                }
+                // "XS" is MikroTik's own abbreviation for SFP28 in board names
+                EthernetNamePattern::Sfp28 => {
+                    format!("x{idx:02}")
                 }
                 EthernetNamePattern::QsfpPlus => {
                     format!("q{:02}-{}", ((idx - 1) / 4) + 1, ((idx - 1) % 4) + 1)
@@ -244,6 +253,7 @@ impl EthernetNamePattern {
             EthernetNamePattern::Ether => None,
             EthernetNamePattern::Combo
             | EthernetNamePattern::SfpSfpPlus
+            | EthernetNamePattern::Sfp28
             | EthernetNamePattern::QsfpPlus
             | EthernetNamePattern::Sfp => Some(95),
         }
@@ -253,6 +263,7 @@ impl EthernetNamePattern {
             EthernetNamePattern::Ether => None,
             EthernetNamePattern::Combo => Some(false),
             EthernetNamePattern::SfpSfpPlus => Some(false),
+            EthernetNamePattern::Sfp28 => Some(false),
             EthernetNamePattern::QsfpPlus => Some(false),
             EthernetNamePattern::Sfp => Some(false),
         }
@@ -262,6 +273,7 @@ impl EthernetNamePattern {
             EthernetNamePattern::Ether => None,
             EthernetNamePattern::Combo => Some(InterfaceEthernetSfpRateSelect::High),
             EthernetNamePattern::SfpSfpPlus => Some(InterfaceEthernetSfpRateSelect::High),
+            EthernetNamePattern::Sfp28 => Some(InterfaceEthernetSfpRateSelect::High),
             EthernetNamePattern::QsfpPlus => Some(InterfaceEthernetSfpRateSelect::High),
             EthernetNamePattern::Sfp => Some(InterfaceEthernetSfpRateSelect::High),
         }
@@ -272,6 +284,7 @@ impl EthernetNamePattern {
             EthernetNamePattern::Combo => None,
 
             EthernetNamePattern::SfpSfpPlus => None,
+            EthernetNamePattern::Sfp28 => Some(InterfaceEthernetFecMode::Auto),
             EthernetNamePattern::QsfpPlus => Some(InterfaceEthernetFecMode::Auto),
             EthernetNamePattern::Sfp => None,
         }
@@ -607,6 +620,24 @@ pub const ADVERTISE_10G: [EthernetSpeed; 13] = [
     EthernetSpeed::_10GBaseT,
     EthernetSpeed::_10GBaseCr,
     EthernetSpeed::_10GBaseSrLr,
+];
+/// SFP28 cage (CCR2004 `sfp28-N`): everything an SFP+ port advertises plus 25G.
+pub const ADVERTISE_25G: [EthernetSpeed; 15] = [
+    EthernetSpeed::_10MBaseTHalf,
+    EthernetSpeed::_10MBaseTFull,
+    EthernetSpeed::_100MBaseTHalf,
+    EthernetSpeed::_100MBaseTFull,
+    EthernetSpeed::_1GBaseTHalf,
+    EthernetSpeed::_1GBaseTFull,
+    EthernetSpeed::_1GBaseX,
+    EthernetSpeed::_25GBaseT,
+    EthernetSpeed::_25GBaseX,
+    EthernetSpeed::_5GBaseT,
+    EthernetSpeed::_10GBaseT,
+    EthernetSpeed::_10GBaseCr,
+    EthernetSpeed::_10GBaseSrLr,
+    EthernetSpeed::_25GBaseCr,
+    EthernetSpeed::_25GBaseSrLr,
 ];
 pub const ADVERTISE_10G_FULL: [EthernetSpeed; 7] = [
     EthernetSpeed::_10MBaseTFull,

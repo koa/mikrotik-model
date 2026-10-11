@@ -79,7 +79,7 @@ mld-version: o; enum= 1, 2;
 mtu: auto; u16
 multicast-querier: o; bool
 multicast-router: o; enum= disabled, permanent, temporary-query;
-mvrp: o; bool
+mvrp: o; k; bool
 name: id; ref=interface;
 port-cost-mode: enum= short, long;
 priority: o; hex; u16

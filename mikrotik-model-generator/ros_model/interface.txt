@@ -100,11 +100,11 @@ running: ro; bool
 
 
 /interface/wireless/cap:is-single;
-bridge: o; ref=>interface
+bridge: none; ref=>interface
 caps-man-addresses: mu; IpAddr
 caps-man-certificate-common-names: mu
 caps-man-names: o
-certificate: o
+certificate: none
 discovery-interfaces: mu; ref=>interface;
 enabled: bool
 interfaces: mu; ref=interface;

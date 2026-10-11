@@ -1,0 +1,14 @@
+/ip/socks:is-single;no-default
+enabled: bool
+port: u16
+connection-idle-timeout: Duration
+max-connections: u32
+vrf
+version: u8
+auth-method: enum=none,password
+
+/ip/socks/users:can-add;
+name: id
+password
+only-one: bool
+disabled: bool

@@ -7,7 +7,7 @@ use crate::{
     value::{KeyValuePair, RosValue},
 };
 use encoding_rs::mem::decode_latin1;
-use itertools::{EitherOrBoth, Itertools};
+use itertools::Itertools;
 use log::{debug, info};
 use mikrotik_api::prelude::{CommandBuilder, ParsedMessage, TrapCategory, TrapResult};
 use mikrotik_api::simple::SimpleResult;
@@ -1008,6 +1008,12 @@ where
     }
 }
 
+/// Pairs entries without a key of their own (only a `.id`) with the targets: the pair needing
+/// the fewest changed fields first, so an entry is updated where it already matches best instead
+/// of by position. By position, an unrelated entry could be rewritten into one that is still
+/// there, e.g. a bridge port moved onto an interface another port still holds, which RouterOS
+/// refuses. Unpaired entries are removed (first, so they free what they hold), unpaired targets
+/// added.
 pub fn generate_add_update_remove_by_id<'c, 't, 'r, Target, Current, TargetIter, IntoTarget>(
     current: &'c [Current],
     target: TargetIter,
@@ -1022,30 +1028,57 @@ where
     IntoTarget: Into<Cow<'t, Target>>,
     <TargetIter as IntoIterator>::IntoIter: 'r,
 {
-    let current_iter = current.iter();
-    let target_iter = target.into_iter();
-    current_iter
-        .zip_longest(target_iter)
-        .map(|entry| match entry {
-            EitherOrBoth::Both(current, target) => match target.into() {
-                Cow::Borrowed(t) => t.calculate_update(current),
-                Cow::Owned(t) => t.calculate_update(current).into_owned(),
-            },
-            EitherOrBoth::Left(current) => ResourceMutation {
-                resource: Current::path(),
-                operation: ResourceMutationOperation::RemoveByKey(KeyValuePair {
-                    key: Current::key_name(),
-                    value: current.key_value().encode_ros(),
-                }),
-                fields: Box::new([]),
-                depends: Box::new([]),
-                provides: Box::new([]),
-            },
-            EitherOrBoth::Right(target) => match target.into() {
-                Cow::Borrowed(t) => t.calculate_create(),
-                Cow::Owned(t) => t.calculate_create().into_owned(),
-            },
+    let targets = target.into_iter().map(Into::into).collect::<Vec<Cow<'t, Target>>>();
+    let mut costs = Vec::with_capacity(current.len() * targets.len());
+    for (c, current) in current.iter().enumerate() {
+        for (t, target) in targets.iter().enumerate() {
+            costs.push((target.calculate_update(current).fields.len(), c, t));
+        }
+    }
+    // stable: on a tie the earlier entry, so an unchanged list keeps its order
+    costs.sort_by_key(|&(cost, c, t)| (cost, c, t));
+    let mut current_paired = vec![None; current.len()];
+    let mut target_paired = vec![false; targets.len()];
+    for (_, c, t) in costs {
+        if current_paired[c].is_none() && !target_paired[t] {
+            current_paired[c] = Some(t);
+            target_paired[t] = true;
+        }
+    }
+    let mut targets = targets.into_iter().map(Some).collect::<Vec<_>>();
+    let removes = current
+        .iter()
+        .zip(&current_paired)
+        .filter(|(_, paired)| paired.is_none())
+        .map(|(current, _)| ResourceMutation {
+            resource: Current::path(),
+            operation: ResourceMutationOperation::RemoveByKey(KeyValuePair {
+                key: Current::key_name(),
+                value: current.key_value().encode_ros(),
+            }),
+            fields: Box::new([]),
+            depends: Box::new([]),
+            provides: Box::new([]),
         })
+        .collect::<Vec<_>>();
+    let updates = current
+        .iter()
+        .zip(&current_paired)
+        .filter_map(|(current, paired)| Some((current, targets[(*paired)?].take()?)))
+        .map(|(current, target)| match target {
+            Cow::Borrowed(t) => t.calculate_update(current),
+            Cow::Owned(t) => t.calculate_update(current).into_owned(),
+        })
+        .collect::<Vec<_>>();
+    let creates = targets
+        .into_iter()
+        .flatten()
+        .map(|target| match target {
+            Cow::Borrowed(t) => t.calculate_create(),
+            Cow::Owned(t) => t.calculate_create().into_owned(),
+        })
+        .collect::<Vec<_>>();
+    removes.into_iter().chain(updates).chain(creates)
 }
 
 pub fn generate_add_update_remove_by_key<'c, 't, 'r, Target, Current>(

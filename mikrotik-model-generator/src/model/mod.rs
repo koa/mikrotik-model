@@ -963,7 +963,19 @@ impl Entity {
         let mut consumes_expr = None;
         for (name, incoming, field) in self.referencing_fields() {
             if let Some(field_access) = field_gen(field) {
-                let expr: Expr = if field.is_multiple || field.is_optional {
+                // `none` refers to nothing
+                let expr: Expr = if field.has_none && !field.is_multiple {
+                    if field.is_optional {
+                        parse_quote! {(#field_access).iter()
+                        .filter_map(value::HasNone::value)
+                        .map(value::RosValue::encode_ros)
+                        .map(|value| (ReferenceType::#name, value))}
+                    } else {
+                        parse_quote! {(#field_access).value().into_iter()
+                        .map(value::RosValue::encode_ros)
+                        .map(|value| (ReferenceType::#name, value))}
+                    }
+                } else if field.is_multiple || field.is_optional {
                     parse_quote! {(#field_access).iter()
                     .map(value::RosValue::encode_ros)
                     .map(|value| (ReferenceType::#name, value))}

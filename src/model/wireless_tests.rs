@@ -95,7 +95,10 @@ fn decodes_real_5ghz_station() {
         Some(InterfaceWirelessWirelessProtocol::Nv2Nstreme80211)
     );
     assert_eq!(wlan.cfg.frequency, Some(Auto::Auto));
-    assert_eq!(wlan.cfg.security_profile, Some(AsciiString::from("default")));
+    assert_eq!(
+        wlan.cfg.security_profile,
+        Some(AsciiString::from("default"))
+    );
 }
 
 #[test]
@@ -154,7 +157,10 @@ fn decodes_real_60ghz_station() {
         Some(b"XXXXXXXX"),
     ));
     assert_eq!(wlan.cfg.mode, Some(InterfaceW60GMode::StationBridge));
-    assert_eq!(wlan.cfg.put_stations_in_bridge, Some(AsciiString::from("bridge")));
+    assert_eq!(
+        wlan.cfg.put_stations_in_bridge,
+        Some(AsciiString::from("bridge"))
+    );
     assert_eq!(wlan.cfg.frequency, Some(Auto::Auto));
 }
 

@@ -1,0 +1,9 @@
+/ip/ssh:is-single;no-default
+forwarding-enabled: enum=both,local,no,remote
+always-allow-password-login: o; k; bool
+password-authentication: o; k; enum=no,yes,yes-if-no-key
+publickey-authentication-options: o; k; enum=none,touch-required,verify-required
+strong-crypto: o; k; bool
+host-key-size: o; k; u16
+host-key-type: o; k; enum=ed25519,rsa
+ciphers: o; k; mu; enum=auto,aes-cbc,aes-ctr,aes-gcm,3des-cbc,null

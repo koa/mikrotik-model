@@ -101,10 +101,7 @@ fn decodes_real_bgp_connection_with_ipv6_link_local_scoped_address() {
         (b"name", b"bgp-hegglin-v6"),
         (b"output.default-originate", b"if-installed"),
         (b"output.network", b"bgp-networks"),
-        (
-            b"remote.address",
-            b"fe80::ce2d:e0ff:fe48:99a3%e02-hegglin",
-        ),
+        (b"remote.address", b"fe80::ce2d:e0ff:fe48:99a3%e02-hegglin"),
         (b"routing-table", b"main"),
         (b"templates", b"default"),
         (b"use-bfd", b"yes"),

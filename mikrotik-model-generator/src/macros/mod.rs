@@ -244,7 +244,10 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
 
                                 generate_mutations_expr = chain(
                                     generate_mutations_expr,
-                                    if entry.can_add {
+                                    // a read-only key (`default-name`) is the hardware's:
+                                    // what has it can't be added or removed, even where the
+                                    // menu adds other entries (virtual `/interface/wifi`)
+                                    if entry.can_add && !key_field.is_read_only {
                                         parse_quote! {
                                             mikrotik_model::resource::generate_add_update_remove_by_key(&from.#field_name,#iter_expr)
                                         }

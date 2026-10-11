@@ -181,7 +181,7 @@ hex_value_impl! { isize i8 i16 i32 i64 i128 usize u8 u16 u32 u64 u128}
 impl RosValue for Duration {
     fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
         let mut ret = Duration::default();
-        let mut chars = value.iter();
+        let mut chars = value.iter().peekable();
         let mut unit = None;
         let mut number = 0;
         loop {
@@ -202,6 +202,11 @@ impl RosValue for Duration {
                     return ParseRosValueResult::Value(ret);
                 }
                 Some(b's') => Duration::from_secs(number),
+                // `ms`, as in `on-fail-retry-time=100ms`
+                Some(b'm') if chars.peek() == Some(&&b's') => {
+                    chars.next();
+                    Duration::from_millis(number)
+                }
                 Some(b'm') => Duration::from_secs(60 * number),
                 Some(b'h') => Duration::from_secs(3600 * number),
                 Some(b'd') => Duration::from_secs(24 * 3600 * number),
@@ -222,7 +227,15 @@ impl RosValue for Duration {
     }
 
     fn encode_ros(&self) -> Cow<'_, [u8]> {
-        Cow::Owned(Vec::from(format!("{}s", self.as_secs()).as_bytes()))
+        let (secs, millis) = (self.as_secs(), self.subsec_millis());
+        Cow::Owned(Vec::from(
+            match (secs, millis) {
+                (_, 0) => format!("{secs}s"),
+                (0, _) => format!("{millis}ms"),
+                _ => format!("{secs}s{millis}ms"),
+            }
+            .as_bytes(),
+        ))
     }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
@@ -933,6 +946,23 @@ mod tests {
         assert_eq!(parsed, ParseRosValueResult::Value(Hex(0x8000)));
         let encoded = Hex(0x8000).encode_ros();
         assert_eq!(encoded.as_ref(), b"0x8000");
+    }
+    #[test]
+    fn test_duration() {
+        for (text, duration) in [
+            (b"100ms".as_slice(), Duration::from_millis(100)),
+            (b"5m", Duration::from_secs(300)),
+            (b"1h2m3s", Duration::from_secs(3723)),
+            (b"1s500ms", Duration::from_millis(1500)),
+            (b"0s", Duration::ZERO),
+        ] {
+            assert_eq!(Duration::parse_ros(text), ParseRosValueResult::Value(duration));
+            assert_eq!(
+                Duration::parse_ros(&duration.encode_ros()),
+                ParseRosValueResult::Value(duration)
+            );
+        }
+        assert_eq!(Duration::from_millis(100).encode_ros().as_ref(), b"100ms");
     }
     #[test]
     fn test_parse_id() {

@@ -1,6 +1,5 @@
 use super::*;
 use crate::value::Auto;
-use crate::value::HasUnlimited;
 use crate::{
     value,
     value::{HasDisabled, HasNone},
@@ -11,6 +10,37 @@ impl Default for SystemIdentityCfg {
     fn default() -> Self {
         SystemIdentityCfg {
             name: b"GeneratedName".into(),
+        }
+    }
+}
+/// RouterOS's factory setting: off, SOCKS4 without authentication.
+impl Default for IpSocksCfg {
+    fn default() -> Self {
+        IpSocksCfg {
+            enabled: false,
+            port: 1080,
+            connection_idle_timeout: std::time::Duration::from_secs(120),
+            max_connections: 200,
+            vrf: b"main".into(),
+            version: 4,
+            auth_method: IpSocksAuthMethod::None,
+        }
+    }
+}
+/// RouterOS's factory setting: no SSH forwarding; the rest is the device's own (`k`): host
+/// keys and ciphers aren't managed, and an update switches password login on for a moment
+/// (`always-allow-password-login` up to 7.20, `password-authentication` on 7.24).
+impl Default for IpSshCfg {
+    fn default() -> Self {
+        IpSshCfg {
+            forwarding_enabled: IpSshForwardingEnabled::No,
+            always_allow_password_login: None,
+            password_authentication: None,
+            publickey_authentication_options: None,
+            strong_crypto: None,
+            host_key_size: None,
+            host_key_type: None,
+            ciphers: None,
         }
     }
 }
@@ -53,14 +83,16 @@ impl Default for InterfaceWifiRadioSettingsCfg {
 }
 impl Default for InterfaceWifiCapsmanCfg {
     fn default() -> Self {
+        // RouterOS reports these only once they were set (also to their default), so they stay
+        // the device's own (`k`) where CAPsMAN is off; a controller gets explicit values
         InterfaceWifiCapsmanCfg {
             ca_certificate: None,
             certificate: None,
             enabled: YesNo::No,
-            interfaces: Default::default(),
-            package_path: Default::default(),
-            require_peer_certificate: false,
-            upgrade_policy: InterfaceWifiCapsmanUpgradePolicy::SuggestSameVersion,
+            interfaces: None,
+            package_path: None,
+            require_peer_certificate: None,
+            upgrade_policy: None,
         }
     }
 }
@@ -240,11 +272,11 @@ impl Default for InterfaceVxlanVtepsCfg {
 impl Default for InterfaceWirelessCapCfg {
     fn default() -> Self {
         InterfaceWirelessCapCfg {
-            bridge: None,
+            bridge: HasNone::NoneValue,
             caps_man_addresses: Default::default(),
             caps_man_certificate_common_names: Default::default(),
             caps_man_names: None,
-            certificate: None,
+            certificate: HasNone::NoneValue,
             discovery_interfaces: Default::default(),
             enabled: false,
             interfaces: Default::default(),
@@ -404,34 +436,35 @@ impl Default for IpDhcpServerConfigCfg {
     }
 }
 impl Default for IpDhcpServerCfg {
+    /// RouterOS's factory settings. Most of them it reports only when changed (7.20.8 and
+    /// 7.24.5 alike), so they are `None` here: a value would be a diff forever.
     fn default() -> Self {
-        let cfg = IpDhcpServerCfg {
-            add_arp: Some(false),
+        IpDhcpServerCfg {
+            add_arp: None,
             address_lists: Default::default(),
             address_pool: b"static-only".into(),
-            allow_dual_stack_queue: Some(true),
-            always_broadcast: Some(false),
-            authoritative: Some(IpDhcpServerAuthoritative::Yes),
-            bootp_lease_time: Some(IpDhcpServerBootpLeaseTime::Forever),
-            bootp_support: Some(IpDhcpServerBootpSupport::Static),
-            client_mac_limit: Some(HasUnlimited::Unlimited),
+            allow_dual_stack_queue: None,
+            always_broadcast: None,
+            authoritative: None,
+            bootp_lease_time: None,
+            bootp_support: None,
+            client_mac_limit: None,
             comment: Default::default(),
-            conflict_detection: Some(true),
-            delay_threshold: Some(HasNone::NoneValue),
+            conflict_detection: None,
+            delay_threshold: None,
             dhcp_option_set: None,
             disabled: false,
-            insert_queue_before: Some(b"first".into()),
+            insert_queue_before: None,
             interface: Default::default(),
             lease_script: Default::default(),
-            lease_time: Default::default(),
+            lease_time: Some(b"30m".into()),
             name: Default::default(),
-            parent_queue: Some(HasNone::NoneValue),
+            parent_queue: None,
             relay: Default::default(),
             server_address: None,
-            use_framed_as_classless: Some(true),
+            use_framed_as_classless: None,
             use_radius: IpDhcpServerUseRadius::No,
-        };
-        cfg
+        }
     }
 }
 #[allow(clippy::derivable_impls)]
@@ -468,7 +501,8 @@ impl Default for IpDhcpServerNetworkCfg {
             comment: Default::default(),
             dhcp_option: Default::default(),
             dhcp_option_set: None,
-            dns_none: Some(false),
+            // RouterOS reports it only when set
+            dns_none: None,
             dns_server: Default::default(),
             domain: Default::default(),
             gateway: Default::default(),
