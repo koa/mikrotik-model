@@ -1,6 +1,6 @@
 /caps-man/datapath:can-add;
 arp: o; disabled; enum= enabled, local-proxy-arp, proxy-arp, reply-only;
-bridge: o; ref=>interface
+bridge: o; unset; ref=>interface
 bridge-cost: o; u32
 bridge-horizon: o; none;
 client-to-client-forwarding: o; bool
@@ -11,7 +11,7 @@ local-forwarding: o; bool
 mtu: o; u16
 name: id; ref=caps-datapath
 openflow-switch: o
-vlan-id: o; u16
-vlan-mode: o; enum= no-tag, use-service-tag, use-tag;
+vlan-id: o; unset; u16
+vlan-mode: o; unset; enum= no-tag, use-service-tag, use-tag;
 about: ro; 
 
