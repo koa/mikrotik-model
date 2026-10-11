@@ -980,6 +980,11 @@ impl Entity {
                         .map(value::RosValue::encode_ros)
                         .map(|value| (ReferenceType::#name, value))}
                     }
+                } else if field.is_multiple && field.is_optional {
+                    // each element of the list, not the whole list as one value
+                    parse_quote! {(#field_access).iter().flatten()
+                    .map(value::RosValue::encode_ros)
+                    .map(|value| (ReferenceType::#name, value))}
                 } else if field.is_multiple || field.is_optional {
                     parse_quote! {(#field_access).iter()
                     .map(value::RosValue::encode_ros)

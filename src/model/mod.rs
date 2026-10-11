@@ -7,6 +7,8 @@ mod bridge_tests;
 mod defaults;
 mod enums;
 #[cfg(test)]
+mod reference_tests;
+#[cfg(test)]
 mod firewall_tests;
 #[cfg(test)]
 mod socks_tests;
