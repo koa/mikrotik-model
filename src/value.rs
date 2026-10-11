@@ -198,8 +198,9 @@ impl RosValue for Duration {
                 return ParseRosValueResult::Value(ret);
             }
             let duration = match unit {
+                // a number without unit is seconds, as RouterOS reads `:delay 5`
                 None => {
-                    return ParseRosValueResult::Value(ret);
+                    return ParseRosValueResult::Value(ret + Duration::from_secs(number));
                 }
                 Some(b's') => Duration::from_secs(number),
                 // `ms`, as in `on-fail-retry-time=100ms`
@@ -977,6 +978,9 @@ mod tests {
             (b"1h2m3s", Duration::from_secs(3723)),
             (b"1s500ms", Duration::from_millis(1500)),
             (b"0s", Duration::ZERO),
+            // uptimes (`/system/resource`)
+            (b"4d13h54m28s", Duration::from_secs(((4 * 24 + 13) * 60 + 54) * 60 + 28)),
+            (b"1w2d", Duration::from_secs(9 * 86400)),
         ] {
             assert_eq!(Duration::parse_ros(text), ParseRosValueResult::Value(duration));
             assert_eq!(
@@ -985,6 +989,9 @@ mod tests {
             );
         }
         assert_eq!(Duration::from_millis(100).encode_ros().as_ref(), b"100ms");
+        // seconds without unit, also after other units
+        assert_eq!(Duration::parse_ros(b"12"), ParseRosValueResult::Value(Duration::from_secs(12)));
+        assert_eq!(Duration::parse_ros(b"1m30"), ParseRosValueResult::Value(Duration::from_secs(90)));
     }
     #[test]
     fn test_parse_id() {
