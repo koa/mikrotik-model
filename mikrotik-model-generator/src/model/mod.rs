@@ -492,6 +492,7 @@ impl Entity {
                         fields: resource::CfgResource::changed_values(self,from).collect(),
                         depends: <#id_struct_ident as resource::RosResource>::consumes_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                         provides: <#id_struct_ident as resource::RosResource>::provides_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
+                        releases: Box::new([]),
                     }
                 }
             }
@@ -595,6 +596,7 @@ impl Entity {
                         fields: resource::CfgResource::changed_values(self,from).collect(),
                         depends: <#id_struct_ident as resource::RosResource>::consumes_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                         provides: <#id_struct_ident as resource::RosResource>::provides_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
+                        releases: Box::new([]),
                     }
                 }
             }
@@ -618,6 +620,7 @@ impl Entity {
                         fields: resource::SetResource::changed_values(self,from).collect(),
                         depends: <#cfg_ident as resource::RosResource>::consumes_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                         provides: <#cfg_ident as resource::RosResource>::provides_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
+                        releases: Box::new([]),
                     }
                 }
             }
@@ -840,6 +843,7 @@ impl Entity {
                         fields: #create_values_array.into_iter().filter(|value::KeyValuePair{key:_,value}|!value.is_empty()).collect(),
                         depends: <#struct_ident_cfg as resource::RosResource>::consumes_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                         provides: <#struct_ident_cfg as resource::RosResource>::provides_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
+                        releases: Box::new([]),
                     }
                 }
             }
@@ -886,6 +890,7 @@ impl Entity {
                         fields: resource::CfgResource::changed_values(self,from).collect(),
                         depends: <#struct_ident_cfg as resource::RosResource>::consumes_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                         provides: <#struct_ident_cfg as resource::RosResource>::provides_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
+                        releases: Box::new([]),
                     }
                 }
             }
@@ -1835,6 +1840,7 @@ pub struct Field {
     pub is_rxtx_pair: bool,
     pub is_stats_pair: bool,
     pub keep_if_none: bool,
+    pub unset_if_none: bool,
     pub default: Option<Box<str>>,
     pub monitor: MonitorVariant,
 }
@@ -1890,6 +1896,7 @@ impl Field {
                         "statspair" => field.is_stats_pair = true,
                         "disabled" => field.has_disabled = true,
                         "k" => field.keep_if_none = true,
+                        "unset" => field.unset_if_none = true,
                         "monitor" => field.monitor = MonitorVariant::Enabled,
                         "monitor-only" => field.monitor = MonitorVariant::Exclusive,
                         name => {
@@ -1955,6 +1962,9 @@ impl Field {
         if self.keep_if_none {
             write!(writer, "k; ")?;
         }
+        if self.unset_if_none {
+            write!(writer, "unset; ")?;
+        }
         if self.has_auto {
             write!(writer, "auto; ")?;
         }
@@ -1999,14 +2009,36 @@ impl Field {
         } else {
             parse_quote!(self.#field_name == #field_ref)
         };
+        // a field that `field=""` doesn't clear (a reference: `datapath=""` is ignored,
+        // `datapath.bridge=""` refused as ambiguous) is cleared by `!field`
+        let value: Expr = if self.is_optional && self.unset_if_none {
+            let unset_name = Literal::byte_string(format!("!{}", self.name).as_bytes());
+            parse_quote! {
+                if self.#field_name.is_none() {
+                    value::KeyValuePair {
+                        key: #unset_name,
+                        value: std::borrow::Cow::Borrowed(b""),
+                    }
+                } else {
+                    value::KeyValuePair {
+                        key: #attribute_name,
+                        value: value::RosValue::encode_ros(&self.#field_name),
+                    }
+                }
+            }
+        } else {
+            parse_quote! {
+                value::KeyValuePair {
+                    key: #attribute_name,
+                    value: value::RosValue::encode_ros(&self.#field_name),
+                }
+            }
+        };
         let compare_and_set_snippet = parse_quote! {
            if #cmp {
                 None
             } else {
-                Some(value::KeyValuePair {
-                    key: #attribute_name,
-                    value: value::RosValue::encode_ros(&self.#field_name),
-                })
+                Some(#value)
             }
         };
         compare_and_set_snippet

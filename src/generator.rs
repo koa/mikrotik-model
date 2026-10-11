@@ -69,6 +69,10 @@ impl<'a, W: Write> Generator<'a, W> {
         Ok(())
     }
     fn append_field(&mut self, kv: &KeyValuePair) -> std::fmt::Result {
+        // `!field` clears the field, it has no value
+        if kv.key.starts_with(b"!") {
+            return write!(self.target, "{}", decode_latin1(kv.key));
+        }
         write!(self.target, "{}=", decode_latin1(kv.key))?;
         if !kv.value.is_empty()
             && kv.value.iter().copied().all(|ch| {

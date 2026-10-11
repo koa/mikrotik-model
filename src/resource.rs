@@ -329,6 +329,9 @@ pub struct ResourceMutation<'a> {
     pub fields: Box<[KeyValuePair<'a>]>,
     pub depends: Box<[(ReferenceType, Cow<'a, [u8]>)]>,
     pub provides: Box<[(ReferenceType, Cow<'a, [u8]>)]>,
+    /// what a removal takes away; it runs after the updates, which drop the references to it
+    /// (`set !datapath` before the datapath is removed)
+    pub releases: Box<[(ReferenceType, Cow<'a, [u8]>)]>,
 }
 impl Debug for ResourceMutation<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -395,12 +398,18 @@ impl<'a> ResourceMutation<'a> {
             .into_iter()
             .map(|(k, v)| (k, Cow::Owned(v.into_owned())))
             .collect();
+        let releases = self
+            .releases
+            .into_iter()
+            .map(|(k, v)| (k, Cow::Owned(v.into_owned())))
+            .collect();
         ResourceMutation {
             resource: self.resource,
             operation,
             fields,
             depends,
             provides,
+            releases,
         }
     }
     pub fn sort_mutations<'b, 'c>(
@@ -418,11 +427,20 @@ impl<'a> ResourceMutation<'a> {
         while !remaining_updates.is_empty() {
             let mut next_round = Vec::with_capacity(remaining_updates.len());
             let mut could_add = false;
+            // an update may still refer to what a removal releases
+            let updates_pending = remaining_updates.iter().any(|m| {
+                matches!(
+                    m.operation,
+                    ResourceMutationOperation::UpdateByKey(_)
+                        | ResourceMutationOperation::UpdateSingle
+                )
+            });
             for mutation in remaining_updates {
-                if mutation
-                    .depends
-                    .iter()
-                    .all(|dep| provided_dependencies.contains(dep))
+                if !(updates_pending && !mutation.releases.is_empty())
+                    && mutation
+                        .depends
+                        .iter()
+                        .all(|dep| provided_dependencies.contains(dep))
                 {
                     for dep in &mutation.provides {
                         info!(
@@ -961,6 +979,10 @@ where
                     fields: Box::new([]),
                     depends: Default::default(),
                     provides: Default::default(),
+                    releases: entry
+                        .provides_reference()
+                        .filter(|(_, value)| !value.is_empty())
+                        .collect(),
                 }
             })
             .chain(
@@ -1005,6 +1027,7 @@ where
         fields,
         depends,
         provides,
+        releases: Box::new([]),
     }
 }
 
@@ -1059,6 +1082,10 @@ where
             fields: Box::new([]),
             depends: Box::new([]),
             provides: Box::new([]),
+            releases: current
+                .provides_reference()
+                .filter(|(_, value)| !value.is_empty())
+                .collect(),
         })
         .collect::<Vec<_>>();
     let updates = current
@@ -1211,7 +1238,56 @@ where
                 fields,
                 depends,
                 provides,
+                releases: Box::new([]),
             }
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn mutation(operation: ResourceMutationOperation<'static>) -> ResourceMutation<'static> {
+        ResourceMutation {
+            resource: b"interface/wifi/datapath",
+            operation,
+            fields: Box::new([]),
+            depends: Box::new([]),
+            provides: Box::new([]),
+            releases: Box::new([]),
+        }
+    }
+
+    #[test]
+    fn removal_runs_after_updates_that_drop_references() {
+        let removal = ResourceMutation {
+            releases: Box::new([(ReferenceType::WifiDatapath, b"bridge-caps".into())]),
+            ..mutation(ResourceMutationOperation::RemoveByKey(KeyValuePair {
+                key: b"name",
+                value: b"bridge-caps".into(),
+            }))
+        };
+        let plain_removal = mutation(ResourceMutationOperation::RemoveByKey(KeyValuePair {
+            key: b".id",
+            value: b"*1".into(),
+        }));
+        let update = ResourceMutation {
+            resource: b"interface/wifi",
+            fields: Box::new([KeyValuePair {
+                key: b"!datapath",
+                value: b"".into(),
+            }]),
+            ..mutation(ResourceMutationOperation::UpdateByKey(KeyValuePair {
+                key: b"default-name",
+                value: b"wifi1".into(),
+            }))
+        };
+        let mutations = [removal.clone(), plain_removal.clone(), update.clone()];
+        let sorted = ResourceMutation::sort_mutations(&mutations).unwrap();
+        assert_eq!(
+            sorted.iter().map(|m| (*m).clone()).collect::<Vec<_>>(),
+            vec![plain_removal, update, removal]
+        );
     }
 }

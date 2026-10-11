@@ -35,13 +35,13 @@ configuration.ssid: o
 configuration.station-roaming: o;bool
 configuration.tx-chains: mu;u8
 configuration.tx-power: o;u8
-datapath: o;ref=>wifi-datapath;
-datapath.bridge: o;ref=>interface;
+datapath: o;unset;ref=>wifi-datapath;
+datapath.bridge: o;unset;ref=>interface;
 datapath.bridge-cost: o;u32
 datapath.bridge-horizon: o;none;
 datapath.client-isolation: o;bool
 datapath.interface-list: o;ref=>interface-list;
-datapath.vlan-id: o; none;u16
+datapath.vlan-id: o; none;unset;u16
 disable-running-check: o;bool
 disabled: bool
 interworking: o;ref=wifi-interworking
@@ -165,7 +165,7 @@ certificate: mu; none;
 discovery-interfaces: mu; ref=>interface;
 enabled: YesNo 
 lock-to-caps-man: o; bool
-slaves-datapath: o; ref=>wifi-datapath;
+slaves-datapath: o; unset; ref=>wifi-datapath;
 slaves-static: o; bool
 current-caps-man-identity: ro; 
 locked-caps-man-common-name: ro; 
@@ -227,13 +227,13 @@ channel.skip-dfs-channels: o;disabled; WifiSkipDfsChannels;
 channel.width: o; WifiChannelWidth;
 comment: o
 country: o;WifiCountry
-datapath: o; ref=>wifi-datapath;
-datapath.bridge: o; ref=>interface
+datapath: o; unset; ref=>wifi-datapath;
+datapath.bridge: o; unset; ref=>interface
 datapath.bridge-cost: o;u32
 datapath.bridge-horizon: o;none;
 datapath.client-isolation: o;bool
 datapath.interface-list: o;none;ref=>interface-list
-datapath.vlan-id: o;none; u16
+datapath.vlan-id: o;none; unset; u16
 disabled: bool
 distance: o;u32
 dtim-period: o;u8

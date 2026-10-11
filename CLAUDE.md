@@ -15,7 +15,7 @@ mismatches (e.g. an address field that needs to accept a RouterOS `%zone`-suffix
 needing network access.
 
 Adding a new RouterOS config path is normally just a new `.txt` file in `ros_model/`, following
-the existing DSL (`id`/`ref=X`, `ref=>X`, `o`, `ro`, `mu`, `k`, `enum=...`, scalar types) — no
+the existing DSL (`id`/`ref=X`, `ref=>X`, `o`, `ro`, `mu`, `k`, `unset`, `enum=...`, scalar types) — no
 generator source changes needed for a simple addition.
 
 `k` (keep-if-none: a `None` target leaves the device's value alone) is only for fields where the
@@ -29,6 +29,14 @@ A field RouterOS accepts but never reports in some state (a bridge without vlan 
 bridge is `k`: without vlan filtering it has no effect, and whether it is reported then depends
 on the version (7.20.8 reports `false`, 7.24.5 nothing), so neither a value nor a clearing `None`
 works there.
+
+`unset` clears an optional field with a `None` target by `!field` (API `=!field=`, script
+`set ... !field`) instead of `field=""`: RouterOS ignores `datapath=""` on `/interface/wifi`
+without an error and refuses `datapath.bridge=""` as ambiguous (7.24.5), so a datapath could
+not be taken off again. Not every field can be unset this way (`!comment` is accepted but
+leaves the comment), so it is only on the fields where it was checked on a CHR.
+`sort_mutations` puts a removal of something referable (`ResourceMutation::releases`) after the
+updates, which may still drop references to it (`set !datapath` before the datapath goes).
 
 `can-add` says the menu adds entries (`/interface/wifi` adds virtual interfaces). A
 `by_key` field on a read-only key (`default-name`) still only updates: what has that key is
