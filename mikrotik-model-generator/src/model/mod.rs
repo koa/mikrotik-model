@@ -1438,6 +1438,18 @@ impl Entity {
                 init_struct
                     .fields
                     .push(parse_quote!(#field_name: self.#field_name));
+            } else if let Some(default) = &field.default {
+                // RouterOS leaves some fields out at their default (`disabled` of a firewall
+                // rule that was added without it)
+                let attribute_name = field.attribute_name();
+                let default = Literal::byte_string(default.as_bytes());
+                init_struct.fields.push(parse_quote!(#field_name: match self.#field_name {
+                    Some(value) => value,
+                    None => match crate::value::RosValue::parse_ros(#default) {
+                        crate::value::ParseRosValueResult::Value(value) => value,
+                        _ => return Err(#attribute_name as &[u8]),
+                    },
+                }));
             } else {
                 let attribute_name = field.attribute_name();
                 init_struct.fields.push(

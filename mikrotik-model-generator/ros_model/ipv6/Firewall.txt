@@ -2,7 +2,7 @@
 .id: ro;id;Id
 address: Ipv6Net;
 comment: o
-disabled: bool
+disabled: bool; default=false
 dynamic: ro; bool
 list: ref=ipv6-addresslist
 timeout: o; Duration
@@ -48,57 +48,57 @@ address-list: o;ref=>ipv6-addresslist;
 address-list-timeout: o;Duration
 chain: ref=firewall-chain
 comment: o
-connection-bytes: u32;o
-connection-limit: u8;o
+connection-bytes: o
+connection-limit: o
 connection-mark: o
-connection-nat-state:o
-connection-rate: u32;o
+connection-nat-state: o
+connection-rate: o
 connection-state: o
 connection-type: o
 content: o
 disabled: o;bool
-dscp: u8;o
-dst-address: o; Ipv6Net
+dscp: o
+dst-address: o
 dst-address-list: o; ref=>address-list
-dst-address-type: o;enum=anycast,local,multicast,unicast,unreachable
-dst-limit: o;u32
-dst-port: o;u16
-headers: mu;enum=ah,ah:exact,ah:contains,dst,esp,frag,hop,none,proto,route
-hop-limit: o;enum= equal, greater-than, less-than, not-equal; 
-icmp-options: o; u8
+dst-address-type: o
+dst-limit: o
+dst-port: o
+headers: o
+hop-limit: o
+icmp-options: o
 in-bridge-port: o; ref=>interface; 
 in-bridge-port-list: o; ref=>interface-list; 
 in-interface: o; ref=>interface; 
 in-interface-list: o;ref=>interface-list; 
-ingress-priority: o; u8
-ipsec-policy: o; enum= in, out; 
+ingress-priority: o
+ipsec-policy: o
 jump-target: o; ref=>firewall-chain
-limit: o; u32
+limit: o
 log: o; bool
 log-prefix: o
-nth: o; u32
+nth: o
 out-bridge-port: o; ref=>interface; 
 out-bridge-port-list: o; ref=>interface-list; 
 out-interface: o; ref=>interface; 
 out-interface-list: o; ref=>interface-list 
 packet-mark: o
-packet-size: o; u16
-per-connection-classifier: o; u32
-port: o; u16
-priority: o; u8
-protocol: mu; enum=dccp,encap,gre,icmpv6,ipencap,ipsec-esp,ipv6-nonxt,iso-tp4,pim,rspf,st,udp-lite,xns-idp,ddp,etherip,hmp,idpr-cmtp,ipip,ipv6-encap,ipv6-opts,l2tp,pup,rsvp,tcp,vmtp,xtp,egp,ggp,icmp,igmp,ipsec-ah,ipv6-frag,ipv6-route,ospf,rdp,sctp,udp,vrrp
-random: o; u8
+packet-size: o
+per-connection-classifier: o
+port: o
+priority: o
+protocol: o
+random: o
 reject-with: o; enum= icmp-address-unreachable, icmp-admin-prohibited, icmp-err-src-routing-header, icmp-headers-too-long, icmp-no-route, icmp-not-neighbour, icmp-port-unreachable, tcp-reset; 
 routing-mark: o
-src-address: o; Ipv6Net
+src-address: o
 src-address-list: o; ref=>address-list
-src-address-type:  o;enum=anycast,local,multicast,unicast,unreachable
-src-mac-address: o; MacAddress
-src-port: o; u16
-tcp-flags: mu; enum=ack,cwr,ece,fin,psh,rst,syn,urg
-tcp-mss: o; u16
+src-address-type: o
+src-mac-address: o
+src-port: o
+tcp-flags: o
+tcp-mss: o
 time: o
-tls-host: o 
+tls-host: o
 invalid: ro; bool
 about: ro; 
 bytes: ro; 
@@ -120,13 +120,13 @@ connection-rate: u32
 connection-state: 
 connection-type: 
 content: 
-disabled: bool
+disabled: bool; default=false
 dscp: u8
 dst-address: 
 dst-address-list: 
 dst-address-type: 
 dst-limit: u32
-dst-port: u16
+dst-port:
 dst-prefix: 
 headers: none; 
 hop-limit: enum= equal, greater-than, less-than, not-equal; 
@@ -157,7 +157,7 @@ packet-mark:
 packet-size: u16
 passthrough: bool
 per-connection-classifier: u32
-port: u16
+port:
 priority: u8
 protocol: u32
 random: u8
@@ -169,7 +169,7 @@ src-address:
 src-address-list: 
 src-address-type: 
 src-mac-address: 
-src-port: u16
+src-port:
 src-prefix: 
 tcp-flags: 
 tcp-mss: u16
@@ -195,13 +195,13 @@ connection-rate: u32
 connection-state: 
 connection-type: 
 content: 
-disabled: bool
+disabled: bool; default=false
 dscp: u8
 dst-address: 
 dst-address-list: 
 dst-address-type: 
 dst-limit: u32
-dst-port: u16
+dst-port:
 headers: none; 
 hop-limit: enum= equal, greater-than, less-than, not-equal; 
 icmp-options: u8
@@ -223,7 +223,7 @@ out-interface-list: none;
 packet-mark: 
 packet-size: u16
 per-connection-classifier: u32
-port: u16
+port:
 priority: u8
 protocol: u32
 random: u8
@@ -232,12 +232,12 @@ src-address:
 src-address-list: 
 src-address-type: 
 src-mac-address: 
-src-port: u16
+src-port:
 tcp-flags: 
 tcp-mss: u16
 time: 
 to-address: 
-to-ports: u16
+to-ports:
 about: ro; 
 dynamic: ro; 
 packets: ro; 
@@ -252,13 +252,13 @@ address-list-timeout:
 chain: 
 comment: 
 content: 
-disabled: bool
+disabled: bool; default=false
 dscp: u8
 dst-address: 
 dst-address-list: 
 dst-address-type: 
 dst-limit: u32
-dst-port: u16
+dst-port:
 headers: none; 
 hop-limit: enum= equal, greater-than, less-than, not-equal; 
 icmp-options: u8
@@ -280,7 +280,7 @@ out-interface-list: none;
 packet-mark: 
 packet-size: u16
 per-connection-classifier: u32
-port: u16
+port:
 priority: u8
 protocol: u32
 random: u8
@@ -288,7 +288,7 @@ src-address:
 src-address-list: 
 src-address-type: 
 src-mac-address: 
-src-port: u16
+src-port:
 tcp-flags: 
 tcp-mss: u16
 time: 

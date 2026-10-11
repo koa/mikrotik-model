@@ -39,7 +39,7 @@ router-id: o
 routing-table: o; ref=>routing-table;
 use-dn: o; bool
 version: enum= 2, 3; 
-vrf: ref=>routing-table;
+vrf: ref=>routing-table; default=main
 in-filter: o; ref=>routing-filter; 
 about: ro; 
 inactive: ro; bool

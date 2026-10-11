@@ -38,6 +38,12 @@ leaves the comment), so it is only on the fields where it was checked on a CHR.
 `sort_mutations` puts a removal of something referable (`ResourceMutation::releases`) after the
 updates, which may still drop references to it (`set !datapath` before the datapath goes).
 
+`default=<value>` gives a required field the value RouterOS leaves out: a firewall rule added
+without `disabled` doesn't report it (`default=false`), nor does the OSPF instance an update from
+RouterOS 6 brings report `vrf` (`default=main`). Match fields of the firewall (ports, protocol,
+addresses, limits) are plain text, not typed: RouterOS reports ranges, lists, negations and
+`value:mode` pairs there (`33434-33534`, `!fe80::/10`, `in,ipsec`, `equal:1`, protocol `139`).
+
 `mu` is a `BTreeSet` (order doesn't count); `mu; ordered` a `Box<[V]>` for lists RouterOS keeps in
 order and where it matters (`dns-server`, `/ip dns servers`, `/ipv6 nd dns`: the first is asked
 first). Not for references (a rename can't keep the position). The element type needs

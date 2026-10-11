@@ -4,7 +4,7 @@ action: enum= accept, add-dst-to-address-list, add-src-to-address-list, drop, fa
 chain: ref=firewall-chain
 comment: o
 connection-state: o
-disabled: bool
+disabled: bool; default=false
 dst-address: o
 dst-port: o
 in-interface: o; ref=>interface;
@@ -22,7 +22,7 @@ invalid: ro; bool
 action: enum= accept, add-dst-to-address-list, add-src-to-address-list, dst-nat, endpoint-independent-nat, jump, log, masquerade, netmap, passthrough, redirect, return, same, src-nat;
 chain: ref=firewall-chain
 comment: o
-disabled: bool
+disabled: bool; default=false
 dst-address: o
 dst-port: o
 in-interface: o; ref=>interface;
