@@ -180,8 +180,8 @@ interfaces: o; k; mu; none;
 package-path: o; k;
 require-peer-certificate: o; k; bool
 upgrade-policy: o; k; enum= require-same-version, suggest-same-version, none;
-generated-ca-certificate: ro; 
-generated-certificate: ro; 
+generated-ca-certificate: ro; o
+generated-certificate: ro; o
 
 /interface/wifi/capsman/remote-cap:
 address: ro; 
