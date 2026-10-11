@@ -669,12 +669,31 @@ impl Entity {
                 && f.is_read_only
         });
 
+        let hardware_key = self.key_field.as_deref().filter(|key| {
+            self.fields
+                .iter()
+                .any(|f| f.name.as_ref() == *key && f.is_read_only)
+        });
+
         match (has_dynamic, has_builtin) {
             (true, true) => Some(parse_quote! {
                 fn filter(cmd: mikrotik_api::prelude::CommandBuilder) -> mikrotik_api::prelude::CommandBuilder {
                     cmd.query_equal(b"dynamic",b"false").query_equal(b"builtin",b"false").query_operations(Some(mikrotik_api::prelude::QueryOperator::And).into_iter())
                 }
             }),
+            // hardware (a read-only key like `default-name`) is read even when RouterOS calls
+            // it dynamic: the radios of a CAP that CAPsMAN manages are (`wifi1`, 7.23.7)
+            (true, false) if hardware_key.is_some() => {
+                let key = syn::LitByteStr::new(
+                    hardware_key.unwrap_or_default().as_bytes(),
+                    proc_macro2::Span::call_site(),
+                );
+                Some(parse_quote! {
+                    fn filter(cmd: mikrotik_api::prelude::CommandBuilder) -> mikrotik_api::prelude::CommandBuilder {
+                        cmd.query_equal(b"dynamic",b"false").query_not_present(b"dynamic").query_is_present(#key).query_operations([mikrotik_api::prelude::QueryOperator::Or, mikrotik_api::prelude::QueryOperator::Or].into_iter())
+                    }
+                })
+            }
             (true, false) => Some(parse_quote! {
                 fn filter(cmd: mikrotik_api::prelude::CommandBuilder) -> mikrotik_api::prelude::CommandBuilder {
                     cmd.query_equal(b"dynamic",b"false").query_not_present(b"dynamic").query_operations(Some(mikrotik_api::prelude::QueryOperator::Or).into_iter())

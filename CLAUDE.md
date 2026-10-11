@@ -54,6 +54,11 @@ first). Not for references (a rename can't keep the position). The element type 
 `value::OrderedElement` (IP addresses so far; `Box<[u8]>` is a raw text value, so the impl can't
 be for every `RosValue`).
 
+An entity with a read-only `dynamic` field is fetched without its dynamic entries (RouterOS
+makes them itself), except where the key is read-only hardware (`id=default-name`): the
+radios of a CAP that CAPsMAN manages are flagged dynamic (`/interface/wifi`, 7.23.7), its
+virtual slaves too, but only the radios have a `default-name`.
+
 `can-add` says the menu adds entries (`/interface/wifi` adds virtual interfaces). A
 `by_key` field on a read-only key (`default-name`) still only updates: what has that key is
 hardware, it can't be added or removed, so the macro doesn't ask for `Creatable` there.
