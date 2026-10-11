@@ -72,7 +72,7 @@ pub fn generator() -> syn::File {
         parse_quote!(
             use std::{
                 time::Duration,
-                net::{IpAddr, Ipv4Addr},
+                net::{IpAddr, Ipv4Addr, Ipv6Addr},
             };
         ),
         parse_quote!(

@@ -320,6 +320,28 @@ impl<V: RosValue + Ord + Eq> RosValue for BTreeSet<V> {
     }
 }
 
+/// An element of a list whose order counts (`mu; ordered`). Not every `RosValue`: a
+/// `Box<[u8]>` is a raw text value.
+pub trait OrderedElement: RosValue {}
+impl OrderedElement for IpAddr {}
+impl OrderedElement for Ipv4Addr {}
+impl OrderedElement for Ipv6Addr {}
+
+/// A list whose order counts (`ordered`), e.g. DNS servers by priority.
+impl<V: OrderedElement> RosValue for Box<[V]> {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
+        let mut result = Vec::new();
+        match parse_ros_multiple(value, |v| result.push(v)) {
+            Ok(_) => ParseRosValueResult::Value(result.into_boxed_slice()),
+            Err(_) => ParseRosValueResult::Invalid,
+        }
+    }
+
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
+        encode_ros_multiple(self.iter())
+    }
+}
+
 fn parse_ros_multiple<V: RosValue>(value: &[u8], mut appender: impl FnMut(V)) -> Result<(), ()> {
     if !(value.is_empty()) {
         for value in value.split(|ch| *ch == b',').map(V::parse_ros) {

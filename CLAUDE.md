@@ -15,7 +15,7 @@ mismatches (e.g. an address field that needs to accept a RouterOS `%zone`-suffix
 needing network access.
 
 Adding a new RouterOS config path is normally just a new `.txt` file in `ros_model/`, following
-the existing DSL (`id`/`ref=X`, `ref=>X`, `o`, `ro`, `mu`, `k`, `unset`, `enum=...`, scalar types) — no
+the existing DSL (`id`/`ref=X`, `ref=>X`, `o`, `ro`, `mu`, `ordered`, `k`, `unset`, `enum=...`, scalar types) — no
 generator source changes needed for a simple addition.
 
 `k` (keep-if-none: a `None` target leaves the device's value alone) is only for fields where the
@@ -37,6 +37,12 @@ not be taken off again. Not every field can be unset this way (`!comment` is acc
 leaves the comment), so it is only on the fields where it was checked on a CHR.
 `sort_mutations` puts a removal of something referable (`ResourceMutation::releases`) after the
 updates, which may still drop references to it (`set !datapath` before the datapath goes).
+
+`mu` is a `BTreeSet` (order doesn't count); `mu; ordered` a `Box<[V]>` for lists RouterOS keeps in
+order and where it matters (`dns-server`, `/ip dns servers`, `/ipv6 nd dns`: the first is asked
+first). Not for references (a rename can't keep the position). The element type needs
+`value::OrderedElement` (IP addresses so far; `Box<[u8]>` is a raw text value, so the impl can't
+be for every `RosValue`).
 
 `can-add` says the menu adds entries (`/interface/wifi` adds virtual interfaces). A
 `by_key` field on a read-only key (`default-name`) still only updates: what has that key is

@@ -1,0 +1,3 @@
+/ip/dns:is-single;no-default
+allow-remote-requests: bool
+servers: mu; ordered; IpAddr

@@ -104,7 +104,7 @@ comment: o
 dhcp-option: mu; ref=>dhcp-v4-option-set
 dhcp-option-set: o;
 dns-none: o; bool
-dns-server: mu; Ipv4Addr
+dns-server: mu; ordered; Ipv4Addr
 domain: o
 gateway: mu; Ipv4Addr
 netmask: o; u8

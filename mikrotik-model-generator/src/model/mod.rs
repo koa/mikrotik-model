@@ -1831,6 +1831,8 @@ pub struct Field {
     pub is_optional: bool,
     pub is_read_only: bool,
     pub is_multiple: bool,
+    /// a `mu` field whose order counts (`dns-server`: the first is asked first)
+    pub is_ordered: bool,
     pub is_hex: bool,
     pub reference: Reference,
     pub has_none: bool,
@@ -1885,6 +1887,7 @@ impl Field {
                         "ro" => field.is_read_only = true,
                         "auto" => field.has_auto = true,
                         "mu" => field.is_multiple = true,
+                        "ordered" => field.is_ordered = true,
                         "range" => field.is_range_dash = true,
                         "range-dot" => field.is_range_dot = true,
                         "o" => field.is_optional = true,
@@ -1928,6 +1931,9 @@ impl Field {
         }
         if self.is_multiple {
             write!(writer, "mu; ")?;
+        }
+        if self.is_ordered {
+            write!(writer, "ordered; ")?;
         }
         if self.is_range_dash {
             write!(writer, "range; ")?;
@@ -2056,7 +2062,14 @@ impl Field {
         } else {
             field_type
         };
-        let field_type = if self.is_multiple {
+        let field_type = if self.is_multiple && self.is_ordered {
+            assert!(
+                matches!(self.reference, Reference::None),
+                "{}: an ordered reference can't be renamed",
+                self.name
+            );
+            parse_quote!(Box<[#field_type]>)
+        } else if self.is_multiple {
             parse_quote!(std::collections::BTreeSet<#field_type>)
         } else {
             field_type

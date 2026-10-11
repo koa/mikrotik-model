@@ -13,6 +13,16 @@ impl Default for SystemIdentityCfg {
         }
     }
 }
+/// RouterOS's factory setting: the resolver answers only the device itself, and asks only
+/// the servers it learns (from a DHCP client).
+impl Default for IpDnsCfg {
+    fn default() -> Self {
+        IpDnsCfg {
+            allow_remote_requests: false,
+            servers: Default::default(),
+        }
+    }
+}
 /// RouterOS's factory setting: off, SOCKS4 without authentication.
 impl Default for IpSocksCfg {
     fn default() -> Self {
