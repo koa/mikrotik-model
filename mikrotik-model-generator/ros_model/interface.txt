@@ -107,7 +107,7 @@ caps-man-names: o
 certificate: none
 discovery-interfaces: mu; ref=>interface;
 enabled: bool
-interfaces: mu; ref=interface;
+interfaces: mu; ref=>interface;
 lock-to-caps-man: bool
 static-virtual: bool
 locked-caps-man-common-name: ro;

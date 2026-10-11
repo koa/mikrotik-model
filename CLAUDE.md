@@ -43,6 +43,8 @@ without `disabled` doesn't report it (`default=false`), nor does the OSPF instan
 RouterOS 6 brings report `vrf` (`default=main`). Match fields of the firewall (ports, protocol,
 addresses, limits) are plain text, not typed: RouterOS reports ranges, lists, negations and
 `value:mode` pairs there (`33434-33534`, `!fe80::/10`, `in,ipsec`, `equal:1`, protocol `139`).
+`ref=X` provides a name, `ref=>X` uses one; a field that names interfaces (`/interface/wireless/cap
+interfaces`) must be `ref=>interface`, or it isn't ordered after the rename it refers to.
 
 `mu` is a `BTreeSet` (order doesn't count); `mu; ordered` a `Box<[V]>` for lists RouterOS keeps in
 order and where it matters (`dns-server`, `/ip dns servers`, `/ipv6 nd dns`: the first is asked
