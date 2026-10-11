@@ -42,7 +42,11 @@ updates, which may still drop references to it (`set !datapath` before the datap
 
 `default=<value>` gives a required field the value RouterOS leaves out: a firewall rule added
 without `disabled` doesn't report it (`default=false`), nor does the OSPF instance an update from
-RouterOS 6 brings report `vrf` (`default=main`). Match fields of the firewall (ports, protocol,
+RouterOS 6 brings report `vrf` (`default=main`). A dhcp-client with
+`add-default-route=no` hides `default-route-distance` and refuses to clear it (`=""`,
+`!default-route-distance`), so it is required with RouterOS' own value (`default=1`, what a new
+client gets; the manual names none): the target sets 1 there, which is accepted and then
+matches. Match fields of the firewall (ports, protocol,
 addresses, limits) are plain text, not typed: RouterOS reports ranges, lists, negations and
 `value:mode` pairs there (`33434-33534`, `!fe80::/10`, `in,ipsec`, `equal:1`, protocol `139`).
 `ref=X` provides a name, `ref=>X` uses one; a field that names interfaces (`/interface/wireless/cap
