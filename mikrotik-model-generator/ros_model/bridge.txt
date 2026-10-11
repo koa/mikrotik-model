@@ -5,7 +5,8 @@ broadcast-flood: bool
 edge: enum=auto,no,no-discover,yes,yes-discover
 interface: ref=>interface
 bridge: ref=>interface
-multicast-router: enum=disabled,permanent,temporary-query
+# `false`: reported by a port of srv-router-berg (7.23.7), not accepted by `set` (7.24.5)
+multicast-router: enum=disabled,permanent,temporary-query,false
 priority: hex;u8
 restricted-tcn:bool
 unknown-multicast-flood:bool

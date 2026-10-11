@@ -59,3 +59,16 @@ fn test_bridge_with_mvrp() {
     let bridge: InterfaceBridgeByName = build::<InterfaceBridgeByNameBuilder, _>(&fields);
     assert_eq!(bridge.0.mvrp, Some(false));
 }
+
+/// A port of srv-router-berg (RouterOS 7.23.7) reports `multicast-router=false`, which
+/// RouterOS doesn't take on `set` ("input does not match any value", CHR 7.24.5): it must
+/// still parse, or the whole device can't be read.
+#[test]
+fn test_port_multicast_router_false() {
+    use crate::model::InterfaceBridgePortMulticastRouter;
+    use crate::value::{ParseRosValueResult, RosValue};
+    assert!(matches!(
+        InterfaceBridgePortMulticastRouter::parse_ros(b"false"),
+        ParseRosValueResult::Value(InterfaceBridgePortMulticastRouter::False)
+    ));
+}
