@@ -1,0 +1,2 @@
+/ipv6/settings:is-single;no-default
+disable-ipv6: bool

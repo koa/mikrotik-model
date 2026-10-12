@@ -13,6 +13,14 @@ impl Default for SystemIdentityCfg {
         }
     }
 }
+/// RouterOS's factory setting: IPv6 on.
+impl Default for Ipv6SettingsCfg {
+    fn default() -> Self {
+        Ipv6SettingsCfg {
+            disable_ipv_6: false,
+        }
+    }
+}
 /// RouterOS's factory setting: the resolver answers only the device itself, and asks only
 /// the servers it learns (from a DHCP client).
 impl Default for IpDnsCfg {
