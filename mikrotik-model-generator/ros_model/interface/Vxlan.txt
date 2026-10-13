@@ -16,7 +16,7 @@ max-fdb-size: u16
 mtu: u16
 name: id;ref=interface
 port: u16
-vni: u32
+vni: u32; unique
 vtep-vrf: o; ref=>routing-table;
 vteps-ip-version: enum= ipv4, ipv6; 
 running: ro; 
@@ -33,7 +33,7 @@ remote-ip: ro;
 /interface/vxlan/vteps:can-add;
 .id: ro;id;Id
 comment: o
-interface: id; ref=>interface;
+interface: id; ref=>interface; blocks-removal;
 remote-ip: id; IpAddr
 about: ro;
 disabled: bool

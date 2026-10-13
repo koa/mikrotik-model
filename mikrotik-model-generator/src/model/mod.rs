@@ -331,6 +331,12 @@ impl Entity {
                 fn consumes_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<'_, [u8]>)>{
                     self.cfg.consumes_reference().chain(self.status.consumes_reference())
                 }
+                fn unique_values(&self)->impl Iterator<Item=(&'static [u8], std::borrow::Cow<'_, [u8]>)>{
+                    self.cfg.unique_values()
+                }
+                fn removal_blocking_references(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<'_, [u8]>)>{
+                    self.cfg.removal_blocking_references()
+                }
             }
         }
     }
@@ -376,6 +382,7 @@ impl Entity {
         let id_struct_ident = self.id_struct_type(id_field);
         let filter = self.dynamic_filter();
 
+        let key_reference = Self::key_reference(id_field);
         let item = parse_quote! {
             impl resource::KeyedResource for (#id_struct_ident, #struct_ident_status) {
                 type Key = #id_field_type;
@@ -384,6 +391,7 @@ impl Entity {
                 fn key_name() -> &'static [u8] {
                     #field_name
                 }
+                #key_reference
 
                 fn key_value(&self) -> &#id_field_type {
                     self.0.key_value()
@@ -492,7 +500,7 @@ impl Entity {
                         fields: resource::CfgResource::changed_values(self,from).collect(),
                         depends: <#id_struct_ident as resource::RosResource>::consumes_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                         provides: <#id_struct_ident as resource::RosResource>::provides_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
-                        releases: Box::new([]),
+                        ordering: resource::MutationOrdering::update(self, from),
                     }
                 }
             }
@@ -516,6 +524,7 @@ impl Entity {
         let id_field_name = id_field.generate_field_name();
         let filter = self.dynamic_filter();
 
+        let key_reference = Self::key_reference(id_field);
         let item = parse_quote! {
             impl resource::KeyedResource for #id_struct_ident {
                 type Key = #id_field_type;
@@ -524,6 +533,7 @@ impl Entity {
                 fn key_name() -> &'static [u8] {
                     #field_name
                 }
+                #key_reference
 
                 fn key_value(&self) -> &#id_field_type {
                     &self.0.#id_field_name
@@ -596,7 +606,7 @@ impl Entity {
                         fields: resource::CfgResource::changed_values(self,from).collect(),
                         depends: <#id_struct_ident as resource::RosResource>::consumes_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                         provides: <#id_struct_ident as resource::RosResource>::provides_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
-                        releases: Box::new([]),
+                        ordering: resource::MutationOrdering::update(self, from),
                     }
                 }
             }
@@ -620,7 +630,7 @@ impl Entity {
                         fields: resource::SetResource::changed_values(self,from).collect(),
                         depends: <#cfg_ident as resource::RosResource>::consumes_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                         provides: <#cfg_ident as resource::RosResource>::provides_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
-                        releases: Box::new([]),
+                        ordering: resource::MutationOrdering::update(self, from),
                     }
                 }
             }
@@ -862,7 +872,7 @@ impl Entity {
                         fields: #create_values_array.into_iter().filter(|value::KeyValuePair{key:_,value}|!value.is_empty()).collect(),
                         depends: <#struct_ident_cfg as resource::RosResource>::consumes_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                         provides: <#struct_ident_cfg as resource::RosResource>::provides_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
-                        releases: Box::new([]),
+                        ordering: resource::MutationOrdering::create(self),
                     }
                 }
             }
@@ -909,7 +919,7 @@ impl Entity {
                         fields: resource::CfgResource::changed_values(self,from).collect(),
                         depends: <#struct_ident_cfg as resource::RosResource>::consumes_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                         provides: <#struct_ident_cfg as resource::RosResource>::provides_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
-                        releases: Box::new([]),
+                        ordering: resource::MutationOrdering::update_single(self, from, None),
                     }
                 }
             }
@@ -962,7 +972,15 @@ impl Entity {
         path: Literal,
         field_gen: FG,
     ) -> Item {
-        let (provides, consumes) = self.consume_and_provides(field_gen);
+        let unique_values = self.unique_values(&field_gen);
+        let (provides, consumes, blocking) = self.reference_iterators(field_gen);
+        let blocking = blocking.map(|blocking| -> ImplItem {
+            parse_quote! {
+                fn removal_blocking_references(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<'_, [u8]>)>{
+                    #blocking
+                }
+            }
+        });
         parse_quote! {
             impl resource::RosResource for #struct_ident_cfg {
                 fn path()->&'static [u8]{
@@ -978,13 +996,70 @@ impl Entity {
                 fn consumes_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<'_, [u8]>)>{
                     #consumes
                 }
+                #unique_values
+                #blocking
             }
         }
     }
 
+    /// `RosResource::unique_values` over the `unique` fields `field_gen` reaches, if any.
+    fn unique_values<FG: Fn(&Field) -> Option<Expr>>(&self, field_gen: &FG) -> Option<ImplItem> {
+        let mut values_expr: Option<Expr> = None;
+        for field in self.fields.iter().filter(|f| f.is_unique) {
+            let Some(field_access) = field_gen(field) else {
+                continue;
+            };
+            let name = field.attribute_name();
+            let expr: Expr = if field.is_optional {
+                parse_quote! {(#field_access).iter()
+                    .map(|value| (#name.as_slice(), value::RosValue::encode_ros(value)))}
+            } else {
+                parse_quote! {Some(#field_access).into_iter()
+                    .map(|value| (#name.as_slice(), value::RosValue::encode_ros(value)))}
+            };
+            values_expr = Some(match values_expr.take() {
+                Some(previous) => parse_quote!(#previous.chain(#expr)),
+                None => expr,
+            });
+        }
+        values_expr.map(|values| {
+            parse_quote! {
+                fn unique_values(&self)->impl Iterator<Item=(&'static [u8], std::borrow::Cow<'_, [u8]>)>{
+                    #values
+                }
+            }
+        })
+    }
+
+    /// `KeyedResource::key_reference` when the key refers to another entry.
+    fn key_reference(id_field: &Field) -> Option<ImplItem> {
+        match &id_field.reference {
+            Reference::RefereesTo(target) => {
+                let name = crate::name2ident(target.as_ref());
+                Some(parse_quote! {
+                    fn key_reference() -> Option<ReferenceType> {
+                        Some(ReferenceType::#name)
+                    }
+                })
+            }
+            _ => None,
+        }
+    }
+
     fn consume_and_provides<FG: Fn(&Field) -> Option<Expr>>(&self, field_gen: FG) -> (Expr, Expr) {
+        let (provides, consumes, _) = self.reference_iterators(field_gen);
+        (provides, consumes)
+    }
+
+    /// The iterators over the references it provides, consumes, and of those the ones marked
+    /// `blocks-removal` (if any).
+    fn reference_iterators<FG: Fn(&Field) -> Option<Expr>>(
+        &self,
+        field_gen: FG,
+    ) -> (Expr, Expr, Option<Expr>) {
         let mut provides_expr = None;
         let mut consumes_expr = None;
+        let mut blocking_expr: Option<Expr> = None;
         for (name, incoming, field) in self.referencing_fields() {
             if let Some(field_access) = field_gen(field) {
                 // `none` refers to nothing
@@ -1013,6 +1088,13 @@ impl Entity {
                     .map(value::RosValue::encode_ros)
                     .map(|value| (ReferenceType::#name, value))}
                 };
+                if incoming && field.blocks_removal {
+                    let blocking = expr.clone();
+                    blocking_expr = Some(match blocking_expr.take() {
+                        Some(previous_expr) => parse_quote!(#previous_expr.chain(#blocking)),
+                        None => blocking,
+                    });
+                }
                 if incoming {
                     consumes_expr = Some(if let Some(previous_expr) = consumes_expr.take() {
                         parse_quote!(#previous_expr.chain(#expr))
@@ -1031,6 +1113,7 @@ impl Entity {
         (
             provides_expr.unwrap_or(parse_quote!(None.into_iter())),
             consumes_expr.unwrap_or(parse_quote!(None.into_iter())),
+            blocking_expr,
         )
     }
 
@@ -1879,6 +1962,13 @@ pub struct Field {
     pub is_stats_pair: bool,
     pub keep_if_none: bool,
     pub unset_if_none: bool,
+    /// no two entries of the menu may hold the same value (`vni`): entries are also paired by
+    /// it, and a mutation claiming a value runs after the one freeing it
+    pub is_unique: bool,
+    /// the entry this reference names must not be removed while it is set: RouterOS refuses it
+    /// (a radio's `datapath`) or removes this entry with it (a vtep's `interface`); the removal
+    /// runs after the mutation that drops the reference
+    pub blocks_removal: bool,
     pub default: Option<Box<str>>,
     pub monitor: MonitorVariant,
 }
@@ -1936,6 +2026,8 @@ impl Field {
                         "disabled" => field.has_disabled = true,
                         "k" => field.keep_if_none = true,
                         "unset" => field.unset_if_none = true,
+                        "unique" => field.is_unique = true,
+                        "blocks-removal" => field.blocks_removal = true,
                         "monitor" => field.monitor = MonitorVariant::Enabled,
                         "monitor-only" => field.monitor = MonitorVariant::Exclusive,
                         name => {
@@ -2006,6 +2098,12 @@ impl Field {
         }
         if self.unset_if_none {
             write!(writer, "unset; ")?;
+        }
+        if self.is_unique {
+            write!(writer, "unique; ")?;
+        }
+        if self.blocks_removal {
+            write!(writer, "blocks-removal; ")?;
         }
         if self.has_auto {
             write!(writer, "auto; ")?;

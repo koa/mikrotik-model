@@ -15,7 +15,8 @@ mismatches (e.g. an address field that needs to accept a RouterOS `%zone`-suffix
 needing network access.
 
 Adding a new RouterOS config path is normally just a new `.txt` file in `ros_model/`, following
-the existing DSL (`id`/`ref=X`, `ref=>X`, `o`, `ro`, `mu`, `ordered`, `k`, `unset`, `enum=...`, scalar types) — no
+the existing DSL (`id`/`ref=X`, `ref=>X`, `o`, `ro`, `mu`, `ordered`, `k`, `unset`, `unique`, `blocks-removal`,
+`enum=...`, scalar types) — no
 generator source changes needed for a simple addition.
 
 `k` (keep-if-none: a `None` target leaves the device's value alone) is only for fields where the
@@ -37,8 +38,26 @@ not be taken off again. The legacy `/caps-man/datapath` is alike: `bridge=""` is
 `vlan-id=""` refused, `!bridge !vlan-id !vlan-mode` clear them. Not every field can be unset
 this way (`!comment` is accepted but leaves the comment), so it is only on the fields where it
 was checked on a CHR.
-`sort_mutations` puts a removal of something referable (`ResourceMutation::releases`) after the
-updates, which may still drop references to it (`set !datapath` before the datapath goes).
+
+`sort_mutations` orders the mutations from what each one needs and takes, besides the names it
+refers to (`depends`) and makes (`provides`): `ResourceMutation::ordering` (`MutationOrdering`)
+holds the names it gives up (`releases`: a removal, a rename), the `unique` values it claims and
+frees, the `blocks-removal` references it drops, and the name its `[find ...]` looks for
+(`finds`, `KeyedResource::key_reference`). A mutation runs after the ones still holding a name it
+provides or a value it claims, and a name is given up only after the mutations that drop a
+blocking reference to it or find by it. Mutations waiting on each other (two VXLANs swapping their
+VNIs) are a `MissingDependenciesError` without missing dependencies, not a script that fails.
+- `unique`: no two entries of the menu hold the value; `vni` of `/interface/vxlan` (7.24.5
+  refuses a second VXLAN with a VNI, regardless of the port). A VXLAN renamed while keeping its
+  VNI is removed before the new one is added; a new VNI under the same name is set in place.
+- `blocks-removal`: the referenced entry must not be removed while the reference is set, as
+  RouterOS refuses it (a radio's `datapath`: `set !datapath` before the datapath goes) or removes
+  the referencing entry with it (a vtep's `interface`: the vtep is removed before its VXLAN, not
+  after, when it is gone). Other references don't hold an entry back: removing a VXLAN, VLAN,
+  bridge, list, routing table or OSPF area/instance leaves them dangling as `*id` (7.24.5), and
+  `set ... interface=new` mends them. A `by_id` entry isn't moved to another entry a blocking
+  reference names (a vtep to another VXLAN) but replaced, as the move would wait for the new
+  VXLAN, which may wait for the old one to go.
 
 `default=<value>` gives a required field the value RouterOS leaves out: a firewall rule added
 without `disabled` doesn't report it (`default=false`), nor does the OSPF instance an update from

@@ -35,7 +35,7 @@ configuration.ssid: o
 configuration.station-roaming: o;bool
 configuration.tx-chains: mu;u8
 configuration.tx-power: o;u8
-datapath: o;unset;ref=>wifi-datapath;
+datapath: o;unset;ref=>wifi-datapath;blocks-removal;
 datapath.bridge: o;unset;ref=>interface;
 datapath.bridge-cost: o;u32
 datapath.bridge-horizon: o;none;

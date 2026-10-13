@@ -205,6 +205,20 @@ pub trait RosResource: Sized {
     fn path() -> &'static [u8];
     fn provides_reference(&'_ self) -> impl Iterator<Item = (ReferenceType, Cow<'_, [u8]>)>;
     fn consumes_reference(&'_ self) -> impl Iterator<Item = (ReferenceType, Cow<'_, [u8]>)>;
+    /// The values of its `unique` fields (field name, value): no two entries of the menu may
+    /// hold the same one (`vni` of `/interface/vxlan`).
+    fn unique_values(&'_ self) -> impl Iterator<Item = (&'static [u8], Cow<'_, [u8]>)> {
+        std::iter::empty()
+    }
+    /// Its references marked `blocks-removal`, which have to be gone before what they name is
+    /// removed: RouterOS refuses the removal (a radio's `datapath`) or takes this entry with it
+    /// (a vtep's `interface`). Other references don't hold the entry back: removing it leaves
+    /// them dangling until they are set anew.
+    fn removal_blocking_references(
+        &'_ self,
+    ) -> impl Iterator<Item = (ReferenceType, Cow<'_, [u8]>)> {
+        std::iter::empty()
+    }
     fn create_resource_ref(&'_ self) -> ResourceRef<'_>;
 }
 
@@ -253,6 +267,11 @@ pub trait KeyedResource: DeserializeRosResource + RosResource {
     type Key: RosValue;
     type Value: DeserializeRosResource + RosResource;
     fn key_name() -> &'static [u8];
+    /// What the key names when it refers to another entry (`ipv6/nd`'s `interface`): a
+    /// `[find interface=X]` only finds the entry while X is there under that name.
+    fn key_reference() -> Option<ReferenceType> {
+        None
+    }
     fn key_value(&self) -> &Self::Key;
     fn value(&self) -> &Self::Value;
     fn filter(cmd: CommandBuilder) -> CommandBuilder {
@@ -322,16 +341,146 @@ pub trait SetResource<Base: RosResource>: FieldUpdateHandler {
     -> impl Iterator<Item = KeyValuePair<'a>>;
 }
 
+type Reference<'a> = (ReferenceType, Cow<'a, [u8]>);
+
+/// A value of a `unique` field: the menu (`path`), the field and the value.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct UniqueValue<'a> {
+    pub resource: &'static [u8],
+    pub field: &'static [u8],
+    pub value: Cow<'a, [u8]>,
+}
+
+impl UniqueValue<'_> {
+    fn into_owned(self) -> UniqueValue<'static> {
+        UniqueValue {
+            resource: self.resource,
+            field: self.field,
+            value: Cow::Owned(self.value.into_owned()),
+        }
+    }
+}
+
+/// What a mutation takes from and gives back to the others besides the names it needs
+/// (`depends`) and makes (`provides`); `sort_mutations` derives the order from it.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct MutationOrdering<'a> {
+    /// names it takes away: a removal those of the entry, a rename the old one
+    pub releases: Box<[Reference<'a>]>,
+    /// `unique` values it gives an entry
+    pub claims: Box<[UniqueValue<'a>]>,
+    /// `unique` values it takes from an entry: a removal, or an update to another value
+    pub frees: Box<[UniqueValue<'a>]>,
+    /// `blocks-removal` references the entry had before and no more: the entry they name is
+    /// removed only after (RouterOS refuses to remove a datapath a radio uses, and removes the
+    /// vteps with their VXLAN)
+    pub drops: Box<[Reference<'a>]>,
+    /// the names its `[find ...]` looks for (`KeyedResource::key_reference`), which must not
+    /// be removed or renamed before
+    pub finds: Box<[Reference<'a>]>,
+}
+
+impl MutationOrdering<'_> {
+    pub fn into_owned(self) -> MutationOrdering<'static> {
+        fn owned(references: Box<[Reference<'_>]>) -> Box<[Reference<'static>]> {
+            references
+                .into_iter()
+                .map(|(k, v)| (k, Cow::Owned(v.into_owned())))
+                .collect()
+        }
+        MutationOrdering {
+            releases: owned(self.releases),
+            claims: self.claims.into_iter().map(UniqueValue::into_owned).collect(),
+            frees: self.frees.into_iter().map(UniqueValue::into_owned).collect(),
+            drops: owned(self.drops),
+            finds: owned(self.finds),
+        }
+    }
+
+    /// Adding `target`: it claims its unique values.
+    pub fn create<'a, T: RosResource>(target: &'a T) -> MutationOrdering<'a> {
+        MutationOrdering {
+            claims: unique_values(target).collect(),
+            ..Default::default()
+        }
+    }
+
+    /// Updating `from` into `target`: what changes of names, unique values and references,
+    /// and the name its `[find ...]` looks for.
+    pub fn update<'a, T: RosResource, F: KeyedResource>(
+        target: &'a T,
+        from: &'a F,
+    ) -> MutationOrdering<'a> {
+        Self::update_single(target, from, find_reference(from))
+    }
+
+    /// Updating `from` into `target` without a key (`is-single`, or found by `.id`).
+    pub fn update_single<'a, T: RosResource, F: RosResource>(
+        target: &'a T,
+        from: &'a F,
+        finds: Option<Reference<'a>>,
+    ) -> MutationOrdering<'a> {
+        let before = unique_values(from).collect::<HashSet<_>>();
+        let after = unique_values(target).collect::<HashSet<_>>();
+        let still_provided = provided(target).collect::<HashSet<_>>();
+        let blocking = target.removal_blocking_references().collect::<HashSet<_>>();
+        MutationOrdering {
+            releases: provided(from).filter(|r| !still_provided.contains(r)).collect(),
+            claims: after.iter().filter(|v| !before.contains(*v)).cloned().collect(),
+            frees: before.iter().filter(|v| !after.contains(*v)).cloned().collect(),
+            drops: from
+                .removal_blocking_references()
+                .filter(|(_, value)| !value.is_empty())
+                .filter(|r| !blocking.contains(r))
+                .collect(),
+            finds: finds.into_iter().collect(),
+        }
+    }
+
+    /// Removing `entry`: it gives up its names, unique values and references.
+    pub fn remove<'a, C: KeyedResource>(entry: &'a C) -> MutationOrdering<'a> {
+        MutationOrdering {
+            releases: provided(entry).collect(),
+            claims: Box::new([]),
+            frees: unique_values(entry).collect(),
+            drops: entry
+                .removal_blocking_references()
+                .filter(|(_, value)| !value.is_empty())
+                .collect(),
+            finds: find_reference(entry).into_iter().collect(),
+        }
+    }
+}
+
+fn provided<R: RosResource>(entry: &R) -> impl Iterator<Item = Reference<'_>> {
+    entry
+        .provides_reference()
+        .filter(|(_, value)| !value.is_empty())
+}
+
+fn unique_values<R: RosResource>(entry: &R) -> impl Iterator<Item = UniqueValue<'_>> {
+    entry
+        .unique_values()
+        .filter(|(_, value)| !value.is_empty())
+        .map(|(field, value)| UniqueValue {
+            resource: R::path(),
+            field,
+            value,
+        })
+}
+
+fn find_reference<K: KeyedResource>(entry: &K) -> Option<Reference<'_>> {
+    K::key_reference().map(|reference| (reference, entry.key_value().encode_ros()))
+}
+
 #[derive(Clone, PartialEq)]
 pub struct ResourceMutation<'a> {
     pub resource: &'static [u8],
     pub operation: ResourceMutationOperation<'a>,
     pub fields: Box<[KeyValuePair<'a>]>,
-    pub depends: Box<[(ReferenceType, Cow<'a, [u8]>)]>,
-    pub provides: Box<[(ReferenceType, Cow<'a, [u8]>)]>,
-    /// what a removal takes away; it runs after the updates, which drop the references to it
-    /// (`set !datapath` before the datapath is removed)
-    pub releases: Box<[(ReferenceType, Cow<'a, [u8]>)]>,
+    pub depends: Box<[Reference<'a>]>,
+    pub provides: Box<[Reference<'a>]>,
+    pub ordering: MutationOrdering<'a>,
 }
 impl Debug for ResourceMutation<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -355,7 +504,7 @@ impl Debug for ResourceMutation<'_> {
             }
             write!(f, "{:?}:{}", reference, decode_latin1(id.as_ref()))?;
         }
-        f.write_str("]}")
+        write!(f, "], ordering: {:?}}}", self.ordering)
     }
 }
 #[derive(Debug, Clone, PartialEq)]
@@ -376,7 +525,12 @@ impl Display for MissingDependenciesError<'_, '_> {
             .iter()
             .map(|d| decode_latin1(d.resource))
             .collect();
-        writeln!(f, "Missing dependencies: {missing_deps} on {resources:?}")
+        if self.dependencies.is_empty() {
+            // e.g. two entries swapping a unique value
+            writeln!(f, "Changes waiting on each other on {resources:?}")
+        } else {
+            writeln!(f, "Missing dependencies: {missing_deps} on {resources:?}")
+        }
     }
 }
 
@@ -398,18 +552,13 @@ impl<'a> ResourceMutation<'a> {
             .into_iter()
             .map(|(k, v)| (k, Cow::Owned(v.into_owned())))
             .collect();
-        let releases = self
-            .releases
-            .into_iter()
-            .map(|(k, v)| (k, Cow::Owned(v.into_owned())))
-            .collect();
         ResourceMutation {
             resource: self.resource,
             operation,
             fields,
             depends,
             provides,
-            releases,
+            ordering: self.ordering.into_owned(),
         }
     }
     pub fn sort_mutations<'b, 'c>(
@@ -417,31 +566,42 @@ impl<'a> ResourceMutation<'a> {
     ) -> Result<Box<[&'c ResourceMutation<'b>]>, MissingDependenciesError<'b, 'c>> {
         Self::sort_mutations_with_provided_dependencies(updates, None)
     }
+    /// Orders the mutations so that every one runs when what it needs is there and what it
+    /// takes is free:
+    /// - what it refers to (`depends`) is provided, by RouterOS or an earlier mutation;
+    /// - a name it provides isn't still held: after the removal or rename that releases it;
+    /// - a unique value it claims isn't still held: after the mutation that frees it;
+    /// - a name it releases isn't still needed: after the mutations that drop a reference to it
+    ///   or find an entry by it.
+    ///
+    /// Mutations that wait on each other (two entries swapping a unique value) or on a name
+    /// nobody provides are returned as error.
     pub fn sort_mutations_with_provided_dependencies<'b, 'c>(
         updates: &'c [ResourceMutation<'b>],
         provided_dependencies: impl IntoIterator<Item = (ReferenceType, Cow<'b, [u8]>)>,
     ) -> Result<Box<[&'c ResourceMutation<'b>]>, MissingDependenciesError<'b, 'c>> {
         let mut provided_dependencies = provided_dependencies.into_iter().collect::<HashSet<_>>();
-        let mut remaining_updates = updates.iter().collect::<Vec<_>>();
+        let mut pending = vec![true; updates.len()];
         let mut sorted_mutations = Vec::with_capacity(updates.len());
-        while !remaining_updates.is_empty() {
-            let mut next_round = Vec::with_capacity(remaining_updates.len());
+        while sorted_mutations.len() < updates.len() {
             let mut could_add = false;
-            // an update may still refer to what a removal releases
-            let updates_pending = remaining_updates.iter().any(|m| {
-                matches!(
-                    m.operation,
-                    ResourceMutationOperation::UpdateByKey(_)
-                        | ResourceMutationOperation::UpdateSingle
-                )
-            });
-            for mutation in remaining_updates {
-                if !(updates_pending && !mutation.releases.is_empty())
-                    && mutation
-                        .depends
+            for (idx, mutation) in updates.iter().enumerate() {
+                if !pending[idx] {
+                    continue;
+                }
+                let others = || {
+                    updates
                         .iter()
-                        .all(|dep| provided_dependencies.contains(dep))
-                {
+                        .enumerate()
+                        .filter(|(other, _)| *other != idx && pending[*other])
+                        .map(|(_, m)| m)
+                };
+                let ready = mutation
+                    .depends
+                    .iter()
+                    .all(|dep| provided_dependencies.contains(dep))
+                    && !others().any(|other| mutation.waits_for(other));
+                if ready {
                     for dep in &mutation.provides {
                         info!(
                             "{} provides {:?}:{}",
@@ -451,13 +611,18 @@ impl<'a> ResourceMutation<'a> {
                         );
                         provided_dependencies.insert(dep.clone());
                     }
+                    pending[idx] = false;
                     sorted_mutations.push(mutation);
                     could_add = true;
-                } else {
-                    next_round.push(mutation);
                 }
             }
             if !could_add {
+                let next_round = updates
+                    .iter()
+                    .zip(&pending)
+                    .filter(|(_, pending)| **pending)
+                    .map(|(m, _)| m)
+                    .collect::<Vec<_>>();
                 let dependencies = next_round
                     .iter()
                     .flat_map(|m| {
@@ -472,9 +637,22 @@ impl<'a> ResourceMutation<'a> {
                     unresolved_mutations: next_round.into_boxed_slice(),
                 });
             }
-            remaining_updates = next_round;
         }
         Ok(sorted_mutations.into_boxed_slice())
+    }
+
+    /// Whether `other`, still pending, has to run before this one.
+    fn waits_for(&self, other: &ResourceMutation<'_>) -> bool {
+        let ordering = &self.ordering;
+        let other_ordering = &other.ordering;
+        // a name it provides is still held by `other`
+        self.provides.iter().any(|name| other_ordering.releases.contains(name))
+            // a unique value it claims is still held by `other`
+            || ordering.claims.iter().any(|value| other_ordering.frees.contains(value))
+            // a name it releases is still needed by `other`
+            || ordering.releases.iter().any(|name| {
+                other_ordering.drops.contains(name) || other_ordering.finds.contains(name)
+            })
     }
 }
 
@@ -979,10 +1157,7 @@ where
                     fields: Box::new([]),
                     depends: Default::default(),
                     provides: Default::default(),
-                    releases: entry
-                        .provides_reference()
-                        .filter(|(_, value)| !value.is_empty())
-                        .collect(),
+                    ordering: MutationOrdering::remove(entry),
                 }
             })
             .chain(
@@ -1027,7 +1202,7 @@ where
         fields,
         depends,
         provides,
-        releases: Box::new([]),
+        ordering: MutationOrdering::update_single(target, current, None),
     }
 }
 
@@ -1046,7 +1221,7 @@ where
     't: 'r,
     Current: KeyedResource,
     <Current as KeyedResource>::Value: 'static,
-    Target: CfgResource + Creatable + Updatable<Current> + Clone + 't,
+    Target: RosResource + CfgResource + Creatable + Updatable<Current> + Clone + 't,
     TargetIter: IntoIterator<Item = IntoTarget>,
     IntoTarget: Into<Cow<'t, Target>>,
     <TargetIter as IntoIterator>::IntoIter: 'r,
@@ -1054,7 +1229,15 @@ where
     let targets = target.into_iter().map(Into::into).collect::<Vec<Cow<'t, Target>>>();
     let mut costs = Vec::with_capacity(current.len() * targets.len());
     for (c, current) in current.iter().enumerate() {
+        let blocking = current.removal_blocking_references().collect::<HashSet<_>>();
         for (t, target) in targets.iter().enumerate() {
+            // An entry doesn't move to another entry its `blocks-removal` references name (a
+            // vtep to another VXLAN): it is replaced. The removal needs nothing, while the move
+            // would hold the old one in place until the new one is there, which may wait for
+            // the old one to go (the VNI they share).
+            if target.removal_blocking_references().collect::<HashSet<_>>() != blocking {
+                continue;
+            }
             costs.push((target.calculate_update(current).fields.len(), c, t));
         }
     }
@@ -1082,10 +1265,7 @@ where
             fields: Box::new([]),
             depends: Box::new([]),
             provides: Box::new([]),
-            releases: current
-                .provides_reference()
-                .filter(|(_, value)| !value.is_empty())
-                .collect(),
+            ordering: MutationOrdering::remove(current),
         })
         .collect::<Vec<_>>();
     let updates = current
@@ -1238,7 +1418,8 @@ where
                 fields,
                 depends,
                 provides,
-                releases: Box::new([]),
+                ordering: MutationOrdering::update_single(target.as_ref(), original, None)
+                    .into_owned(),
             }
         })
     }
@@ -1255,39 +1436,142 @@ mod tests {
             fields: Box::new([]),
             depends: Box::new([]),
             provides: Box::new([]),
-            releases: Box::new([]),
+            ordering: MutationOrdering::default(),
         }
+    }
+    fn remove(key: &'static [u8], value: &'static [u8]) -> ResourceMutation<'static> {
+        mutation(ResourceMutationOperation::RemoveByKey(KeyValuePair {
+            key,
+            value: value.into(),
+        }))
+    }
+    fn vni(value: &'static [u8]) -> UniqueValue<'static> {
+        UniqueValue {
+            resource: b"interface/vxlan",
+            field: b"vni",
+            value: value.into(),
+        }
+    }
+    fn interface(name: &'static [u8]) -> (ReferenceType, Cow<'static, [u8]>) {
+        (ReferenceType::Interface, name.into())
+    }
+    fn sorted(mutations: &[ResourceMutation<'static>]) -> Vec<ResourceMutation<'static>> {
+        ResourceMutation::sort_mutations(mutations)
+            .unwrap()
+            .iter()
+            .map(|m| (*m).clone())
+            .collect()
     }
 
     #[test]
     fn removal_runs_after_updates_that_drop_references() {
         let removal = ResourceMutation {
-            releases: Box::new([(ReferenceType::WifiDatapath, b"bridge-caps".into())]),
-            ..mutation(ResourceMutationOperation::RemoveByKey(KeyValuePair {
-                key: b"name",
-                value: b"bridge-caps".into(),
-            }))
+            ordering: MutationOrdering {
+                releases: Box::new([(ReferenceType::WifiDatapath, b"bridge-caps".into())]),
+                ..Default::default()
+            },
+            ..remove(b"name", b"bridge-caps")
         };
-        let plain_removal = mutation(ResourceMutationOperation::RemoveByKey(KeyValuePair {
-            key: b".id",
-            value: b"*1".into(),
-        }));
+        let plain_removal = remove(b".id", b"*1");
         let update = ResourceMutation {
             resource: b"interface/wifi",
             fields: Box::new([KeyValuePair {
                 key: b"!datapath",
                 value: b"".into(),
             }]),
+            ordering: MutationOrdering {
+                drops: Box::new([(ReferenceType::WifiDatapath, b"bridge-caps".into())]),
+                ..Default::default()
+            },
             ..mutation(ResourceMutationOperation::UpdateByKey(KeyValuePair {
                 key: b"default-name",
                 value: b"wifi1".into(),
             }))
         };
         let mutations = [removal.clone(), plain_removal.clone(), update.clone()];
-        let sorted = ResourceMutation::sort_mutations(&mutations).unwrap();
-        assert_eq!(
-            sorted.iter().map(|m| (*m).clone()).collect::<Vec<_>>(),
-            vec![plain_removal, update, removal]
-        );
+        assert_eq!(sorted(&mutations), vec![plain_removal, update, removal]);
+    }
+
+    /// RouterOS refuses a second VXLAN with the same VNI, so the one holding it goes first.
+    #[test]
+    fn claim_of_a_unique_value_waits_for_its_release() {
+        let add = ResourceMutation {
+            resource: b"interface/vxlan",
+            provides: Box::new([interface(b"vxlan-new")]),
+            ordering: MutationOrdering {
+                claims: Box::new([vni(b"1")]),
+                ..Default::default()
+            },
+            ..mutation(ResourceMutationOperation::Add)
+        };
+        let removal = ResourceMutation {
+            resource: b"interface/vxlan",
+            ordering: MutationOrdering {
+                releases: Box::new([interface(b"vxlan-old")]),
+                frees: Box::new([vni(b"1")]),
+                ..Default::default()
+            },
+            ..remove(b"name", b"vxlan-old")
+        };
+        let mutations = [add.clone(), removal.clone()];
+        assert_eq!(sorted(&mutations), vec![removal, add]);
+    }
+
+    /// A name given up by a rename can be taken by another entry afterwards, and a
+    /// `[find interface=X]` has to run while X is still there.
+    #[test]
+    fn released_name_is_taken_and_found_in_order() {
+        let rename = ResourceMutation {
+            resource: b"interface/vxlan",
+            fields: Box::new([KeyValuePair {
+                key: b"name",
+                value: b"vx-b".into(),
+            }]),
+            provides: Box::new([interface(b"vx-b")]),
+            ordering: MutationOrdering {
+                releases: Box::new([interface(b"vx-a")]),
+                ..Default::default()
+            },
+            ..mutation(ResourceMutationOperation::UpdateByKey(KeyValuePair {
+                key: b"name",
+                value: b"vx-a".into(),
+            }))
+        };
+        let add = ResourceMutation {
+            resource: b"interface/vlan",
+            provides: Box::new([interface(b"vx-a")]),
+            ..mutation(ResourceMutationOperation::Add)
+        };
+        let find = ResourceMutation {
+            resource: b"ipv6/nd",
+            ordering: MutationOrdering {
+                finds: Box::new([interface(b"vx-a")]),
+                ..Default::default()
+            },
+            ..remove(b"interface", b"vx-a")
+        };
+        let mutations = [add.clone(), rename.clone(), find.clone()];
+        assert_eq!(sorted(&mutations), vec![find, rename, add]);
+    }
+
+    /// Two entries swapping their VNIs wait on each other: an error, not a script that fails.
+    #[test]
+    fn swapping_unique_values_is_an_error() {
+        let swap = |name: &'static [u8], from: &'static [u8], to: &'static [u8]| ResourceMutation {
+            resource: b"interface/vxlan",
+            ordering: MutationOrdering {
+                claims: Box::new([vni(to)]),
+                frees: Box::new([vni(from)]),
+                ..Default::default()
+            },
+            ..mutation(ResourceMutationOperation::UpdateByKey(KeyValuePair {
+                key: b"name",
+                value: name.into(),
+            }))
+        };
+        let mutations = [swap(b"vx-a", b"1", b"2"), swap(b"vx-b", b"2", b"1")];
+        let error = ResourceMutation::sort_mutations(&mutations).unwrap_err();
+        assert!(error.dependencies.is_empty());
+        assert_eq!(error.unresolved_mutations.len(), 2);
     }
 }
