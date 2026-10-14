@@ -452,6 +452,23 @@ impl MutationOrdering<'_> {
     }
 }
 
+/// What an update of `from` into `target` refers to: the references it writes. A `set` sends
+/// only the changed values, so a reference the entry keeps is there already (or left dangling
+/// by RouterOS) and needs nobody; an update without changes needs nothing at all. A bound
+/// radio reports the bridge it gets through its configuration (`datapath.bridge`), which it
+/// doesn't refer to itself.
+pub fn written_references<'a, T: RosResource, F: RosResource>(
+    target: &'a T,
+    from: &F,
+) -> Box<[Reference<'a>]> {
+    let kept = from.consumes_reference().collect::<HashSet<_>>();
+    target
+        .consumes_reference()
+        .filter(|(_, value)| !value.is_empty())
+        .filter(|reference| !kept.contains(reference))
+        .collect()
+}
+
 fn provided<R: RosResource>(entry: &R) -> impl Iterator<Item = Reference<'_>> {
     entry
         .provides_reference()
@@ -1191,10 +1208,7 @@ where
         .provides_reference()
         //.map(|(k, v)| (k, Cow::Owned(v.into_owned())))
         .collect();
-    let depends = target
-        .consumes_reference()
-        //.map(|(k, v)| (k, Cow::Owned(v.into_owned())))
-        .collect();
+    let depends = written_references(target, current);
 
     ResourceMutation {
         resource: Resource::path(),
@@ -1407,8 +1421,8 @@ where
                 .provides_reference()
                 .map(|(k, v)| (k, Cow::Owned(v.into_owned())))
                 .collect();
-            let depends = target
-                .consumes_reference()
+            let depends = written_references(target.as_ref(), original)
+                .into_iter()
                 .map(|(k, v)| (k, Cow::Owned(v.into_owned())))
                 .collect();
 

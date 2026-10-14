@@ -498,7 +498,7 @@ impl Entity {
                             value: value::RosValue::encode_ros(&from.0.#id_field_name),
                         }),
                         fields: resource::CfgResource::changed_values(self,from).collect(),
-                        depends: <#id_struct_ident as resource::RosResource>::consumes_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
+                        depends: resource::written_references(self, from),
                         provides: <#id_struct_ident as resource::RosResource>::provides_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                         ordering: resource::MutationOrdering::update(self, from),
                     }
@@ -604,7 +604,7 @@ impl Entity {
                             value: value::RosValue::encode_ros(&self.#key_name),
                         }),
                         fields: resource::CfgResource::changed_values(self,from).collect(),
-                        depends: <#id_struct_ident as resource::RosResource>::consumes_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
+                        depends: resource::written_references(self, from),
                         provides: <#id_struct_ident as resource::RosResource>::provides_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                         ordering: resource::MutationOrdering::update(self, from),
                     }
@@ -628,7 +628,7 @@ impl Entity {
                             value: value::RosValue::encode_ros(&from.#key_name),
                         }),
                         fields: resource::SetResource::changed_values(self,from).collect(),
-                        depends: <#cfg_ident as resource::RosResource>::consumes_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
+                        depends: resource::written_references(self, from),
                         provides: <#cfg_ident as resource::RosResource>::provides_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                         ordering: resource::MutationOrdering::update(self, from),
                     }
@@ -917,7 +917,7 @@ impl Entity {
                         resource: <#struct_ident_cfg as resource::RosResource>::path(),
                         operation: resource::ResourceMutationOperation::UpdateSingle,
                         fields: resource::CfgResource::changed_values(self,from).collect(),
-                        depends: <#struct_ident_cfg as resource::RosResource>::consumes_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
+                        depends: resource::written_references(self, from),
                         provides: <#struct_ident_cfg as resource::RosResource>::provides_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                         ordering: resource::MutationOrdering::update_single(self, from, None),
                     }

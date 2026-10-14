@@ -227,7 +227,7 @@ channel.skip-dfs-channels: o;disabled; WifiSkipDfsChannels;
 channel.width: o; WifiChannelWidth;
 comment: o
 country: o;WifiCountry
-datapath: o; unset; ref=>wifi-datapath;
+datapath: o; unset; ref=>wifi-datapath; blocks-removal;
 datapath.bridge: o; unset; ref=>interface
 datapath.bridge-cost: o;u32
 datapath.bridge-horizon: o;none;

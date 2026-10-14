@@ -40,7 +40,11 @@ this way (`!comment` is accepted but leaves the comment), so it is only on the f
 was checked on a CHR.
 
 `sort_mutations` orders the mutations from what each one needs and takes, besides the names it
-refers to (`depends`) and makes (`provides`): `ResourceMutation::ordering` (`MutationOrdering`)
+refers to (`depends`) and makes (`provides`). An update depends only on the references it writes
+(`written_references`): a `set` sends the changed values only, so a kept reference is there
+already and an update without changes needs nothing (a bound radio reports the bridge of its
+configuration's datapath as `datapath.bridge`, which needn't be in the target).
+`ResourceMutation::ordering` (`MutationOrdering`)
 holds the names it gives up (`releases`: a removal, a rename), the `unique` values it claims and
 frees, the `blocks-removal` references it drops, and the name its `[find ...]` looks for
 (`finds`, `KeyedResource::key_reference`). A mutation runs after the ones still holding a name it
@@ -53,7 +57,9 @@ VNIs) are a `MissingDependenciesError` without missing dependencies, not a scrip
 - `blocks-removal`: the referenced entry must not be removed while the reference is set, as
   RouterOS refuses it (a radio's `datapath`: `set !datapath` before the datapath goes) or removes
   the referencing entry with it (a vtep's `interface`: the vtep is removed before its VXLAN, not
-  after, when it is gone). Other references don't hold an entry back: removing a VXLAN, VLAN,
+  after, when it is gone). A wifi configuration's `datapath` is marked as well, unchecked: a
+  CAP's radios are bound through it, so it doesn't point to nothing in between. Other
+  references don't hold an entry back: removing a VXLAN, VLAN,
   bridge, list, routing table or OSPF area/instance leaves them dangling as `*id` (7.24.5), and
   `set ... interface=new` mends them. A `by_id` entry isn't moved to another entry a blocking
   reference names (a vtep to another VXLAN) but replaced, as the move would wait for the new
