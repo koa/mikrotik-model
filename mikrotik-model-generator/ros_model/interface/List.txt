@@ -11,7 +11,7 @@ dynamic: ro; bool
 comment: o
 disabled: bool
 interface: ref=>interface; 
-list: none; 
+list: ref=>interface-list;
 about: ro; 
 dynamic: ro;
 .id: ro;id

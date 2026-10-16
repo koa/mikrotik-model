@@ -1,0 +1,2 @@
+/tool/mac-server:is-single;no-default
+allowed-interface-list: ref=>interface-list

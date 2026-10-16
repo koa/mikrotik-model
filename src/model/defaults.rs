@@ -860,3 +860,12 @@ impl Default for SystemHealthSettingsCfg {
         }
     }
 }
+/// RouterOS's setting without default configuration: mac-telnet on every interface (the default
+/// configuration of a RouterBOARD narrows it to its list `LAN`).
+impl Default for ToolMacServerCfg {
+    fn default() -> Self {
+        ToolMacServerCfg {
+            allowed_interface_list: b"all".into(),
+        }
+    }
+}
