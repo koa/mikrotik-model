@@ -63,3 +63,6 @@ suppress-hw-offload:o;bool
 target-scope:u8; o
 vpn:o;ro;bool
 vrf-interface:o;ref=>interface
+
+/ip/neighbor/discovery-settings:is-single;no-default
+discover-interface-list: ref=>interface-list

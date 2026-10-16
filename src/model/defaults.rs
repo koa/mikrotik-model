@@ -869,3 +869,13 @@ impl Default for ToolMacServerCfg {
         }
     }
 }
+
+/// RouterOS 7 without the default configuration discovers on every static interface (the
+/// default configuration sets `LAN`).
+impl Default for IpNeighborDiscoverySettingsCfg {
+    fn default() -> Self {
+        IpNeighborDiscoverySettingsCfg {
+            discover_interface_list: b"static".into(),
+        }
+    }
+}
