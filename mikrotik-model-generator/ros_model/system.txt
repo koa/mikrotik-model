@@ -28,7 +28,7 @@ firmware-type: ro
 upgrade-firmware: ro
 serial-number: ro
 current-firmware: ro
-factory-firmware: ro
+factory-firmware: o;ro
 board-name: o;ro
 revision: o;ro
 routerboard: ro;bool
