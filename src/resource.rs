@@ -1316,6 +1316,38 @@ where
 {
     UpdatePairing::match_updates_by_key(current, target).generate_remove_update_add()
 }
+/// [`generate_add_update_remove_by_key`] for a menu where RouterOS refuses to remove an
+/// entry of its own (the first of `/ipv6/nd`, `default=yes`) but lets its key be changed: the
+/// entries the target no longer has take the ones it adds, in the device's order (its own
+/// entry first), by a `set` of the key.
+pub fn generate_add_update_remove_by_key_reusing<'c, 't, 'r, Target, Current>(
+    current: &'c [Current],
+    target: impl IntoIterator<Item = impl Into<Cow<'t, Target>>>,
+) -> impl Iterator<Item = ResourceMutation<'r>> + 'r
+where
+    'c: 'r,
+    't: 'r,
+    Current: KeyedResource,
+    <Current as KeyedResource>::Value: 'static,
+    Target: KeyedResource + CfgResource + Creatable + Updatable<Current> + Clone + 't,
+    <Target as KeyedResource>::Key: PartialEq<<Current as KeyedResource>::Key>,
+{
+    let UpdatePairing {
+        orphaned_entries,
+        matched_entries,
+        new_entries,
+    } = UpdatePairing::match_updates_by_key(current, target);
+    let reused = orphaned_entries.len().min(new_entries.len());
+    let mut new_entries = new_entries.into_vec();
+    let mut matched_entries = matched_entries.into_vec();
+    matched_entries.extend(orphaned_entries.iter().copied().zip(new_entries.drain(..reused)));
+    UpdatePairing {
+        orphaned_entries: orphaned_entries[reused..].into(),
+        matched_entries: matched_entries.into(),
+        new_entries: new_entries.into(),
+    }
+    .generate_remove_update_add()
+}
 pub fn generate_update_by_key<'c, 't, 'r, 'e, Target, Current>(
     current: &'c [Current],
     target: impl IntoIterator<Item = impl Into<Cow<'t, Target>>>,
@@ -1587,5 +1619,33 @@ mod tests {
         let error = ResourceMutation::sort_mutations(&mutations).unwrap_err();
         assert!(error.dependencies.is_empty());
         assert_eq!(error.unresolved_mutations.len(), 2);
+    }
+
+    /// ap-klr-solar: RouterOS's own entry (`*0`, `default=yes`) was set to `interface=switch`;
+    /// `remove *0` fails ("can not remove default rule"), so it is set to the target's
+    /// `all` instead
+    #[test]
+    fn own_nd_entry_is_set_instead_of_removed() {
+        use crate::model::{Ipv6NdByInterface, Ipv6NdCfg};
+        let current = [Ipv6NdByInterface(Ipv6NdCfg::new(b"switch".into()))];
+        let target = [Ipv6NdByInterface(Ipv6NdCfg::new(b"all".into()))];
+        let mutations =
+            generate_add_update_remove_by_key_reusing(&current, target.iter().map(Cow::Borrowed))
+                .collect::<Vec<_>>();
+        assert_eq!(mutations.len(), 1);
+        assert_eq!(
+            mutations[0].operation,
+            ResourceMutationOperation::UpdateByKey(KeyValuePair {
+                key: b"interface",
+                value: b"switch".as_slice().into(),
+            })
+        );
+        assert_eq!(
+            mutations[0].fields.as_ref(),
+            [KeyValuePair {
+                key: b"interface",
+                value: b"all".as_slice().into(),
+            }]
+        );
     }
 }

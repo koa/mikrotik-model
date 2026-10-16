@@ -24,6 +24,10 @@ pub struct Entity {
     pub is_single: bool,
     pub can_add: bool,
     pub no_default: bool,
+    /// RouterOS refuses to remove an entry of its own (the first of `/ipv6/nd`), whose key
+    /// may have been changed: an entry the target no longer has takes one the target adds
+    /// (a `set` of its key) instead of being removed
+    pub reuse: bool,
 }
 
 pub struct RosTypeEntry {
@@ -59,6 +63,7 @@ impl Entity {
                         is_single: false,
                         can_add: false,
                         no_default: false,
+                        reuse: false,
                     };
                     for param in params.split(';') {
                         if let Some((key, value)) = param.split_once('=') {
@@ -73,6 +78,7 @@ impl Entity {
                                 "can-add" => entity.can_add = true,
                                 "is-single" => entity.is_single = true,
                                 "no-default" => entity.no_default = true,
+                                "reuse" => entity.reuse = true,
                                 "" => {}
                                 _ => panic!("Unknown param: {param}"),
                             }
@@ -88,6 +94,7 @@ impl Entity {
                         is_single: false,
                         can_add: false,
                         no_default: false,
+                        reuse: false,
                     }
                 };
                 if let Some(entity) = current_entity.replace(entity) {
@@ -102,6 +109,7 @@ impl Entity {
                     is_single: true,
                     can_add: false,
                     no_default: false,
+                    reuse: false,
                 }) {
                     collected_entities.push(entity);
                 }
@@ -114,6 +122,7 @@ impl Entity {
                     is_single: false,
                     can_add: true,
                     no_default: false,
+                    reuse: false,
                 }) {
                     collected_entities.push(entity);
                 }

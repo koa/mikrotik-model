@@ -91,6 +91,10 @@ virtual slaves too, but only the radios have a `default-name`.
 `can-add` says the menu adds entries (`/interface/wifi` adds virtual interfaces). A
 `by_key` field on a read-only key (`default-name`) still only updates: what has that key is
 hardware, it can't be added or removed, so the macro doesn't ask for `Creatable` there.
+`reuse` marks a menu with an entry of RouterOS's own that it refuses to remove but whose key
+may be changed (`/ipv6/nd`'s first, `default=yes`, `can not remove default rule`): an entry the
+target no longer has takes one it adds, in the device's order, by a `set` of the key
+(`generate_add_update_remove_by_key_reusing`).
 
 `mikrotik-model-generator/build.rs` emits `cargo:rerun-if-changed=ros_model` — without it, editing
 or adding a `ros_model/*.txt` file does not invalidate cargo's build cache (`include_dir!` doesn't

@@ -236,6 +236,7 @@ async fn process_entry<'a>(
             is_single: false,
             can_add,
             no_default: false,
+            reuse: false,
         });
     if !can_remove && !can_find && !can_add {
         entity.is_single = true;

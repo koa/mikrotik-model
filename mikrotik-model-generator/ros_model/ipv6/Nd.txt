@@ -1,4 +1,4 @@
-/ipv6/nd:can-add;id=interface
+/ipv6/nd:can-add;id=interface;reuse
 interface: id
 dns: o; mu; ordered; Ipv6Addr
 advertise-dns: o; k; enum=yes,no
