@@ -1,7 +1,6 @@
-/interface/w60g: id=default-name
+/interface/w60g: id=name
 .id: ro; Id
-default-name: ro; id
-name: ref=interface
+name: ref=interface; id
 comment: o
 disabled: bool
 mode: o; enum=ap-bridge, bridge, sniff, station-bridge

@@ -118,7 +118,7 @@ fn decodes_real_5ghz_ap() {
     );
 }
 
-/// `print detail` of a 60 GHz `wlan60-1`.
+/// `print detail` of a 60 GHz `wlan60-1`: RouterOS 7.23 reports no `default-name` here.
 fn w60g_fields<'a>(
     mode: &'a [u8],
     isolate_stations: &'a [u8],
@@ -126,7 +126,6 @@ fn w60g_fields<'a>(
 ) -> Vec<(&'a [u8], &'a [u8])> {
     let mut fields: Vec<(&[u8], &[u8])> = vec![
         (b".id", b"*1"),
-        (b"default-name", b"wlan60-1"),
         (b"name", b"wlan60-1"),
         (b"mtu", b"1500"),
         (b"l2mtu", b"1600"),
