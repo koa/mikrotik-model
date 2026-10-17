@@ -11,6 +11,8 @@ mod reference_tests;
 #[cfg(test)]
 mod firewall_tests;
 #[cfg(test)]
+mod ospf_tests;
+#[cfg(test)]
 mod socks_tests;
 #[cfg(test)]
 mod wireless_tests;

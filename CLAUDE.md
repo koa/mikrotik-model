@@ -71,7 +71,11 @@ RouterOS 6 brings report `vrf` (`default=main`). A dhcp-client with
 `add-default-route=no` hides `default-route-distance` and refuses to clear it (`=""`,
 `!default-route-distance`), so it is required with RouterOS' own value (`default=1`, what a new
 client gets; the manual names none): the target sets 1 there, which is accepted and then
-matches. Match fields of the firewall (ports, protocol,
+matches. An OSPF interface template left from an older configuration (inactive, a gone
+interface, `networks=`; 7.23.8 after an update from 7.21.5) reports only `area`, `interfaces`,
+`networks` and `priority`, so its cost, intervals, `instance-id`, `type` and `disabled` have
+RouterOS's values as `default=` (`ospf_tests.rs`; a CHR 7.24.5 reports them all, even for such an
+entry, and `!cost` doesn't take them away). Match fields of the firewall (ports, protocol,
 addresses, limits) are plain text, not typed: RouterOS reports ranges, lists, negations and
 `value:mode` pairs there (`33434-33534`, `!fe80::/10`, `in,ipsec`, `equal:1`, protocol `139`).
 `ref=X` provides a name, `ref=>X` uses one; a field that names interfaces (`/interface/wireless/cap

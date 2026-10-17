@@ -72,19 +72,19 @@ auth: o; enum= md5, sha1, sha256, sha384, sha512, simple;
 auth-id: o; u8
 auth-key: o
 comment: o
-cost: u16
-dead-interval: Duration
-disabled: bool
-hello-interval: Duration
-instance-id: u8
+cost: u16; default=1
+dead-interval: Duration; default=40s
+disabled: bool; default=false
+hello-interval: Duration; default=10s
+instance-id: u8; default=0
 interfaces: mu; ref=>interface;
 networks: mu; IpNet
 #passive: bool
 prefix-list: mu
 priority: u8
-retransmit-interval: Duration
-transmit-delay: Duration
-type: enum= broadcast, nbma, ptmp, ptmp-broadcast, ptp, ptp-unnumbered, virtual-link; 
+retransmit-interval: Duration; default=5s
+transmit-delay: Duration; default=1s
+type: enum= broadcast, nbma, ptmp, ptmp-broadcast, ptp, ptp-unnumbered, virtual-link; default=broadcast
 use-bfd: o; bool
 vlink-neighbor-id: o; Ipv4Addr
 vlink-transit-area: o; ref=>ospf-area
