@@ -1275,7 +1275,11 @@ where
             if target.removal_blocking_references().collect::<HashSet<_>>() != blocking {
                 continue;
             }
-            costs.push((target.calculate_update(current).fields.len(), c, t));
+            // An entry keeping its unique values is preferred: one taking another's has to wait
+            // for it, and two swapping them can't be ordered at all (bridge ports trading their
+            // bridges: each set to the other's interface).
+            let update = target.calculate_update(current);
+            costs.push(((update.ordering.claims.len(), update.fields.len()), c, t));
         }
     }
     // stable: on a tie the earlier entry, so an unchanged list keeps its order

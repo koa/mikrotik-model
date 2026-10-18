@@ -72,3 +72,39 @@ fn test_port_multicast_router_false() {
         ParseRosValueResult::Value(InterfaceBridgePortMulticastRouter::False)
     ));
 }
+
+/// Two ports trading their bridges (router-stall-burri, 7.23.8): RouterOS has an interface in
+/// one port only ("device already added as bridge port"), so each port keeps its interface
+/// and changes its bridge; setting one to the other's interface failed.
+#[test]
+fn ports_trading_bridges_keep_their_interfaces() {
+    use crate::{
+        model::{InterfaceBridgePortById, InterfaceBridgePortCfg},
+        resource::{ResourceMutation, generate_add_update_remove_by_id},
+        value::Id,
+    };
+    let port = |interface: &str, bridge: &str| InterfaceBridgePortCfg {
+        interface: interface.into(),
+        bridge: bridge.into(),
+        ..Default::default()
+    };
+    let current = [
+        InterfaceBridgePortById { id: Id(0), data: port("vxlan-netze", "bridge-caps") },
+        InterfaceBridgePortById { id: Id(1), data: port("ether2", "bridge-lan") },
+    ];
+    let target = [port("ether2", "bridge-caps"), port("vxlan-netze", "bridge-lan")];
+    let mutations =
+        generate_add_update_remove_by_id(&current, target.iter().map(std::borrow::Cow::Borrowed))
+            .collect::<Vec<_>>();
+    let changed = mutations
+        .iter()
+        .flat_map(|m| m.fields.iter().map(|f| String::from_utf8_lossy(&f.key).into_owned()))
+        .collect::<Vec<_>>();
+    assert_eq!(changed, ["bridge", "bridge"], "{mutations:?}");
+    ResourceMutation::sort_mutations_with_provided_dependencies(
+        &mutations,
+        ["vxlan-netze", "ether2", "bridge-caps", "bridge-lan"]
+            .map(|name| (crate::model::ReferenceType::Interface, name.as_bytes().into())),
+    )
+    .unwrap();
+}

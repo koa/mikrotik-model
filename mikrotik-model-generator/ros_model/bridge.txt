@@ -3,7 +3,8 @@
 .nextid: ro
 broadcast-flood: bool
 edge: enum=auto,no,no-discover,yes,yes-discover
-interface: ref=>interface
+# in one port only: "device already added as bridge port" (router-stall-burri, 7.23.8)
+interface: unique; ref=>interface
 bridge: ref=>interface
 # `false`: reported by a port of srv-router-berg (7.23.7), not accepted by `set` (7.24.5)
 multicast-router: enum=disabled,permanent,temporary-query,false
