@@ -248,9 +248,12 @@ impl EthernetNamePattern {
             None
         }
     }
-    pub fn default_sfp_shutdown_temperature(&self) -> Option<u8> {
+    /// A QSFP+ cage has one module, which only its first lane reports (klr-sw-1 `qsfpplus1-1`
+    /// and `qsfpplus2-1`, not `-2` to `-4`).
+    pub fn default_sfp_shutdown_temperature(&self, idx: usize) -> Option<u8> {
         match self {
             EthernetNamePattern::Ether => None,
+            EthernetNamePattern::QsfpPlus if !(idx - 1).is_multiple_of(4) => None,
             EthernetNamePattern::Combo
             | EthernetNamePattern::SfpSfpPlus
             | EthernetNamePattern::Sfp28
@@ -333,7 +336,7 @@ pub fn generate_ethernet(
             power_cycle_ping_address: None,
             power_cycle_ping_enabled: None,
             power_cycle_ping_timeout: None,
-            sfp_shutdown_temperature: name.default_sfp_shutdown_temperature(),
+            sfp_shutdown_temperature: name.default_sfp_shutdown_temperature(idx),
             sfp_rate_select: name.default_sfp_rate_select(),
             speed: None,
             sfp_ignore_rx_los: name.default_sfp_ignore_rx_loss(),
