@@ -30,7 +30,9 @@ power-cycle-ping-enabled: bool; o
 power-cycle-ping-timeout: Duration; o
 sfp-shutdown-temperature:o;u8
 sfp-rate-select: o;enum=high,low
-speed: o;EthernetSpeed
+# kept where NetBox gives none: the port negotiates then and ignores it, and RouterOS refuses
+# it empty ("ambiguous value of speed", klr-sw-1); a fixed speed is always set
+speed: o;k;EthernetSpeed
 sfp-ignore-rx-los: o;bool
 
 disabled: bool

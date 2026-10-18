@@ -7,6 +7,8 @@ mod bridge_tests;
 mod defaults;
 #[cfg(test)]
 mod dhcp_tests;
+#[cfg(test)]
+mod ethernet_tests;
 mod enums;
 #[cfg(test)]
 mod reference_tests;
