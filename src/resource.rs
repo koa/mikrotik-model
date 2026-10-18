@@ -795,11 +795,34 @@ pub async fn apply_mutations_via_script(
     })
     .await?;
 
-    write_command(device, b"system/script", b"run", |cmd| {
-        cmd.attribute(b"number".as_slice(), script_name.as_bytes())
-    })
-    .await
+    // answers only once the whole script is through
+    let path = b"/system/script/run".as_slice();
+    let mut stream = device
+        .send_command_with_reply_timeout(
+            path,
+            |cmd| cmd.attribute(b"number".as_slice(), script_name.as_bytes()),
+            (),
+            Some(SCRIPT_RUN_TIMEOUT),
+        )
+        .await;
+    while let Some(result) = stream.next().await {
+        match result {
+            SimpleResult::Sentence(_) => {}
+            SimpleResult::Error(e) => return Err(Error::Device(e)),
+            SimpleResult::Trap { category, message } => {
+                return Err(Error::Trap(TrapResponse {
+                    category,
+                    message: message.into_boxed_bytes(),
+                }));
+            }
+        }
+    }
+    Ok(())
 }
+
+/// How long the script of [`apply_mutations_via_script`] may run: `/system/script/run` replies
+/// only at its end, so the API's usual limit without a reply would be too short.
+pub const SCRIPT_RUN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10 * 60);
 
 fn with_fields<'a>(cmd: CommandBuilder, fields: &[KeyValuePair<'a>]) -> CommandBuilder {
     fields

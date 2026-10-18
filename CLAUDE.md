@@ -100,6 +100,9 @@ may be changed (`/ipv6/nd`'s first, `default=yes`, `can not remove default rule`
 target no longer has takes one it adds, in the device's order, by a `set` of the key
 (`generate_add_update_remove_by_key_reusing`).
 
+`apply_mutations_via_script` runs its script with `SCRIPT_RUN_TIMEOUT` (10 min) instead of
+mikrotik-api's 120 s without a reply: `/system/script/run` answers only at the script's end.
+
 `mikrotik-model-generator/build.rs` emits `cargo:rerun-if-changed=ros_model` — without it, editing
 or adding a `ros_model/*.txt` file does not invalidate cargo's build cache (`include_dir!` doesn't
 register per-file dependencies on stable Rust), so `cargo check`/`build` can silently keep using
