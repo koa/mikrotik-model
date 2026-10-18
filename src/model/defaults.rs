@@ -45,6 +45,19 @@ impl Default for IpSocksCfg {
         }
     }
 }
+/// RouterOS's factory setting (CHR 7.24.5): the hardware watchdog on, no address watched.
+impl Default for SystemWatchdogCfg {
+    fn default() -> Self {
+        SystemWatchdogCfg {
+            watchdog_timer: true,
+            automatic_supout: true,
+            auto_send_supout: false,
+            watch_address: HasNone::NoneValue,
+            ping_start_after_boot: std::time::Duration::from_secs(5 * 60),
+            ping_timeout: std::time::Duration::from_secs(60),
+        }
+    }
+}
 /// RouterOS's factory setting: no SSH forwarding; the rest is the device's own (`k`): host
 /// keys and ciphers aren't managed, and an update switches password login on for a moment
 /// (`always-allow-password-login` up to 7.20, `password-authentication` on 7.24).

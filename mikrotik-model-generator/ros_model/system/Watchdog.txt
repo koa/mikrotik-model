@@ -1,0 +1,7 @@
+/system/watchdog:is-single;no-default
+watchdog-timer: bool
+automatic-supout: bool
+auto-send-supout: bool
+watch-address: none; IpAddr
+ping-start-after-boot: Duration
+ping-timeout: Duration

@@ -15,4 +15,6 @@ mod ospf_tests;
 #[cfg(test)]
 mod socks_tests;
 #[cfg(test)]
+mod watchdog_tests;
+#[cfg(test)]
 mod wireless_tests;
