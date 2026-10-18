@@ -4,7 +4,7 @@ use crate::model::{
     RoutingOspfInterfaceTemplateById, RoutingOspfInterfaceTemplateByIdBuilder,
     RoutingOspfInterfaceTemplateType,
 };
-use crate::resource::{AppendFieldResult, DeserializeRosBuilder};
+use crate::resource::{AppendFieldResult, CfgResource, DeserializeRosBuilder};
 use std::time::Duration;
 
 /// An inactive template left from an older configuration (berghof-haus-stall, RouterOS 7.23.8,
@@ -43,4 +43,33 @@ fn decodes_an_inactive_template_reporting_few_fields() {
     assert_eq!(template.data._type, RoutingOspfInterfaceTemplateType::Broadcast);
     assert_eq!(template.data.priority, 1);
     assert!(!template.data.disabled);
+}
+
+/// A template that had authentication and BFD (router-berghof-burri, 7.23.8) losing them:
+/// RouterOS refuses an empty `auth-id`, `auth` and `use-bfd` (CHR 7.24.5: "an integer
+/// required", "ambiguous value", "must be either yes or no") and takes `!auth-id` etc.
+#[test]
+fn dropping_authentication_unsets_its_fields() {
+    let mut builder = RoutingOspfInterfaceTemplateByIdBuilder::init(&Default::default());
+    for (key, value) in [
+        (&b".id"[..], &b"*1"[..]),
+        (b"area", b"backbone-v2"),
+        (b"interfaces", b"e01-schopf"),
+        (b"auth", b"md5"),
+        (b"auth-id", b"1"),
+        (b"use-bfd", b"yes"),
+        (b"priority", b"128"),
+    ] {
+        builder.append_field(key, Some(value));
+    }
+    let current: RoutingOspfInterfaceTemplateById = builder.build().unwrap();
+    let mut target = current.data.clone();
+    target.auth = None;
+    target.auth_id = None;
+    target.use_bfd = None;
+    let fields = target
+        .changed_values(&current.data)
+        .map(|field| String::from_utf8_lossy(&field.key).into_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(fields, ["!auth", "!auth-id", "!use-bfd"]);
 }
