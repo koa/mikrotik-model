@@ -103,12 +103,17 @@ caps-manager: o
 comment: o
 dhcp-option: mu; ref=>dhcp-v4-option-set
 dhcp-option-set: o;
-dns-none: o; bool
+# empty is refused ("must be either yes or no", CHR 7.24.5); RouterOS shows it only when yes
+dns-none: bool; default=false
 dns-server: mu; ordered; Ipv4Addr
 domain: o
 gateway: mu; Ipv4Addr
-netmask: o; u8
-next-server: mu; Ipv4Addr
+# empty is refused ("an integer required", klr-sw-3), `!netmask` is a syntax error; 0 clears
+# it (CHR 7.24.5), and RouterOS shows it only when set
+netmask: u8; default=0
+# one address, not a list; empty is refused ("invalid value for argument next-server",
+# klr-sw-1), `!next-server` takes it away (CHR 7.24.5)
+next-server: o; unset; Ipv4Addr
 ntp-server: mu; Ipv4Addr
 wins-server: mu; Ipv4Addr
 about: ro; 

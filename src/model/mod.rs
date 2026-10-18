@@ -5,6 +5,8 @@ mod bgp_tests;
 #[cfg(test)]
 mod bridge_tests;
 mod defaults;
+#[cfg(test)]
+mod dhcp_tests;
 mod enums;
 #[cfg(test)]
 mod reference_tests;

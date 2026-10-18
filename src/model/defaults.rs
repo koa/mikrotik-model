@@ -533,11 +533,11 @@ impl Default for IpDhcpServerNetworkCfg {
             dhcp_option: Default::default(),
             dhcp_option_set: None,
             // RouterOS reports it only when set
-            dns_none: None,
+            dns_none: false,
             dns_server: Default::default(),
             domain: Default::default(),
             gateway: Default::default(),
-            netmask: None,
+            netmask: 0,
             next_server: Default::default(),
             ntp_server: Default::default(),
             wins_server: Default::default(),
