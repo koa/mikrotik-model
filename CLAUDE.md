@@ -10,7 +10,7 @@ RouterOS path, both a `{Name}Current` fetcher and a `{Name}Target` diff/mutation
 config/model — useful for validating new `ros_model/*.txt` entity definitions against real
 firmware before treating them as final. When no live device is reachable, a static decode test
 (feed real `/export` key=value pairs straight into the generated `*Builder`'s `append_field`/
-`build`, see `src/model/bgp_tests.rs`) is the next-best substitute — it still catches field-type
+`build`, see `src/model/test/bgp.rs`) is the next-best substitute — it still catches field-type
 mismatches (e.g. an address field that needs to accept a RouterOS `%zone`-suffixed value) without
 needing network access.
 
@@ -74,7 +74,7 @@ client gets; the manual names none): the target sets 1 there, which is accepted 
 matches. An OSPF interface template left from an older configuration (inactive, a gone
 interface, `networks=`; 7.23.8 after an update from 7.21.5) reports only `area`, `interfaces`,
 `networks` and `priority`, so its cost, intervals, `instance-id`, `type` and `disabled` have
-RouterOS's values as `default=` (`ospf_tests.rs`; a CHR 7.24.5 reports them all, even for such an
+RouterOS's values as `default=` (`src/model/test/ospf.rs`; a CHR 7.24.5 reports them all, even for such an
 entry, and `!cost` doesn't take them away). Match fields of the firewall (ports, protocol,
 addresses, limits) are plain text, not typed: RouterOS reports ranges, lists, negations and
 `value:mode` pairs there (`33434-33534`, `!fe80::/10`, `in,ipsec`, `equal:1`, protocol `139`).
@@ -107,6 +107,9 @@ mikrotik-api's 120 s without a reply: `/system/script/run` answers only at the s
 or adding a `ros_model/*.txt` file does not invalidate cargo's build cache (`include_dir!` doesn't
 register per-file dependencies on stable Rust), so `cargo check`/`build` can silently keep using
 stale generated code that doesn't reflect the change at all. Don't remove that build script.
+
+Tests of the generated model go in `src/model/test/`, one file per menu or topic, declared in
+its `mod.rs`; not as `*_tests.rs` next to the model.
 
 ## Commits
 
