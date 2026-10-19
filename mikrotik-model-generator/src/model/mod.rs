@@ -148,6 +148,12 @@ impl Entity {
         if self.is_single {
             write!(writer, "is-single;")?;
         }
+        if self.no_default {
+            write!(writer, "no-default;")?;
+        }
+        if self.reuse {
+            write!(writer, "reuse;")?;
+        }
         writer.write_char('\n')?;
         for field in &self.fields {
             field.write_field_line(writer)?;
@@ -2112,6 +2118,14 @@ impl Field {
         }
         if self.has_auto {
             write!(writer, "auto; ")?;
+        }
+        match self.monitor {
+            MonitorVariant::No => {}
+            MonitorVariant::Enabled => write!(writer, "monitor; ")?,
+            MonitorVariant::Exclusive => write!(writer, "monitor-only; ")?,
+        }
+        if let Some(default) = &self.default {
+            write!(writer, "default={default}; ")?;
         }
         match &self.reference {
             Reference::None => {}
