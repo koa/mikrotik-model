@@ -4,8 +4,8 @@ use env_logger::{Env, TimestampPrecision};
 use log::{error, info, warn};
 use mikrotik_model::ascii::AsciiString;
 use mikrotik_model::model::{
-    CapsManInterfaceById, CapsManInterfaceCfg, CapsManInterfaceState, CapsManRadioState,
-    CapsManRegistrationTableState, Data,
+    CapsManInterfaceById, CapsManInterfaceState, CapsManRadioState,
+    CapsManRegistrationTableState,
 };
 use mikrotik_model::resource::{SentenceResult, stream_resource};
 use mikrotik_model::{Credentials, MikrotikDevice};
@@ -88,7 +88,7 @@ async fn main() -> anyhow::Result<()> {
             .map(Cow::as_ref)
             .unwrap_or_default();
         println!(
-            "{}, {cap_identity}, {}, {if_name}",
+            "{}, {cap_identity}, {}, {if_name}, {cfg_name}",
             value.mac_address, value.ssid
         );
     }

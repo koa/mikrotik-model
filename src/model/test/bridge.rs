@@ -98,7 +98,7 @@ fn ports_trading_bridges_keep_their_interfaces() {
             .collect::<Vec<_>>();
     let changed = mutations
         .iter()
-        .flat_map(|m| m.fields.iter().map(|f| String::from_utf8_lossy(&f.key).into_owned()))
+        .flat_map(|m| m.fields.iter().map(|f| String::from_utf8_lossy(f.key).into_owned()))
         .collect::<Vec<_>>();
     assert_eq!(changed, ["bridge", "bridge"], "{mutations:?}");
     ResourceMutation::sort_mutations_with_provided_dependencies(

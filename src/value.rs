@@ -754,11 +754,9 @@ impl RosValue for IpNet {
                 Err(_) => match IpAddr::from_str(string_value.as_ref()) {
                     Ok(IpAddr::V4(addr_v4)) => {
                         ParseRosValueResult::Value(IpNet::V4(Ipv4Net::new(addr_v4, 32).unwrap()))
-                            .into()
                     }
                     Ok(IpAddr::V6(addr_v6)) => {
                         ParseRosValueResult::Value(IpNet::V6(Ipv6Net::new(addr_v6, 128).unwrap()))
-                            .into()
                     }
                     Err(_) => ParseRosValueResult::Invalid,
                 },

@@ -1,49 +1,11 @@
 use config::{Config, Environment, File};
 use env_logger::{Env, TimestampPrecision};
-use mikrotik_model::ascii::AsciiString;
-use mikrotik_model::model::{InterfaceEthernetCfg, IpAddress};
-use mikrotik_model::model::{ReferenceType, ResourceType};
-use mikrotik_model::resource::{FieldUpdateHandler, RosResource, SentenceResult, SetResource};
-use mikrotik_model::value::{KeyValuePair, RosValue};
-use mikrotik_model::{Credentials, MikrotikDevice, ascii};
-use std::borrow::Cow;
+use mikrotik_model::model::IpAddress;
+use mikrotik_model::model::ResourceType;
+use mikrotik_model::resource::{RosResource, SentenceResult};
+use mikrotik_model::{Credentials, MikrotikDevice};
 use std::net::{IpAddr, Ipv4Addr};
 use tokio_stream::StreamExt;
-
-struct InterfaceEthernetSet {
-    pub name: AsciiString,
-    pub default_name: AsciiString,
-}
-
-impl FieldUpdateHandler for InterfaceEthernetSet {
-    fn update_reference<V: RosValue + 'static>(
-        &mut self,
-        ref_type: ReferenceType,
-        old_value: &V,
-        new_value: &V,
-    ) -> bool {
-        let old_value_any = old_value as &dyn core::any::Any;
-        let new_value_any = new_value as &dyn core::any::Any;
-
-        if let ReferenceType::Interface = ref_type {
-            if let (Some(old_value), Some(new_value)) = (
-                old_value_any.downcast_ref::<ascii::AsciiString>(),
-                new_value_any.downcast_ref::<ascii::AsciiString>(),
-            ) {
-                let mut modified = false;
-                if old_value == &self.name {
-                    self.name = new_value.clone();
-                    modified = true;
-                }
-                modified
-            } else {
-                false
-            }
-        } else {
-            false
-        }
-    }
-}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -91,7 +53,7 @@ async fn main() -> anyhow::Result<()> {
                     .iter()
                     .for_each(|warning| println!("warning: {}", warning));
             }
-            SentenceResult::Trap { category, message } => {}
+            SentenceResult::Trap { .. } => {}
         }
     }
 

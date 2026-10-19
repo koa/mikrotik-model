@@ -54,7 +54,7 @@ impl<V: Eq + Hash> Hash for HashableSet<V> {
         for entry in self.0.iter() {
             let hasher = DefaultHasher::new();
             entry.hash(state);
-            value = value ^ hasher.finish();
+            value ^= hasher.finish();
         }
         state.write_u64(value);
     }
@@ -429,6 +429,20 @@ fn derive_ident(value: &str) -> String {
     }
 }
 
+
+fn name2ident(name: &str) -> Ident {
+    Ident::new(
+        cleanup_field_name(name).to_case(Case::UpperCamel).as_str(),
+        Span::call_site(),
+    )
+}
+fn name2field_ident(name: &str) -> Ident {
+    Ident::new(
+        cleanup_field_name(name).to_case(Case::Snake).as_str(),
+        Span::call_site(),
+    )
+}
+
 #[cfg(test)]
 mod test {
     use crate::model::{Entity, EnumDescriptions};
@@ -484,17 +498,4 @@ mod test {
         }*/
         assert_eq!(all_entities, parsed_content);
     }
-}
-
-fn name2ident(name: &str) -> Ident {
-    Ident::new(
-        cleanup_field_name(name).to_case(Case::UpperCamel).as_str(),
-        Span::call_site(),
-    )
-}
-fn name2field_ident(name: &str) -> Ident {
-    Ident::new(
-        cleanup_field_name(name).to_case(Case::Snake).as_str(),
-        Span::call_site(),
-    )
 }

@@ -28,7 +28,7 @@ use mikrotik_model::{
 use std::{
     borrow::Cow,
     collections::{BTreeMap, HashSet},
-    net::{IpAddr, Ipv4Addr, Ipv6Addr},
+    net::{IpAddr, Ipv4Addr},
 };
 
 struct DeviceDataCurrent {
@@ -45,7 +45,6 @@ struct DeviceDataCurrent {
     vxlan_vteps: Vec<InterfaceVxlanVtepsById>,
 }
 struct DeviceDataTarget {
-    device_type: DeviceType,
     identity: SystemIdentityCfg,
     routerboard_settings: SystemRouterboardSettingsCfg,
     ethernet: Box<[InterfaceEthernetByDefaultName]>,
@@ -72,7 +71,6 @@ impl DeviceDataTarget {
     }
     fn new(device_type: DeviceType) -> Self {
         Self {
-            device_type,
             identity: SystemIdentityCfg::default(),
             routerboard_settings: Default::default(),
             ethernet: device_type.build_ethernet_ports().into(),
@@ -92,8 +90,6 @@ impl DeviceDataTarget {
         self.identity.name = name.into();
     }
 
-    fn enable_ospf(&mut self, _loopback_v4: &Ipv4Addr, _loopback_v6: &Ipv6Addr) {}
-
     fn enable_vxlan<'a>(
         &mut self,
         ifname: &[u8],
@@ -104,7 +100,7 @@ impl DeviceDataTarget {
         vxlan_if.vni = vni;
         for addr in other_vxlan {
             self.vxlan_vteps
-                .entry((ifname.into(), addr.clone()))
+                .entry((ifname.into(), *addr))
                 .or_default();
         }
     }
@@ -157,7 +153,7 @@ impl DeviceDataTarget {
         self.vxlan_vteps.iter().map(|((interface, addr), cfg)| {
             let mut vxlan = cfg.clone();
             vxlan.interface = interface.clone();
-            vxlan.remote_ip = addr.clone();
+            vxlan.remote_ip = *addr;
             vxlan
         })
     }
@@ -226,14 +222,6 @@ impl DeviceDataTarget {
 }
 
 impl DeviceDataCurrent {
-    async fn current_and_template(
-        device: &MikrotikDevice,
-    ) -> Result<(Self, DeviceDataTarget), resource::Error> {
-        Ok((
-            Self::fetch(device).await?,
-            DeviceDataTarget::detect_device(device).await?,
-        ))
-    }
     async fn fetch(device: &MikrotikDevice) -> Result<Self, resource::Error> {
         Ok(Self {
             identity: SystemIdentityCfg::fetch(device)

@@ -1087,9 +1087,9 @@ impl<R: DeserializeRosResource + Send + 'static> ParsedMessage for SentenceResul
 #[derive(Debug, Error)]
 pub enum ResourceMutationError {
     #[error("cannot insert {entry:?}")]
-    Add { entry: Resource },
+    Add { entry: Box<Resource> },
     #[error("cannot remove {entry:?}")]
-    Remove { entry: Resource },
+    Remove { entry: Box<Resource> },
     #[error("wrong device type found, expected {expected:?} but got {actual:?} instead")]
     WrongDeviceType {
         expected: DeviceType,
@@ -1122,7 +1122,7 @@ where
             .cloned()
             .map(Current::create_resource_ref)
             .map(|e| e.cloned())
-            .map(|entry| ResourceMutationError::Remove { entry })
+            .map(|entry| ResourceMutationError::Remove { entry: Box::new(entry) })
             .map(Err)
             .chain(
                 self.new_entries
@@ -1130,7 +1130,7 @@ where
                     .map(|v| v.as_ref())
                     .map(|r| r.create_resource_ref())
                     .map(|e| e.cloned())
-                    .map(|entry| ResourceMutationError::Add { entry })
+                    .map(|entry| ResourceMutationError::Add { entry: Box::new(entry) })
                     .map(Err),
             )
             .chain(
@@ -1155,7 +1155,7 @@ where
             .map(Current::create_resource_ref)
             .map(|e| e.cloned())
         {
-            Err(ResourceMutationError::Remove { entry })
+            Err(ResourceMutationError::Remove { entry: Box::new(entry) })
         } else if let Some(entry) = self
             .new_entries
             .iter()
@@ -1164,8 +1164,7 @@ where
             .map(|r| r.create_resource_ref())
             .map(|e| e.cloned())
         {
-            let entry = Resource::from(entry);
-            Err(ResourceMutationError::Add { entry })
+            Err(ResourceMutationError::Add { entry: Box::new(entry) })
         } else {
             Ok(self
                 .matched_entries
@@ -1403,14 +1402,14 @@ where
             matched.push((c, t));
         } else {
             return Err(ResourceMutationError::Remove {
-                entry: c.create_resource_ref().cloned(),
+                entry: Box::new(c.create_resource_ref().cloned()),
             });
         }
     }
     if let Some(entry) = target_refs.into_iter().next() {
         let resource_ref = entry.create_resource_ref().cloned();
         return Err(ResourceMutationError::Add {
-            entry: resource_ref,
+            entry: Box::new(resource_ref),
         });
     }
     Ok(matched.into_iter().map(|(original, target)| match target {

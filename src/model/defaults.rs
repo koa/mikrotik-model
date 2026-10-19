@@ -1,3 +1,6 @@
+// The types are generated; a derive would have to come from the generator, these defaults from
+// RouterOS.
+#![allow(clippy::derivable_impls)]
 use super::*;
 use crate::value::Auto;
 use crate::{

@@ -111,7 +111,7 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
 
                                 for key_path in keys.iter() {
                                     if let Some(key) = key_path.get_ident() {
-                                        let key_name = derive_key_name(&key);
+                                        let key_name = derive_key_name(key);
                                         if let Some(key_field) = entry
                                             .fields
                                             .iter()
@@ -314,8 +314,7 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
 }
 
 fn derive_key_name(key: &Ident) -> String {
-    let key_name = key.to_string().to_case(Case::Train).to_ascii_lowercase();
-    key_name
+    key.to_string().to_case(Case::Train).to_ascii_lowercase()
 }
 
 fn chain(chain: Option<Expr>, item: Expr) -> Option<Expr> {

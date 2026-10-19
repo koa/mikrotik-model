@@ -2342,6 +2342,17 @@ fn parse_path(name: &str) -> Box<[Box<str>]> {
     path
 }
 
+
+/// The place a field accessor `&self.x` borrows, as the receiver of a method call: `self.x.iter()`
+/// rather than `(&self.x).iter()`, which clippy calls a needless borrow. Anything else stays as
+/// it is, in parentheses.
+fn receiver(field_access: &Expr) -> Expr {
+    match field_access {
+        Expr::Reference(reference) if reference.mutability.is_none() => (*reference.expr).clone(),
+        other => parse_quote!((#other)),
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -2352,15 +2363,5 @@ mod test {
         let lines = data.lines();
         let collected_entities = Entity::parse_lines(lines);
         println!("{:#?}", collected_entities);
-    }
-}
-
-/// The place a field accessor `&self.x` borrows, as the receiver of a method call: `self.x.iter()`
-/// rather than `(&self.x).iter()`, which clippy calls a needless borrow. Anything else stays as
-/// it is, in parentheses.
-fn receiver(field_access: &Expr) -> Expr {
-    match field_access {
-        Expr::Reference(reference) if reference.mutability.is_none() => (*reference.expr).clone(),
-        other => parse_quote!((#other)),
     }
 }

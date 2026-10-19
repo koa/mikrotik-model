@@ -2,68 +2,15 @@ use config::{Config, Environment, File};
 use env_logger::{Env, TimestampPrecision};
 use mikrotik_model::{
     Credentials, MikrotikDevice,
-    ascii::{self, AsciiString},
     generator::Generator,
     hwconfig::DeviceType,
-    model::{Data, InterfaceEthernetByDefaultName, ReferenceType},
-    resource::{FieldUpdateHandler, KeyedResource, SetResource, UpdatePairing},
-    value::{KeyValuePair, RosValue},
+    model::Data,
+    resource::{KeyedResource, UpdatePairing},
 };
 use std::{
     borrow::Cow,
     net::{IpAddr, Ipv4Addr},
 };
-
-struct InterfaceEthernetSet {
-    pub name: AsciiString,
-    pub default_name: AsciiString,
-}
-
-impl FieldUpdateHandler for InterfaceEthernetSet {
-    fn update_reference<V: RosValue + 'static>(
-        &mut self,
-        ref_type: ReferenceType,
-        old_value: &V,
-        new_value: &V,
-    ) -> bool {
-        let old_value_any = old_value as &dyn core::any::Any;
-        let new_value_any = new_value as &dyn core::any::Any;
-
-        if let ReferenceType::Interface = ref_type {
-            if let (Some(old_value), Some(new_value)) = (
-                old_value_any.downcast_ref::<ascii::AsciiString>(),
-                new_value_any.downcast_ref::<ascii::AsciiString>(),
-            ) {
-                let mut modified = false;
-                if old_value == &self.name {
-                    self.name = new_value.clone();
-                    modified = true;
-                }
-                modified
-            } else {
-                false
-            }
-        } else {
-            false
-        }
-    }
-}
-
-impl SetResource<InterfaceEthernetByDefaultName> for InterfaceEthernetSet {
-    fn changed_values(
-        &'_ self,
-        before: &InterfaceEthernetByDefaultName,
-    ) -> impl Iterator<Item = KeyValuePair<'_>> {
-        let mut ret = Vec::new();
-        if before.data.name != self.name {
-            ret.push(KeyValuePair {
-                key: b"name",
-                value: Cow::Borrowed(&self.name.0),
-            })
-        }
-        ret.into_iter()
-    }
-}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -99,10 +46,10 @@ async fn main() -> anyhow::Result<()> {
     let mut cfg = String::new();
     let mut generator = Generator::new(&mut cfg);
 
-    let mut current_data = Data::fetch_from_device(&device).await?;
+    let current_data = Data::fetch_from_device(&device).await?;
 
     let ethernet_updates = UpdatePairing::match_updates_by_key(
-        &mut current_data.interface_ethernet_by_default_name,
+        &current_data.interface_ethernet_by_default_name,
         target_data
             .interface_ethernet_by_default_name
             .iter()
@@ -120,7 +67,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let wifi_updates = UpdatePairing::match_updates_by_key(
-        &mut current_data.interface_wifi_by_default_name,
+        &current_data.interface_wifi_by_default_name,
         target_data
             .interface_wifi_by_default_name
             .iter()

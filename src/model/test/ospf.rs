@@ -69,7 +69,7 @@ fn dropping_authentication_unsets_its_fields() {
     target.use_bfd = None;
     let fields = target
         .changed_values(&current.data)
-        .map(|field| String::from_utf8_lossy(&field.key).into_owned())
+        .map(|field| String::from_utf8_lossy(field.key).into_owned())
         .collect::<Vec<_>>();
     assert_eq!(fields, ["!auth", "!auth-id", "!use-bfd"]);
 }

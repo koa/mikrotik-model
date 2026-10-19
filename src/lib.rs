@@ -6,7 +6,6 @@ pub mod error;
 pub mod generator;
 pub mod hwconfig;
 pub mod model;
-pub mod repository;
 pub mod resource;
 mod util;
 pub mod value;
