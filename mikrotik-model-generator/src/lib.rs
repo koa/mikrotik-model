@@ -174,7 +174,7 @@ pub fn generator() -> syn::File {
     let mut append_field_match: ExprMatch = parse_quote! {match self{}};
     let mut build_match: ExprMatch = parse_quote! {match self{}};
     let mut resource2type_match: ExprMatch = parse_quote! {match self{}};
-    let mut resource_ref_cloned_type_match: ExprMatch = parse_quote! {match self{}};
+    let mut resource_ref_cloned_type_match: ExprMatch = parse_quote! {match *self{}};
     let mut data_fields = FieldsNamed {
         brace_token: Default::default(),
         named: Default::default(),
@@ -217,7 +217,7 @@ pub fn generator() -> syn::File {
             .push(parse_quote! {Self::#name(_)=>ResourceType::#name});
         resource_ref_cloned_type_match
             .arms
-            .push(parse_quote! {&Self::#name(r)=>Resource::#name(r.clone())});
+            .push(parse_quote! {Self::#name(r)=>Resource::#name(r.clone())});
         if field.can_update {
             let name = field.field_name;
             data_fields

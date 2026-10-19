@@ -1,5 +1,5 @@
 use convert_case::{Case, Casing};
-use proc_macro2::{Ident, Literal, Span};
+use proc_macro2::{Ident, Literal, Span, TokenStream};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use syn::{
@@ -909,6 +909,8 @@ impl Entity {
             }
         }
         parse_quote! {
+            // one parameter per field without a default
+            #[allow(clippy::too_many_arguments)]
             pub fn new(#params)->Self{
                 Self{
                     #fields_named
@@ -1020,7 +1022,8 @@ impl Entity {
             };
             let name = field.attribute_name();
             let expr: Expr = if field.is_optional {
-                parse_quote! {(#field_access).iter()
+                let field_access = receiver(&field_access);
+                parse_quote! {#field_access.iter()
                     .map(|value| (#name.as_slice(), value::RosValue::encode_ros(value)))}
             } else {
                 parse_quote! {Some(#field_access).into_iter()
@@ -1071,25 +1074,26 @@ impl Entity {
         let mut blocking_expr: Option<Expr> = None;
         for (name, incoming, field) in self.referencing_fields() {
             if let Some(field_access) = field_gen(field) {
+                let place = receiver(&field_access);
                 // `none` refers to nothing
                 let expr: Expr = if field.has_none && !field.is_multiple {
                     if field.is_optional {
-                        parse_quote! {(#field_access).iter()
+                        parse_quote! {#place.iter()
                         .filter_map(value::HasNone::value)
                         .map(value::RosValue::encode_ros)
                         .map(|value| (ReferenceType::#name, value))}
                     } else {
-                        parse_quote! {(#field_access).value().into_iter()
+                        parse_quote! {#place.value().into_iter()
                         .map(value::RosValue::encode_ros)
                         .map(|value| (ReferenceType::#name, value))}
                     }
                 } else if field.is_multiple && field.is_optional {
                     // each element of the list, not the whole list as one value
-                    parse_quote! {(#field_access).iter().flatten()
+                    parse_quote! {#place.iter().flatten()
                     .map(value::RosValue::encode_ros)
                     .map(|value| (ReferenceType::#name, value))}
                 } else if field.is_multiple || field.is_optional {
-                    parse_quote! {(#field_access).iter()
+                    parse_quote! {#place.iter()
                     .map(value::RosValue::encode_ros)
                     .map(|value| (ReferenceType::#name, value))}
                 } else {
@@ -1209,48 +1213,40 @@ impl Entity {
                     let mut modified = false;
                 });
                 for (base_type, fields_of_type) in entries_of_type.values() {
-                    let mut type_block: Block = parse_quote!({});
-
-                    for field in fields_of_type {
+                    // each field: when it holds the old value, and how it takes the new one
+                    let updates: Vec<(TokenStream, TokenStream)> = fields_of_type.iter().map(|field| {
                         let field_name = field.generate_field_name();
-                        if field.is_multiple {
-                            if field.is_optional {
-                                type_block.stmts.push(parse_quote! {
-                                    if let Some(values)=self.#field_name.as_mut(){
-                                        if values.remove(old_value) {
-                                            values.insert(new_value.clone());
-                                            modified = true;
-                                        }
-                                    }
-                                });
-                            } else {
-                                type_block.stmts.push(parse_quote! {
-                                        if self.#field_name.remove(old_value) {
-                                            self.#field_name.insert(new_value.clone());
-                                            modified = true;
-                                        }
-                                });
-                            }
-                        } else if field.is_optional {
-                            type_block.stmts.push(parse_quote! {
-                                    if Some(old_value)== self.#field_name.as_ref() {
-                                        self.#field_name = Some(new_value.clone());
-                                        modified = true;
-                                    }
-                            });
-                        } else {
-                            type_block.stmts.push(parse_quote! {
-                                    if old_value== &self.#field_name {
-                                        self.#field_name = new_value.clone();
-                                        modified = true;
-                                    }
-                            });
+                        match (field.is_multiple, field.is_optional) {
+                            (true, true) => (
+                                parse_quote! {let Some(values)=self.#field_name.as_mut() && values.remove(old_value)},
+                                parse_quote! {{values.insert(new_value.to_owned()); modified = true;}},
+                            ),
+                            (true, false) => (
+                                parse_quote! {self.#field_name.remove(old_value)},
+                                parse_quote! {{self.#field_name.insert(new_value.to_owned()); modified = true;}},
+                            ),
+                            (false, true) => (
+                                parse_quote! {Some(old_value)== self.#field_name.as_ref()},
+                                parse_quote! {{self.#field_name = Some(new_value.to_owned()); modified = true;}},
+                            ),
+                            (false, false) => (
+                                parse_quote! {old_value== &self.#field_name},
+                                parse_quote! {{self.#field_name = new_value.to_owned(); modified = true;}},
+                            ),
                         }
-                    }
-                    reference_block.stmts.push(parse_quote! {
-                        if let (Some(old_value),Some(new_value)) = (old_value_any.downcast_ref::<#base_type>(),new_value_any.downcast_ref::<#base_type>())
-                            #type_block
-                    })
+                    }).collect();
+                    let values: TokenStream = parse_quote! {
+                        let (Some(old_value),Some(new_value)) = (old_value_any.downcast_ref::<#base_type>(),new_value_any.downcast_ref::<#base_type>())
+                    };
+                    // one field in one `if` (clippy: collapsible_if), several each in their own
+                    reference_block.stmts.push(if let [(condition, update)] = &updates[..] {
+                        parse_quote! {if #values && #condition #update}
+                    } else {
+                        let updates = updates
+                            .iter()
+                            .map(|(condition, update)| -> TokenStream { parse_quote! {if #condition #update} });
+                        parse_quote! {if #values {#(#updates)*}}
+                    });
                 }
                 let return_statement = Stmt::Expr(parse_quote!(modified), None);
                 reference_block.stmts.push(return_statement);
@@ -1720,10 +1716,10 @@ impl Entity {
                     ResourceRef::#ident(self)
                 }
                 fn provides_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<'_, [u8]>)>{
-                    #provides_array.into_iter()
+                    #provides_array
                 }
                 fn consumes_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<'_, [u8]>)>{
-                    #consumes_array.into_iter()
+                    #consumes_array
                 }
 
             }
@@ -1750,10 +1746,10 @@ impl Entity {
                     ResourceRef::#ident(self)
                 }
                 fn provides_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<'_, [u8]>)>{
-                    #provides_array.into_iter()
+                    #provides_array
                 }
                 fn consumes_reference(&self)->impl Iterator<Item=(ReferenceType, std::borrow::Cow<'_, [u8]>)>{
-                    #consumes_array.into_iter()
+                    #consumes_array
                 }
 
             }
@@ -2356,5 +2352,15 @@ mod test {
         let lines = data.lines();
         let collected_entities = Entity::parse_lines(lines);
         println!("{:#?}", collected_entities);
+    }
+}
+
+/// The place a field accessor `&self.x` borrows, as the receiver of a method call: `self.x.iter()`
+/// rather than `(&self.x).iter()`, which clippy calls a needless borrow. Anything else stays as
+/// it is, in parentheses.
+fn receiver(field_access: &Expr) -> Expr {
+    match field_access {
+        Expr::Reference(reference) if reference.mutability.is_none() => (*reference.expr).clone(),
+        other => parse_quote!((#other)),
     }
 }
