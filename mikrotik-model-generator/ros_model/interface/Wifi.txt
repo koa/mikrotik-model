@@ -1,119 +1,119 @@
 /interface/wifi:can-add;id=default-name
 .id: id;ro;Id
-aaa: o;ref=wifi-aaa
-aaa.called-format:o;
-aaa.calling-format: o;
-aaa.interim-update: o;disabled; Duration
-aaa.mac-caching: o;disabled; Duration
-aaa.nas-identifier:o;
-aaa.password-format: o;
-aaa.username-format: o;
+aaa: unset; o;ref=wifi-aaa
+aaa.called-format: unset; o;
+aaa.calling-format: unset; o;
+aaa.interim-update: unset; o;disabled; Duration
+aaa.mac-caching: unset; o;disabled; Duration
+aaa.nas-identifier: unset; o;
+aaa.password-format: unset; o;
+aaa.username-format: unset; o;
 arp: o;disabled; enum= enabled, local-proxy-arp, proxy-arp, reply-only;
 arp-timeout: o;auto;
-channel: o;ref=wifi-channel
-channel.band: o;WifiChannelBand;
+channel: unset; o;ref=wifi-channel
+channel.band: unset; o;WifiChannelBand;
 channel.frequency: mu;u16
-channel.reselect-interval:o;Duration
-channel.secondary-frequency: o;disabled; u32
-channel.skip-dfs-channels: o;disabled; WifiSkipDfsChannels;
-channel.width: o;WifiChannelWidth;
+channel.reselect-interval: unset; o;Duration
+channel.secondary-frequency: unset; o;disabled; u32
+channel.skip-dfs-channels: unset; o;disabled; WifiSkipDfsChannels;
+channel.width: unset; o;WifiChannelWidth;
 comment: o
-configuration: o;ref=>wifi-configuration
-configuration.antenna-gain: o;u8
-configuration.beacon-interval:o;Duration
+configuration: o; unset; ref=>wifi-configuration
+configuration.antenna-gain: unset; o;u8
+configuration.beacon-interval: unset; o;Duration
 configuration.chains: mu; u8
-configuration.country: o; WifiCountry
-configuration.distance: o;u32
-configuration.dtim-period: o;u8
-configuration.hide-ssid: o;bool
-configuration.installation: o;IndoorOutdoor;
-configuration.manager: o;WifiManagement;
-configuration.mode: o;WifiMode;
-configuration.multicast-enhance: o;EnabledDisabled;
-configuration.qos-classifier:o;QosClassifier;
-configuration.ssid: o
-configuration.station-roaming: o;bool
+configuration.country: unset; o; WifiCountry
+configuration.distance: unset; o;u32
+configuration.dtim-period: unset; o;u8
+configuration.hide-ssid: unset; o;bool
+configuration.installation: unset; o;IndoorOutdoor;
+configuration.manager: unset; o;WifiManagement;
+configuration.mode: unset; o;WifiMode;
+configuration.multicast-enhance: unset; o;EnabledDisabled;
+configuration.qos-classifier: unset; o;QosClassifier;
+configuration.ssid: unset; o
+configuration.station-roaming: unset; o;bool
 configuration.tx-chains: mu;u8
-configuration.tx-power: o;u8
+configuration.tx-power: unset; o;u8
 datapath: o;unset;ref=>wifi-datapath;blocks-removal;
 datapath.bridge: o;unset;ref=>interface;
-datapath.bridge-cost: o;u32
-datapath.bridge-horizon: o;none;
-datapath.client-isolation: o;bool
-datapath.interface-list: o;ref=>interface-list;
+datapath.bridge-cost: unset; o;u32
+datapath.bridge-horizon: unset; o;none;
+datapath.client-isolation: unset; o;bool
+datapath.interface-list: o; unset; ref=>interface-list;
 datapath.vlan-id: o; none;unset;u16
 disable-running-check: o;bool
 disabled: bool
-interworking: o;ref=wifi-interworking
-interworking.3gpp-info: o;
-interworking.authentication-types: o;WifiAuthenticationType;
-interworking.connection-capabilities: o;u32
-interworking.domain-names: o;
-interworking.esr: o;bool
-interworking.hessid: o;
-interworking.hotspot20: o;bool
-interworking.hotspot20-dgaf: o;bool
-interworking.internet:o; bool
-interworking.ipv4-availability: o;InterworkingIpv4Availability;
-interworking.ipv6-availability: o;InterworkingIpv6Availability;
-interworking.network-type: o;InterworkingNetworkType;
-interworking.operational-classes: o;u32
-interworking.operator-names: o;
-interworking.realms: o;
-interworking.roaming-ois:o;
-interworking.uesa: o;bool
-interworking.venue: o; InterworkingVenue;
+interworking: unset; o;ref=wifi-interworking
+interworking.3gpp-info: unset; o;
+interworking.authentication-types: unset; o;WifiAuthenticationType;
+interworking.connection-capabilities: unset; o;u32
+interworking.domain-names: unset; o;
+interworking.esr: unset; o;bool
+interworking.hessid: unset; o;
+interworking.hotspot20: unset; o;bool
+interworking.hotspot20-dgaf: unset; o;bool
+interworking.internet: unset; o; bool
+interworking.ipv4-availability: unset; o;InterworkingIpv4Availability;
+interworking.ipv6-availability: unset; o;InterworkingIpv6Availability;
+interworking.network-type: unset; o;InterworkingNetworkType;
+interworking.operational-classes: unset; o;u32
+interworking.operator-names: unset; o;
+interworking.realms: unset; o;
+interworking.roaming-ois: unset; o;
+interworking.uesa: unset; o;bool
+interworking.venue: unset; o; InterworkingVenue;
 interworking.venue-names: mu
-interworking.wan-at-capacity: o;bool
-interworking.wan-downlink: o;u32
-interworking.wan-downlink-load: o;u32
-interworking.wan-measurement-duration: o;u32
-interworking.wan-status:o;InterworkingWanStatus;
-interworking.wan-symmetric: o;bool
-interworking.wan-uplink: o;u32
-interworking.wan-uplink-load: o;u32
+interworking.wan-at-capacity: unset; o;bool
+interworking.wan-downlink: unset; o;u32
+interworking.wan-downlink-load: unset; o;u32
+interworking.wan-measurement-duration: unset; o;u32
+interworking.wan-status: unset; o;InterworkingWanStatus;
+interworking.wan-symmetric: unset; o;bool
+interworking.wan-uplink: unset; o;u32
+interworking.wan-uplink-load: unset; o;u32
 l2mtu: o; u16
 mac-address: o;k;MacAddress
 master-interface: o;ref=>interface
 mtu: o; u16
 name: ref=interface; id
 radio-mac: o;k;MacAddress
-security: o; ref=>wifi-security
+security: o; unset; ref=>wifi-security
 security.authentication-types: o;mu;WifiAuthenticationTypes
-security.connect-group: o
-security.connect-priority: o;u32
-security.dh-groups: o
-security.disable-pmkid: o;bool
-security.eap-accounting: o;bool
-security.eap-anonymous-identity:o
-security.eap-certificate-mode:o;WifiSecurityEapCertificateMode;
-security.eap-methods: o;WifiSecurityEapMode;
-security.eap-password: o
-security.eap-tls-certificate:o
-security.eap-username: o
-security.encryption: o
-security.ft: o;bool
-security.ft-mobility-domain: o;hex; u16
-security.ft-nas-identifier: o
-security.ft-over-ds: o;bool
-security.ft-preserve-vlanid: o;bool
-security.ft-r0-key-lifetime: o
-security.ft-reassociation-deadline:o
-security.group-encryption:o;WifiSecurityGroupEncryption;
-security.group-key-update: o
-security.management-encryption: o;WifiSecurityManagementEncryption;
-security.management-protection: o;WifiSecurityManagementProtection;
-security.multi-passphrase-group: o
-security.owe-transition-interface: o;auto;
-security.passphrase: o
-security.sae-anti-clogging-threshold: o;disabled;
-security.sae-max-failure-rate: o;disabled;
-security.sae-pwe: o;WifiSecuritySaePwe;
-security.wps: o;WifiSecurityWps;
-steering: o;
-steering.neighbor-group:o;
-steering.rrm: o;bool
-steering.wnm: o;bool
+security.connect-group: unset; o
+security.connect-priority: unset; o;u32
+security.dh-groups: unset; o
+security.disable-pmkid: unset; o;bool
+security.eap-accounting: unset; o;bool
+security.eap-anonymous-identity: unset; o
+security.eap-certificate-mode: unset; o;WifiSecurityEapCertificateMode;
+security.eap-methods: unset; o;WifiSecurityEapMode;
+security.eap-password: unset; o
+security.eap-tls-certificate: unset; o
+security.eap-username: unset; o
+security.encryption: unset; o
+security.ft: unset; o;bool
+security.ft-mobility-domain: unset; o;hex; u16
+security.ft-nas-identifier: unset; o
+security.ft-over-ds: unset; o;bool
+security.ft-preserve-vlanid: unset; o;bool
+security.ft-r0-key-lifetime: unset; o
+security.ft-reassociation-deadline: unset; o
+security.group-encryption: unset; o;WifiSecurityGroupEncryption;
+security.group-key-update: unset; o
+security.management-encryption: unset; o;WifiSecurityManagementEncryption;
+security.management-protection: unset; o;WifiSecurityManagementProtection;
+security.multi-passphrase-group: unset; o
+security.owe-transition-interface: unset; o;auto;
+security.passphrase: unset; o
+security.sae-anti-clogging-threshold: unset; o;disabled;
+security.sae-max-failure-rate: unset; o;disabled;
+security.sae-pwe: unset; o;WifiSecuritySaePwe;
+security.wps: unset; o;WifiSecurityWps;
+steering: unset; o;
+steering.neighbor-group: unset; o;
+steering.rrm: unset; o;bool
+steering.wnm: unset; o;bool
 dynamic: ro; bool; o
 inactive: ro; bool
 master: ro; bool; ref=>interface
@@ -207,111 +207,111 @@ width: o; WifiChannelWidth;
 about: ro; 
 
 /interface/wifi/configuration:can-add;id=name
-aaa: o; ref=>wifi-aaa
-aaa.called-format: o
-aaa.calling-format: o
-aaa.interim-update: o; enum=disabled;
-aaa.mac-caching: o;enum=disabled;
-aaa.nas-identifier: o
-aaa.password-format: o
-aaa.username-format: o
-antenna-gain: o;u8
-beacon-interval: o;Duration
+aaa: o; unset; ref=>wifi-aaa
+aaa.called-format: unset; o
+aaa.calling-format: unset; o
+aaa.interim-update: unset; o; enum=disabled;
+aaa.mac-caching: unset; o;enum=disabled;
+aaa.nas-identifier: unset; o
+aaa.password-format: unset; o
+aaa.username-format: unset; o
+antenna-gain: unset; o;u8
+beacon-interval: unset; o;Duration
 chains: mu;u8
-channel: o;ref=>wifi-channel
-channel.band: o;WifiChannelBand;
+channel: o; unset; ref=>wifi-channel
+channel.band: unset; o;WifiChannelBand;
 channel.frequency: mu;range;u16
-channel.reselect-interval: o;Duration
-channel.secondary-frequency: o;disabled; u32
-channel.skip-dfs-channels: o;disabled; WifiSkipDfsChannels;
-channel.width: o; WifiChannelWidth;
+channel.reselect-interval: unset; o;Duration
+channel.secondary-frequency: unset; o;disabled; u32
+channel.skip-dfs-channels: unset; o;disabled; WifiSkipDfsChannels;
+channel.width: unset; o; WifiChannelWidth;
 comment: o
-country: o;WifiCountry
+country: unset; o;WifiCountry
 datapath: o; unset; ref=>wifi-datapath; blocks-removal;
 datapath.bridge: o; unset; ref=>interface
-datapath.bridge-cost: o;u32
-datapath.bridge-horizon: o;none;
-datapath.client-isolation: o;bool
-datapath.interface-list: o;none;ref=>interface-list
+datapath.bridge-cost: unset; o;u32
+datapath.bridge-horizon: unset; o;none;
+datapath.client-isolation: unset; o;bool
+datapath.interface-list: o; none; unset; ref=>interface-list
 datapath.vlan-id: o;none; unset; u16
 disabled: bool; default=false
-distance: o;u32
-dtim-period: o;u8
-hide-ssid: o;bool
-installation: o;IndoorOutdoor;
-interworking: o;ref=>wifi-interworking
+distance: unset; o;u32
+dtim-period: unset; o;u8
+hide-ssid: unset; o;bool
+installation: unset; o;IndoorOutdoor;
+interworking: o; unset; ref=>wifi-interworking
 interworking.3gpp-info: mu
 interworking.authentication-types: mu;WifiAuthenticationType;
 interworking.connection-capabilities: mu;u32
 interworking.domain-names: mu
-interworking.esr: o;bool
-interworking.hessid: o;MacAddress
-interworking.hotspot20: o;bool
-interworking.hotspot20-dgaf: o;bool
-interworking.internet: o;bool
-interworking.ipv4-availability: o;InterworkingIpv4Availability;
-interworking.ipv6-availability: o;InterworkingIpv6Availability;
-interworking.network-type: o;InterworkingNetworkType;
+interworking.esr: unset; o;bool
+interworking.hessid: unset; o;MacAddress
+interworking.hotspot20: unset; o;bool
+interworking.hotspot20-dgaf: unset; o;bool
+interworking.internet: unset; o;bool
+interworking.ipv4-availability: unset; o;InterworkingIpv4Availability;
+interworking.ipv6-availability: unset; o;InterworkingIpv6Availability;
+interworking.network-type: unset; o;InterworkingNetworkType;
 interworking.operational-classes: mu;u32
 interworking.operator-names: mu
 interworking.realms: mu
 interworking.roaming-ois: mu
-interworking.uesa: o;bool
-interworking.venue: o; InterworkingVenue;
+interworking.uesa: unset; o;bool
+interworking.venue: unset; o; InterworkingVenue;
 interworking.venue-names: mu
-interworking.wan-at-capacity: o; bool
-interworking.wan-downlink: o; u32
-interworking.wan-downlink-load: o; u32
-interworking.wan-measurement-duration: o; u32
-interworking.wan-status: o; InterworkingWanStatus;
-interworking.wan-symmetric: o; bool
-interworking.wan-uplink: o; u32
-interworking.wan-uplink-load: o; u32
-manager: o; WifiManagement
-mode: o; WifiMode
-multicast-enhance: o; EnabledDisabled
+interworking.wan-at-capacity: unset; o; bool
+interworking.wan-downlink: unset; o; u32
+interworking.wan-downlink-load: unset; o; u32
+interworking.wan-measurement-duration: unset; o; u32
+interworking.wan-status: unset; o; InterworkingWanStatus;
+interworking.wan-symmetric: unset; o; bool
+interworking.wan-uplink: unset; o; u32
+interworking.wan-uplink-load: unset; o; u32
+manager: unset; o; WifiManagement
+mode: unset; o; WifiMode
+multicast-enhance: unset; o; EnabledDisabled
 name: id;ref=wifi-configuration
-qos-classifier:o; QosClassifier;
-security: o; ref=>wifi-security
+qos-classifier: unset; o; QosClassifier;
+security: o; unset; ref=>wifi-security
 security.authentication-types: mu; WifiAuthenticationTypes
-security.connect-group: o
-security.connect-priority: o;u32
+security.connect-group: unset; o
+security.connect-priority: unset; o;u32
 security.dh-groups: mu; WifiDhGroups
-security.disable-pmkid: o; bool
-security.eap-accounting: o; bool
-security.eap-anonymous-identity: o
-security.eap-certificate-mode: o; WifiSecurityEapCertificateMode;
+security.disable-pmkid: unset; o; bool
+security.eap-accounting: unset; o; bool
+security.eap-anonymous-identity: unset; o
+security.eap-certificate-mode: unset; o; WifiSecurityEapCertificateMode;
 security.eap-methods: mu; WifiSecurityEapMode;
-security.eap-password: o
-security.eap-tls-certificate: o
-security.eap-username: o
+security.eap-password: unset; o
+security.eap-tls-certificate: unset; o
+security.eap-username: unset; o
 security.encryption: o;mu;WifiSecurityGroupEncryption
-security.ft: o; bool
-security.ft-mobility-domain: o; hex; u16
-security.ft-nas-identifier: o
-security.ft-over-ds: o; bool
-security.ft-preserve-vlanid: o; bool
-security.ft-r0-key-lifetime: o; Duration
-security.ft-reassociation-deadline: o; Duration
-security.group-encryption: o; WifiSecurityGroupEncryption;
-security.group-key-update: o; Duration
-security.management-encryption: o; WifiSecurityManagementEncryption;
-security.management-protection: o; WifiSecurityManagementProtection;
-security.multi-passphrase-group: o
-security.owe-transition-interface: o; auto;
-security.passphrase: o
-security.sae-anti-clogging-threshold: o; disabled; u16
-security.sae-max-failure-rate: o; disabled; u16
-security.sae-pwe: o; WifiSecuritySaePwe;
-security.wps: o; WifiSecurityWps;
-ssid: o
-station-roaming: o; bool
-steering: o; ref=>wifi-steering
-steering.neighbor-group: o
-steering.rrm: o; bool
-steering.wnm: o; bool
+security.ft: unset; o; bool
+security.ft-mobility-domain: unset; o; hex; u16
+security.ft-nas-identifier: unset; o
+security.ft-over-ds: unset; o; bool
+security.ft-preserve-vlanid: unset; o; bool
+security.ft-r0-key-lifetime: unset; o; Duration
+security.ft-reassociation-deadline: unset; o; Duration
+security.group-encryption: unset; o; WifiSecurityGroupEncryption;
+security.group-key-update: unset; o; Duration
+security.management-encryption: unset; o; WifiSecurityManagementEncryption;
+security.management-protection: unset; o; WifiSecurityManagementProtection;
+security.multi-passphrase-group: unset; o
+security.owe-transition-interface: unset; o; auto;
+security.passphrase: unset; o
+security.sae-anti-clogging-threshold: unset; o; disabled; u16
+security.sae-max-failure-rate: unset; o; disabled; u16
+security.sae-pwe: unset; o; WifiSecuritySaePwe;
+security.wps: unset; o; WifiSecurityWps;
+ssid: unset; o
+station-roaming: unset; o; bool
+steering: o; unset; ref=>wifi-steering
+steering.neighbor-group: unset; o
+steering.rrm: unset; o; bool
+steering.wnm: unset; o; bool
 tx-chains: mu;u8
-tx-power: o; u8
+tx-power: unset; o; u8
 about: ro; 
 
 /interface/wifi/datapath:can-add;id=name

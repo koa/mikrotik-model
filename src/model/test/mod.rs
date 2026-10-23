@@ -1,5 +1,6 @@
 mod bgp;
 mod bridge;
+mod capsman;
 mod dhcp;
 mod ethernet;
 mod firewall;
@@ -7,4 +8,5 @@ mod ospf;
 mod reference;
 mod socks;
 mod watchdog;
+mod wifi;
 mod wireless;
