@@ -5,15 +5,15 @@ chain: ref=firewall-chain
 comment: o
 connection-state: o
 disabled: bool; default=false
-dst-address: o
+dst-address: unset; o
 dst-port: o
-in-interface: o; ref=>interface;
-in-interface-list: o; ref=>interface-list;
+in-interface: unset; o; ref=>interface;
+in-interface-list: unset; o; ref=>interface-list;
 jump-target: o; ref=>firewall-chain
-out-interface: o; ref=>interface;
-out-interface-list: o; ref=>interface-list;
-protocol: o
-src-address: o
+out-interface: unset; o; ref=>interface;
+out-interface-list: unset; o; ref=>interface-list;
+protocol: unset; o
+src-address: unset; o
 dynamic: ro; bool
 invalid: ro; bool
 
@@ -23,16 +23,16 @@ action: enum= accept, add-dst-to-address-list, add-src-to-address-list, dst-nat,
 chain: ref=firewall-chain
 comment: o
 disabled: bool; default=false
-dst-address: o
+dst-address: unset; o
 dst-port: o
-in-interface: o; ref=>interface;
-in-interface-list: o; ref=>interface-list;
+in-interface: unset; o; ref=>interface;
+in-interface-list: unset; o; ref=>interface-list;
 jump-target: o; ref=>firewall-chain
-out-interface: o; ref=>interface;
-out-interface-list: o; ref=>interface-list;
-protocol: o
-src-address: o
-to-addresses: o
-to-ports: o
+out-interface: unset; o; ref=>interface;
+out-interface-list: unset; o; ref=>interface-list;
+protocol: unset; o
+src-address: unset; o
+to-addresses: unset; o
+to-ports: unset; o
 dynamic: ro; bool
 invalid: ro; bool

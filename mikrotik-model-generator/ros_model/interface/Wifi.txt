@@ -367,9 +367,9 @@ comment: o
 common-name-regexp: o
 disabled: bool; default=false
 identity-regexp: o
-master-configuration: o;ref=>wifi-configuration
+master-configuration: unset; o;ref=>wifi-configuration
 name-format: o
-radio-mac: o;MacAddress
+radio-mac: unset; o;MacAddress
 slave-configurations: o;mu;ref=>wifi-configuration
 slave-name-format: o
 supported-bands: mu; WifiChannelBand;

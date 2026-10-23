@@ -37,9 +37,21 @@ without an error and refuses `datapath.bridge=""` as ambiguous (7.24.5), so a da
 not be taken off again. The legacy `/caps-man/datapath` is alike: `bridge=""` is ignored,
 `vlan-id=""` refused, `!bridge !vlan-id !vlan-mode` clear them. `/interface/wifi/datapath`
 refuses `""` on all its fields but `bridge` (taken as `none`) and clears them all with `!field`
-(7.24.5; `vlan-id=""` stopped an apply on router-stall-burri). Not every field can be unset
-this way (`!comment` is accepted but leaves the comment), so it is only on the fields where it
-was checked on a CHR.
+(7.24.5; `vlan-id=""` stopped an apply on router-stall-burri). The wifi configuration and
+radio refuse `""` on their references with two of a kind ("ambiguous value", `security`,
+`channel`, `aaa`, `interworking`, `steering`, `datapath.interface-list`) and on every number,
+flag, duration and choice of their groups (`security.connect-priority`). A sweep of every
+optional field of the modeled menus on a CHR 7.24.5 (`set` on an empty `[find]` validates the
+value without changing anything) found more refusing `""`; where `!field` cleared the value of a
+real entry (set, then `!field`, then read back empty) they are `unset` too: the match fields of
+`/ip/firewall/filter`, `nat` and `/ipv6/firewall/filter` (a defconf rule's `in-interface-list`,
+paired with a rule without one), the legacy CAPsMAN configuration, datapath and security, the
+wifi provisioning's `master-configuration` and `radio-mac`, the OSPF area's `default-cost` and
+`nssa-translator`, the instance's `domain-tag`, `originate-default`, `use-dn`, and the VXLAN's
+`interface` and `group` (only together). Not every field can be unset this
+way (`!comment` is accepted but leaves the comment), so it is only on the fields where it was
+checked on a CHR. Fields that take neither (`horizon`, `hw` of a bridge port, the bridge's
+multicast settings, most of `/ip/dhcp-server`) need a value in the target or `default=`.
 
 `sort_mutations` orders the mutations from what each one needs and takes, besides the names it
 refers to (`depends`) and makes (`provides`). An update depends only on the references it writes

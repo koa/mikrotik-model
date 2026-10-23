@@ -5,8 +5,8 @@ arp-timeout: o; auto; Duration
 comment: o
 disabled: bool
 dont-fragment: enum= disabled, enabled, inherit;
-group: o; IpAddr
-interface: o; ref=>interface;
+group: unset; o; IpAddr
+interface: unset; o; ref=>interface;
 local-address: o; IpAddr
 loop-protect: enum= default, off, on; 
 loop-protect-disable-time: Duration

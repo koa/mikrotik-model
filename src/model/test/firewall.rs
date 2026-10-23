@@ -70,3 +70,34 @@ fn instance_from_routeros_6_is_in_main() {
     ]);
     assert_eq!(&*instance.vrf, b"main".as_slice());
 }
+
+/// A defconf rule paired with one of the target that has no interface list loses it by
+/// `!in-interface-list`: RouterOS refuses `in-interface-list=""` ("ambiguous value", with more
+/// than one list; with one it would match that one). Every match field the API refuses empty
+/// takes `!field`, checked on rules of a CHR 7.24.5 (set, then `!field`, then read empty).
+#[test]
+fn a_rule_losing_its_match_fields_unsets_them() {
+    use crate::resource::CfgResource;
+    let base: &[(&[u8], &[u8])] = &[(b"chain", b"input"), (b"action", b"drop")];
+    let plain: IpFirewallFilterCfg = build::<IpFirewallFilterCfgBuilder, _>(base);
+    let defconf: IpFirewallFilterCfg = build::<IpFirewallFilterCfgBuilder, _>(
+        &[
+            base,
+            &[
+                (b"in-interface-list", b"!LAN"),
+                (b"protocol", b"tcp"),
+                (b"src-address", b"10.0.0.0/8"),
+            ],
+        ]
+        .concat(),
+    );
+    let mut keys = plain
+        .changed_values(&defconf)
+        .map(|field| {
+            assert!(field.value.is_empty(), "{}", String::from_utf8_lossy(field.key));
+            String::from_utf8_lossy(field.key).into_owned()
+        })
+        .collect::<Vec<_>>();
+    keys.sort();
+    assert_eq!(keys, ["!in-interface-list", "!protocol", "!src-address"]);
+}

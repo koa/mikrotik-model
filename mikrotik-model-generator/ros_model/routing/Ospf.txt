@@ -1,11 +1,11 @@
 /routing/ospf/area:can-add;
 area-id: Ipv4Addr
 comment: o
-default-cost: o; u32
+default-cost: unset; o; u32
 disabled: bool
 instance: ref=>ospf-instance
 name: id; ref=ospf-area
-nssa-translator: o; enum= candidate, no, yes;
+nssa-translator: unset; o; enum= candidate, no, yes;
 type: enum= default, nssa, stub; 
 about: ro; 
 dynamic: ro; bool
@@ -26,18 +26,18 @@ inactive: ro; bool
 comment: o
 disabled: bool
 domain-id: o; 
-domain-tag: o; u32
+domain-tag: unset; o; u32
 in-filter-chain: o; ref=>routing-filter;
 mpls-te-address: o; 
 mpls-te-area: o; 
 name: id; ref=ospf-instance
-originate-default: o; RoutingOriginateDefault
+originate-default: unset; o; RoutingOriginateDefault
 out-filter-chain: o; ref=>routing-filter; 
 out-filter-select: o; ref=>routing-filter-select; 
 redistribute: mu;RoutingRedistribute
 router-id: o
 routing-table: o; ref=>routing-table;
-use-dn: o; bool
+use-dn: unset; o; bool
 version: enum= 2, 3; 
 vrf: ref=>routing-table; default=main
 in-filter: o; ref=>routing-filter; 

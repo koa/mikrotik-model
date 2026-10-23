@@ -1,13 +1,13 @@
 /caps-man/datapath:can-add;
 arp: o; disabled; enum= enabled, local-proxy-arp, proxy-arp, reply-only;
 bridge: o; unset; ref=>interface
-bridge-cost: o; u32
-bridge-horizon: o; none;
-client-to-client-forwarding: o; bool
+bridge-cost: unset; o; u32
+bridge-horizon: unset; o; none;
+client-to-client-forwarding: unset; o; bool
 comment: o
-interface-list: o; none; ref=>interface-list
+interface-list: unset; o; none; ref=>interface-list
 l2mtu: o; u16
-local-forwarding: o; bool
+local-forwarding: unset; o; bool
 mtu: o; u16
 name: id; ref=caps-datapath
 openflow-switch: o

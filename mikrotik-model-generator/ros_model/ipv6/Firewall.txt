@@ -48,56 +48,56 @@ address-list: o;ref=>ipv6-addresslist;
 address-list-timeout: o;Duration
 chain: ref=firewall-chain
 comment: o
-connection-bytes: o
-connection-limit: o
+connection-bytes: unset; o
+connection-limit: unset; o
 connection-mark: o
 connection-nat-state: o
-connection-rate: o
+connection-rate: unset; o
 connection-state: o
-connection-type: o
+connection-type: unset; o
 content: o
 disabled: o;bool
-dscp: o
-dst-address: o
+dscp: unset; o
+dst-address: unset; o
 dst-address-list: o; ref=>address-list
 dst-address-type: o
-dst-limit: o
+dst-limit: unset; o
 dst-port: o
 headers: o
-hop-limit: o
+hop-limit: unset; o
 icmp-options: o
-in-bridge-port: o; ref=>interface; 
-in-bridge-port-list: o; ref=>interface-list; 
-in-interface: o; ref=>interface; 
-in-interface-list: o;ref=>interface-list; 
-ingress-priority: o
-ipsec-policy: o
+in-bridge-port: unset; o; ref=>interface;
+in-bridge-port-list: unset; o; ref=>interface-list;
+in-interface: unset; o; ref=>interface;
+in-interface-list: unset; o;ref=>interface-list;
+ingress-priority: unset; o
+ipsec-policy: unset; o
 jump-target: o; ref=>firewall-chain
-limit: o
+limit: unset; o
 log: o; bool
 log-prefix: o
-nth: o
-out-bridge-port: o; ref=>interface; 
-out-bridge-port-list: o; ref=>interface-list; 
-out-interface: o; ref=>interface; 
-out-interface-list: o; ref=>interface-list 
+nth: unset; o
+out-bridge-port: unset; o; ref=>interface;
+out-bridge-port-list: unset; o; ref=>interface-list;
+out-interface: unset; o; ref=>interface;
+out-interface-list: unset; o; ref=>interface-list
 packet-mark: o
-packet-size: o
-per-connection-classifier: o
+packet-size: unset; o
+per-connection-classifier: unset; o
 port: o
-priority: o
-protocol: o
-random: o
+priority: unset; o
+protocol: unset; o
+random: unset; o
 reject-with: o; enum= icmp-address-unreachable, icmp-admin-prohibited, icmp-err-src-routing-header, icmp-headers-too-long, icmp-no-route, icmp-not-neighbour, icmp-port-unreachable, tcp-reset; 
 routing-mark: o
-src-address: o
+src-address: unset; o
 src-address-list: o; ref=>address-list
 src-address-type: o
-src-mac-address: o
+src-mac-address: unset; o
 src-port: o
 tcp-flags: o
-tcp-mss: o
-time: o
+tcp-mss: unset; o
+time: unset; o
 tls-host: o
 invalid: ro; bool
 about: ro; 
