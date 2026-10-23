@@ -68,7 +68,9 @@ VNIs) are a `MissingDependenciesError` without missing dependencies, not a scrip
   VXLAN, which may wait for the old one to go.
 
 `default=<value>` gives a required field the value RouterOS leaves out: a firewall rule added
-without `disabled` doesn't report it (`default=false`), nor does the OSPF instance an update from
+without `disabled` doesn't report it (`default=false`), nor does an entry of the wifi menus
+(`aaa`, `channel`, `configuration`, `datapath`, `interworking`, `provisioning`, `security`,
+`steering`; 7.24.5, `multi-passphrase` does), nor does the OSPF instance an update from
 RouterOS 6 brings report `vrf` (`default=main`). A dhcp-client with
 `add-default-route=no` hides `default-route-distance` and refuses to clear it (`=""`,
 `!default-route-distance`), so it is required with RouterOS' own value (`default=1`, what a new

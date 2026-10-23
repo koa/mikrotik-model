@@ -126,7 +126,7 @@ running: ro; bool
 called-format: o
 calling-format: o
 comment: 
-disabled: bool
+disabled: bool; default=false
 interim-update: o;disabled;
 mac-caching: o;disabled;
 name: ref=wifi-aaa
@@ -197,7 +197,7 @@ about: ro;
 /interface/wifi/channel:can-add;
 band: o; WifiChannelBand;
 comment: 
-disabled: bool
+disabled: bool; default=false
 frequency: mu; range; u16
 name: ref=wifi-channel
 reselect-interval: o; range-dot; Duration
@@ -234,7 +234,7 @@ datapath.bridge-horizon: o;none;
 datapath.client-isolation: o;bool
 datapath.interface-list: o;none;ref=>interface-list
 datapath.vlan-id: o;none; unset; u16
-disabled: bool
+disabled: bool; default=false
 distance: o;u32
 dtim-period: o;u8
 hide-ssid: o;bool
@@ -320,7 +320,7 @@ bridge-cost: o; unset; u32
 bridge-horizon: o; none; unset;
 client-isolation: o; unset; bool
 comment: o
-disabled: bool
+disabled: bool; default=false
 interface-list: o; none; unset; ref=>interface-list
 name: id;ref=wifi-datapath
 vlan-id: o; none; unset; u16
@@ -331,7 +331,7 @@ about: ro;
 authentication-types: mu; WifiAuthenticationType;
 comment: 
 connection-capabilities: mu; u32
-disabled: bool
+disabled: bool; default=false
 domain-names: mu
 esr: o; bool
 hessid: o; MacAddress
@@ -365,7 +365,7 @@ action: enum= create-disabled, create-dynamic-enabled, create-enabled, none;
 address-ranges: mu;range;IpAddr
 comment: o
 common-name-regexp: o
-disabled: bool
+disabled: bool; default=false
 identity-regexp: o
 master-configuration: o;ref=>wifi-configuration
 name-format: o
@@ -435,7 +435,7 @@ connect-group: o
 connect-priority: o; u32
 dh-groups: o;mu;enum=19,20,21
 disable-pmkid: o; bool
-disabled: bool
+disabled: bool; default=false
 eap-accounting: o;bool
 eap-anonymous-identity: o
 eap-certificate-mode:o; WifiSecurityEapCertificateMode;
@@ -478,7 +478,7 @@ expired: ro;
 
 /interface/wifi/steering:can-add;
 comment: o
-disabled: bool
+disabled: bool; default=false
 name: ref=wifi-steering
 neighbor-group: o
 rrm: o; bool
