@@ -51,7 +51,10 @@ holds the names it gives up (`releases`: a removal, a rename), the `unique` valu
 frees, the `blocks-removal` references it drops, and the name its `[find ...]` looks for
 (`finds`, `KeyedResource::key_reference`). A mutation runs after the ones still holding a name it
 provides or a value it claims, and a name is given up only after the mutations that drop a
-blocking reference to it or find by it. Mutations waiting on each other (two VXLANs swapping their
+blocking reference to it or find by it. `/ipv6/nd` is keyed by its `interface`, a `ref=>interface`: found
+after its VLAN interface was removed, `[find interface=vlan1-lan]` finds nothing (the entry names
+`*30` then, CHR 7.24.5) and the `set` does nothing without an error (1og-sw1 sent no router
+advertisement after the apply). The own entry's `all` is RouterOS', a seed of the sort. Mutations waiting on each other (two VXLANs swapping their
 VNIs) are a `MissingDependenciesError` without missing dependencies, not a script that fails.
 - `unique`: no two entries of the menu hold the value; `vni` of `/interface/vxlan` (7.24.5
   refuses a second VXLAN with a VNI, regardless of the port). A VXLAN renamed while keeping its

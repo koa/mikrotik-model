@@ -1701,7 +1701,7 @@ mod tests {
         let mutations =
             generate_add_update_remove_by_key_reusing(&current, target.iter().map(Cow::Borrowed))
                 .collect::<Vec<_>>();
-        let sorted = ResourceMutation::sort_mutations(&mutations).expect("sorted");
+        let sorted = sorted_with_all(&mutations);
         let operations = sorted.iter().map(|m| m.operation.clone()).collect::<Vec<_>>();
         assert_eq!(
             operations,
@@ -1727,7 +1727,45 @@ mod tests {
         assert_eq!(sorted[0].ordering.frees.len(), 1);
         assert_eq!(sorted[1].ordering.claims.len(), 1);
         let reversed = [sorted[1].clone(), sorted[0].clone()];
-        let resorted = ResourceMutation::sort_mutations(&reversed).expect("sorted");
+        let resorted = sorted_with_all(&reversed);
         assert_eq!(resorted[0].operation, sorted[0].operation);
+    }
+
+    /// `all`, the interface of `/ipv6/nd`'s own entry, is RouterOS' own
+    fn sorted_with_all<'a>(mutations: &'a [ResourceMutation<'a>]) -> Vec<&'a ResourceMutation<'a>> {
+        ResourceMutation::sort_mutations_with_provided_dependencies(mutations, [interface(b"all")])
+            .expect("sorted")
+            .into_iter()
+            .collect()
+    }
+
+    /// 1og-sw1: the entries on VLAN interfaces the same apply removes are found before they
+    /// go. Found after, `[find interface=vlan1-lan]` finds nothing (the entry names `*30`
+    /// then, CHR 7.24.5), the `set` to `all` did nothing without an error, and the device
+    /// sent no router advertisement after the apply.
+    #[test]
+    fn nd_entries_are_found_before_their_interface_goes() {
+        use crate::model::{Ipv6NdByInterface, Ipv6NdCfg};
+        let current = [
+            Ipv6NdByInterface(Ipv6NdCfg::new(b"vlan1-lan".into())),
+            Ipv6NdByInterface(Ipv6NdCfg::new(b"vlan6-work".into())),
+        ];
+        let target = [Ipv6NdByInterface(Ipv6NdCfg::new(b"all".into()))];
+        let mut mutations =
+            generate_add_update_remove_by_key_reusing(&current, target.iter().map(Cow::Borrowed))
+                .collect::<Vec<_>>();
+        let removals = [b"vlan1-lan".as_slice(), b"vlan6-work"].map(|name| ResourceMutation {
+            resource: b"interface/vlan",
+            ordering: MutationOrdering {
+                releases: Box::new([interface(name)]),
+                ..Default::default()
+            },
+            ..remove(b"name", name)
+        });
+        mutations.splice(0..0, removals);
+        let sorted = sorted_with_all(&mutations);
+        let position = |resource: &[u8]| sorted.iter().position(|m| m.resource == resource);
+        let last_nd = sorted.iter().rposition(|m| m.resource == b"ipv6/nd").unwrap();
+        assert!(last_nd < position(b"interface/vlan").unwrap(), "{sorted:?}");
     }
 }
