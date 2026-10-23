@@ -123,4 +123,6 @@ its `mod.rs`; not as `*_tests.rs` next to the model.
 - Verify with `cargo clippy --all-targets` in addition to `cargo check`/`cargo test`, here and
   in `mikrotik-model-generator/` (its tests and lints don't run from the crate root). Both are
   without warnings, the generated code included: a generator change that brings one back
-  should emit code clippy accepts, not an `allow`.
+  should emit code clippy accepts, not an `allow`. The generated code is the same on every
+  build (`generates_the_same_code_each_time`): what it iterates is ordered (`BTreeMap`), not a
+  `HashMap`.

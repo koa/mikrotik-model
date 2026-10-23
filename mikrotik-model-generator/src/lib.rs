@@ -451,6 +451,25 @@ mod test {
     use std::io::read_to_string;
     use syn::__private::ToTokens;
 
+    /// The same model generates the same file: a map iterated in its random order made every
+    /// build's `mikrotik-model.rs` a different one.
+    #[test]
+    fn generates_the_same_code_each_time() {
+        let first = prettyplease::unparse(&generator());
+        let second = prettyplease::unparse(&generator());
+        if first != second {
+            let at = first
+                .lines()
+                .zip(second.lines())
+                .position(|(a, b)| a != b)
+                .unwrap_or_default();
+            panic!(
+                "differs at line {at}: {:?} / {:?}",
+                first.lines().nth(at),
+                second.lines().nth(at)
+            );
+        }
+    }
     #[test]
     fn test_read_enums() {
         let file = File::open("ros_model/enums.yaml").unwrap();

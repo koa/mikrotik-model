@@ -1,7 +1,7 @@
 use convert_case::{Case, Casing};
 use proc_macro2::{Ident, Literal, Span, TokenStream};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use syn::{
     Stmt,
     __private::ToTokens,
@@ -1204,7 +1204,7 @@ impl Entity {
             let base_type = self.base_field_type(field);
             fields_of_type
                 .entry(reference_ident)
-                .or_insert_with(HashMap::new)
+                .or_insert_with(BTreeMap::new)
                 .entry(base_type.to_token_stream().to_string())
                 .or_insert_with(|| (base_type, Vec::new()))
                 .1
@@ -2337,7 +2337,7 @@ impl Field {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Default)]
-pub struct EnumDescriptions(pub HashMap<Box<str>, Box<[Box<str>]>>);
+pub struct EnumDescriptions(pub BTreeMap<Box<str>, Box<[Box<str>]>>);
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Default)]
 pub enum Reference {
