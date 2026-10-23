@@ -1,12 +1,12 @@
 use crate::model::{Entity, EnumDescriptions};
 use convert_case::{Case, Casing};
 use include_dir::{include_dir, Dir};
-use lazy_static::lazy_static;
 use proc_macro2::{Ident, Literal, Span};
 use std::{
     collections::HashSet,
     collections::{BTreeMap, HashMap},
     hash::{DefaultHasher, Hash, Hasher},
+    sync::LazyLock,
     vec,
 };
 use syn::{
@@ -16,15 +16,15 @@ use syn::{
 
 pub mod macros;
 pub mod model;
-lazy_static! {
-    static ref KEYWORDS: HashSet<&'static str> = HashSet::from([
+static KEYWORDS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    HashSet::from([
         "as", "async", "await", "break", "const", "continue", "crate", "dyn", "else", "enum",
         "extern", "false", "fn", "for", "if", "impl", "in", "let", "loop", "match", "mod", "move",
         "mut", "pub", "ref", "return", "Self", "self", "static", "struct", "super", "trait",
         "true", "type", "union", "unsafe", "use", "where", "while", "abstract", "become", "box",
         "do", "final", "macro", "override", "priv", "try", "typeof", "unsized", "virtual", "yield",
-    ]);
-}
+    ])
+});
 
 //static ROS_MODEL_DIR: Dir = include_dir!("mikrotik-model-generator/ros_model");
 static ROS_MODEL_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/ros_model");
