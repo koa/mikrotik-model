@@ -71,7 +71,10 @@ RouterOS 6 brings report `vrf` (`default=main`). A dhcp-client with
 `add-default-route=no` hides `default-route-distance` and refuses to clear it (`=""`,
 `!default-route-distance`), so it is required with RouterOS' own value (`default=1`, what a new
 client gets; the manual names none): the target sets 1 there, which is accepted and then
-matches. An OSPF interface template left from an older configuration (inactive, a gone
+matches. A bridge likewise hides its STP settings without STP (`priority`, `forward-delay`,
+`max-message-age`, `transmit-hold-count`) and the MSTP ones without MSTP (`max-hops`,
+`region-revision`), keeps them and rejects an empty value (`forward-delay=""`, 7.24.5), so they
+are required with RouterOS's defaults. An OSPF interface template left from an older configuration (inactive, a gone
 interface, `networks=`; 7.23.8 after an update from 7.21.5) reports only `area`, `interfaces`,
 `networks` and `priority`, so its cost, intervals, `instance-id`, `type` and `disabled` have
 RouterOS's values as `default=` (`src/model/test/ospf.rs`; a CHR 7.24.5 reports them all, even for such an

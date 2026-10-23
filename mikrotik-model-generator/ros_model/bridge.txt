@@ -65,7 +65,7 @@ dhcp-snooping: bool
 disabled: bool
 ether-type: o; enum= 0x8100, 0x88a8, 0x9100;
 fast-forward: bool
-forward-delay: o; Duration
+forward-delay: Duration; default=15s
 forward-reserved-addresses: o; bool
 frame-types: o; VlanFrameTypes
 igmp-snooping: bool
@@ -73,9 +73,9 @@ igmp-version: o; enum= 2, 3;
 ingress-filtering: o; bool
 last-member-interval: o; Duration
 last-member-query-count: o; u32
-max-hops: o; u8
+max-hops: u8; default=20
 max-learned-entries: unlimited; auto; u32
-max-message-age: o; Duration
+max-message-age: Duration; default=20s
 membership-interval: o; Duration
 mld-version: o; enum= 1, 2;
 mtu: auto; u16
@@ -84,17 +84,17 @@ multicast-router: o; enum= disabled, permanent, temporary-query;
 mvrp: o; k; bool
 name: id; ref=interface;
 port-cost-mode: enum= short, long;
-priority: o; hex; u16
+priority: hex; u16; default=0x8000
 protocol-mode: enum= none, mstp, rstp, stp;
 pvid: o; u16
 querier-interval: o; Duration
 query-interval: o; Duration
 query-response-interval: o; Duration
 region-name: o;
-region-revision: o; u16
+region-revision: u16; default=0
 startup-query-count: o; u32
 startup-query-interval: o; Duration
-transmit-hold-count: o; u8
+transmit-hold-count: u8; default=6
 vlan-filtering: bool
 l2mtu: ro;u16
 mac-address: o;k;MacAddress
