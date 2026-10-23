@@ -1345,7 +1345,10 @@ where
 /// [`generate_add_update_remove_by_key`] for a menu where RouterOS refuses to remove an
 /// entry of its own (the first of `/ipv6/nd`, `default=yes`) but lets its key be changed: the
 /// entries the target no longer has take the ones it adds, in the device's order (its own
-/// entry first), by a `set` of the key.
+/// entry first), by a `set` of the key. Where the target adds none and the device's own entry
+/// would still go, it takes the key of an entry the target keeps instead, which goes in its
+/// place (wrk-sw1: the own entry on a removed interface `*1B`, a second one on `all`); the key
+/// being `unique`, the removal comes first.
 pub fn generate_add_update_remove_by_key_reusing<'c, 't, 'r, Target, Current>(
     current: &'c [Current],
     target: impl IntoIterator<Item = impl Into<Cow<'t, Target>>>,
@@ -1367,8 +1370,17 @@ where
     let mut new_entries = new_entries.into_vec();
     let mut matched_entries = matched_entries.into_vec();
     matched_entries.extend(orphaned_entries.iter().copied().zip(new_entries.drain(..reused)));
+    let mut orphaned_entries = orphaned_entries[reused..].to_vec();
+    if let Some(own) = current.first()
+        && let Some(index) = orphaned_entries.iter().position(|o| std::ptr::eq(*o, own))
+        && let Some(taken) = matched_entries.iter().position(|(c, _)| !std::ptr::eq(*c, own))
+    {
+        let (kept, target) = matched_entries.remove(taken);
+        orphaned_entries[index] = kept;
+        matched_entries.push((own, target));
+    }
     UpdatePairing {
-        orphaned_entries: orphaned_entries[reused..].into(),
+        orphaned_entries: orphaned_entries.into(),
         matched_entries: matched_entries.into(),
         new_entries: new_entries.into(),
     }
@@ -1673,5 +1685,49 @@ mod tests {
                 value: b"all".as_slice().into(),
             }]
         );
+    }
+
+    /// wrk-sw1: the own entry on a removed interface (`*1B`) and a second one on `all`, the
+    /// target `all` only: the second one goes and the own entry takes `all`, after its removal
+    /// (RouterOS has one entry per interface: "configuration for this interface already exists")
+    #[test]
+    fn own_nd_entry_takes_the_key_of_a_second_one() {
+        use crate::model::{Ipv6NdByInterface, Ipv6NdCfg};
+        let current = [
+            Ipv6NdByInterface(Ipv6NdCfg::new(b"*1B".into())),
+            Ipv6NdByInterface(Ipv6NdCfg::new(b"all".into())),
+        ];
+        let target = [Ipv6NdByInterface(Ipv6NdCfg::new(b"all".into()))];
+        let mutations =
+            generate_add_update_remove_by_key_reusing(&current, target.iter().map(Cow::Borrowed))
+                .collect::<Vec<_>>();
+        let sorted = ResourceMutation::sort_mutations(&mutations).expect("sorted");
+        let operations = sorted.iter().map(|m| m.operation.clone()).collect::<Vec<_>>();
+        assert_eq!(
+            operations,
+            [
+                ResourceMutationOperation::RemoveByKey(KeyValuePair {
+                    key: b"interface",
+                    value: b"all".as_slice().into(),
+                }),
+                ResourceMutationOperation::UpdateByKey(KeyValuePair {
+                    key: b"interface",
+                    value: b"*1B".as_slice().into(),
+                }),
+            ]
+        );
+        assert_eq!(
+            sorted[1].fields.as_ref(),
+            [KeyValuePair {
+                key: b"interface",
+                value: b"all".as_slice().into(),
+            }]
+        );
+        // the order holds through the sort: the removal frees `all`, the update claims it
+        assert_eq!(sorted[0].ordering.frees.len(), 1);
+        assert_eq!(sorted[1].ordering.claims.len(), 1);
+        let reversed = [sorted[1].clone(), sorted[0].clone()];
+        let resorted = ResourceMutation::sort_mutations(&reversed).expect("sorted");
+        assert_eq!(resorted[0].operation, sorted[0].operation);
     }
 }
