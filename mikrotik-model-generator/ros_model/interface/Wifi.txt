@@ -315,15 +315,15 @@ tx-power: o; u8
 about: ro; 
 
 /interface/wifi/datapath:can-add;id=name
-bridge: o; none; ref=> interface
-bridge-cost: o; u32
-bridge-horizon: o;none;
-client-isolation: o;bool
+bridge: o; none; unset; ref=> interface
+bridge-cost: o; unset; u32
+bridge-horizon: o; none; unset;
+client-isolation: o; unset; bool
 comment: o
 disabled: bool
-interface-list: o; none; ref=>interface-list
+interface-list: o; none; unset; ref=>interface-list
 name: id;ref=wifi-datapath
-vlan-id: o; none; u16
+vlan-id: o; none; unset; u16
 about: ro; 
 
 /interface/wifi/interworking:can-add;

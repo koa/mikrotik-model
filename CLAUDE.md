@@ -35,7 +35,9 @@ works there.
 `set ... !field`) instead of `field=""`: RouterOS ignores `datapath=""` on `/interface/wifi`
 without an error and refuses `datapath.bridge=""` as ambiguous (7.24.5), so a datapath could
 not be taken off again. The legacy `/caps-man/datapath` is alike: `bridge=""` is ignored,
-`vlan-id=""` refused, `!bridge !vlan-id !vlan-mode` clear them. Not every field can be unset
+`vlan-id=""` refused, `!bridge !vlan-id !vlan-mode` clear them. `/interface/wifi/datapath`
+refuses `""` on all its fields but `bridge` (taken as `none`) and clears them all with `!field`
+(7.24.5; `vlan-id=""` stopped an apply on router-stall-burri). Not every field can be unset
 this way (`!comment` is accepted but leaves the comment), so it is only on the fields where it
 was checked on a CHR.
 
