@@ -66,7 +66,7 @@ disabled: bool
 ether-type: o; enum= 0x8100, 0x88a8, 0x9100;
 fast-forward: bool
 forward-delay: Duration; default=15s
-forward-reserved-addresses: o; bool
+forward-reserved-addresses: o; k; bool
 frame-types: o; VlanFrameTypes
 igmp-snooping: bool
 igmp-version: o; enum= 2, 3;
