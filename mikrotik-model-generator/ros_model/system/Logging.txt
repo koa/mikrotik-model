@@ -5,10 +5,13 @@ target: enum=disk,echo,email,memory,remote
 remote: o; IpAddr
 remote-port: o; u16
 src-address: o; IpAddr
-remote-log-format: o; enum=default,bsd-syslog,cef
+remote-log-format: o; enum=default,syslog,cef
 remote-protocol: o; enum=tcp,udp
 cef-event-delimiter: o
 syslog-time-format: o
+syslog-facility: ro; o
+syslog-severity: ro; o
+add-topics-string: ro; o
 vrf: o
 memory-lines: ro; o
 memory-stop-on-full: ro; o

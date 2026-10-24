@@ -1,7 +1,10 @@
 //! Static decode tests for `/system/logging` and its actions (`ros_model/system/Logging.txt`),
 //! with the API output of CHR 7.24.5.
 
-use crate::model::{SystemLogging, SystemLoggingAction, SystemLoggingActionBuilder, SystemLoggingBuilder};
+use crate::model::{
+    SystemLogging, SystemLoggingAction, SystemLoggingActionBuilder, SystemLoggingActionRemoteLogFormat,
+    SystemLoggingBuilder,
+};
 use crate::resource::{AppendFieldResult, DeserializeRosBuilder, DeserializeRosResource};
 
 fn build<B, R>(fields: &[(&[u8], &[u8])]) -> R
@@ -57,6 +60,33 @@ fn decodes_the_actions_of_routeros() {
     assert_eq!(remote.cfg.remote_port, Some(514));
     // an empty delimiter is reported as none: a target without one sends `=""`
     assert_eq!(remote.cfg.cef_event_delimiter, None);
+}
+
+/// RouterOS's own format (as a CHR 7.24.5 reports it, with the fields that only it has): a
+/// device set up by hand has it, its config is generated all the same.
+#[test]
+fn decodes_an_action_in_syslog_format() {
+    let remote: SystemLoggingAction = build::<SystemLoggingActionBuilder, _>(&[
+        (b".id", b"*4"),
+        (b"name", b"remote"),
+        (b"target", b"remote"),
+        (b"remote", b"192.0.2.1"),
+        (b"remote-port", b"514"),
+        (b"src-address", b"0.0.0.0"),
+        (b"remote-log-format", b"syslog"),
+        (b"remote-protocol", b"udp"),
+        (b"syslog-time-format", b"bsd-syslog"),
+        (b"syslog-facility", b"daemon"),
+        (b"syslog-severity", b"auto"),
+        (b"add-topics-string", b"no"),
+        (b"vrf", b"main"),
+        (b"default", b"false"),
+        (b"managed", b"false"),
+    ]);
+    assert_eq!(
+        remote.cfg.remote_log_format,
+        Some(SystemLoggingActionRemoteLogFormat::Syslog)
+    );
 }
 
 #[test]
