@@ -18,7 +18,7 @@ insert-queue-before: o
 interface: ref=>interface; 
 lease-script: o
 lease-time: o
-name: id
+name: id; ref=dhcp-server
 parent-queue: o; none; 
 relay: o; Ipv4Addr
 server-address: o;Ipv4Addr
@@ -49,32 +49,41 @@ store-leases-disk:
 .id: ro; Id; id
 address: IpAddr;
 address-lists: mu; ref=>address-list
-allow-dual-stack-queue: o; bool
-always-broadcast: o; bool
-block-access: o; bool
+# the flags refuse "" ("must be either yes or no", CHR 7.24.5); RouterOS shows them only when yes
+allow-dual-stack-queue: bool; default=false
+always-broadcast: bool; default=false
+block-access: bool; default=false
+# a lease is for a MAC or a client ID; the other one is missing then
 client-id: o
 comment: o
 dhcp-option: o
 dhcp-option-set: o; none;
 disabled: bool
-insert-queue-before: o;
-lease-time: Duration;o
-mac-address: MacAddress
-parent-queue: none; o
-queue-type: o
+# "" is ambiguous, `!field` takes them away (CHR 7.24.5)
+insert-queue-before: o; unset
+# "" is refused ("invalid time value"), 0s takes it away; RouterOS shows it only when set
+lease-time: Duration; default=0s
+mac-address: o; MacAddress
+# missing on a new lease, `none` once cleared by "" (CHR 7.24.5): both are none
+parent-queue: none; default=none
+queue-type: o; unset
 rate-limit: o
 routes: o
-server: 
-use-src-mac: bool; o
+# missing for a lease of all servers; "" is ambiguous and `!server` a syntax error, `all` makes
+# it one again (CHR 7.24.5)
+server: o; ref=>dhcp-server
+use-src-mac: bool; default=false
 dynamic: ro; bool
 status: ro; o
 active-server: ro; o
 active-address: o; ro;
 expires-after: ro; Duration; o
 agent-circuit-id: ro; o
+active-agent-circuit-id: ro; o
 about: ro; o
 host-name: ro; o
 agent-remote-id: ro; o
+active-agent-remote-id: ro; o
 blocked: ro; bool; o
 src-mac-address: ro;MacAddress; o
 age: ro; Duration; o

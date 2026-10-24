@@ -4,6 +4,7 @@ mod capsman;
 mod dhcp;
 mod ethernet;
 mod firewall;
+mod lease;
 mod logging;
 mod ospf;
 mod reference;

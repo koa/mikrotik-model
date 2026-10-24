@@ -52,6 +52,12 @@ wifi provisioning's `master-configuration` and `radio-mac`, the OSPF area's `def
 way (`!comment` is accepted but leaves the comment), so it is only on the fields where it was
 checked on a CHR. Fields that take neither (`horizon`, `hw` of a bridge port, the bridge's
 multicast settings, most of `/ip/dhcp-server`) need a value in the target or `default=`.
+The static DHCP leases (`/ip/dhcp-server/lease`, keyed by `address`) are such a menu (CHR
+7.24.5, the notes in `DhcpServer.txt`): the flags refuse `""` and are reported only when on
+(`default=false`, cleared with `no`), `lease-time` takes `0s`, not `""`, `parent-queue=""`
+reads back as `none` (`none; default=none`), `queue-type` and `insert-queue-before` take only
+`!field`, and `server=""` is ambiguous while `server=all` drops the field, so `server` is
+optional and a target always names one. A lease by client ID has no `mac-address`.
 
 `sort_mutations` orders the mutations from what each one needs and takes, besides the names it
 refers to (`depends`) and makes (`provides`). An update depends only on the references it writes
