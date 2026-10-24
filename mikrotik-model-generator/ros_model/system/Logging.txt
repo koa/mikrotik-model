@@ -1,0 +1,32 @@
+/system/logging/action:can-add;
+.id: ro; Id
+name: id; ref=logging-action
+target: enum=disk,echo,email,memory,remote
+remote: o; IpAddr
+remote-port: o; u16
+src-address: o; IpAddr
+remote-log-format: o; enum=default,bsd-syslog,cef
+remote-protocol: o; enum=tcp,udp
+cef-event-delimiter: o
+syslog-time-format: o
+vrf: o
+memory-lines: ro; o
+memory-stop-on-full: ro; o
+disk-file-name: ro; o
+disk-lines-per-file: ro; o
+disk-file-count: ro; o
+disk-stop-on-full: ro; o
+remember: ro; o
+default: ro; bool
+managed: ro; o
+
+/system/logging:can-add;
+.id: ro;id;Id
+action: ref=>logging-action
+topics: mu
+prefix: o
+regex: o
+disabled: bool; default=false
+default: ro; bool
+invalid: ro; bool
+managed: ro; o

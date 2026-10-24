@@ -122,6 +122,13 @@ may be changed (`/ipv6/nd`'s first, `default=yes`, `can not remove default rule`
 target no longer has takes one it adds, in the device's order, by a `set` of the key
 (`generate_add_update_remove_by_key_reusing`).
 
+`/system/logging` and `/system/logging/action` hold entries of RouterOS's own (`default`) that it
+refuses to remove; the target has to carry them. An action reports only the fields of its
+`target` and of its `remote-log-format`: `syslog-time-format` and `cef-event-delimiter` only in
+CEF, where RouterOS refuses to clear them (`=""` is refused, `!field` is a syntax error; CHR
+7.24.5), so they are plain `o` and the target keeps the action in CEF. An empty delimiter is
+reported as none. `prefix=""` and `regex=""` of a rule clear them.
+
 `apply_mutations_via_script` runs its script with `SCRIPT_RUN_TIMEOUT` (10 min) instead of
 mikrotik-api's 120 s without a reply: `/system/script/run` answers only at the script's end.
 
