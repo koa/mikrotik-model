@@ -8,6 +8,7 @@ mod lease;
 mod logging;
 mod ospf;
 mod reference;
+mod service;
 mod socks;
 mod watchdog;
 mod wifi;

@@ -129,7 +129,9 @@ be for every `RosValue`).
 An entity with a read-only `dynamic` field is fetched without its dynamic entries (RouterOS
 makes them itself), except where the key is read-only hardware (`id=default-name`): the
 radios of a CAP that CAPsMAN manages are flagged dynamic (`/interface/wifi`, 7.23.7), its
-virtual slaves too, but only the radios have a `default-name`.
+virtual slaves too, but only the radios have a `default-name`. The exception follows the header's
+`id=`, not the read-only key alone: `/ip/service` has a read-only `name` (set, never added) but no
+`id=name`, so its dynamic entries (open connections, `socks`, `btest`) are left out.
 
 `can-add` says the menu adds entries (`/interface/wifi` adds virtual interfaces). A
 `by_key` field on a read-only key (`default-name`) still only updates: what has that key is

@@ -1,0 +1,13 @@
+# The services are RouterOS's own: they are set, never added or removed (read-only `name`). No
+# `id=name` in the header: the entries of open connections (`api` with `remote`) and of services
+# RouterOS starts itself (`socks`, `btest`, `discover`) are dynamic and left out.
+/ip/service
+.id: ro; Id;
+name: ro; id
+disabled: bool
+# RouterOS 7.24 renamed `address` to `available-from` (and still takes `address` on a set); a
+# device reports the one of its version, a host as `/32`, and neither where it is empty, i.e.
+# open to all (CHR 7.24.5); writing `address` works on both
+available-from: o
+address: o
+dynamic: ro; bool
