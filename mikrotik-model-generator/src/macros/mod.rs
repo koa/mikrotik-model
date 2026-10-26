@@ -94,7 +94,7 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
                             }
                         }
                     }
-                    TypeEntry::ById { path, keys } => match known_structs.get(path.as_str()) {
+                    TypeEntry::ById { path, keys, owned, ordered } => match known_structs.get(path.as_str()) {
                         None => {
                             accumulator.push(
                                 Error::custom("mikrotik path not found").with_span(&path.span()),
@@ -146,11 +146,9 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
                                         .push(parse_quote!(#field_name:Vec<mikrotik_model::model::#field_type>));
                                     generate_mutations_expr = chain(
                                         generate_mutations_expr,
-                                        parse_quote! {
-                                            mikrotik_model::resource::generate_add_update_remove_by_id(&from.#field_name,
+                                        reconcile_by_id(&field_name, &field_type, &owned, ordered, parse_quote! {
                                                 self.#field_name.iter().map(std::borrow::Cow::<mikrotik_model::model::#field_type>::Borrowed)
-                                            )
-                                        },
+                                            }),
                                     );
                                 } else {
                                     let mut key_type: TypeTuple = parse_quote!(());
@@ -181,11 +179,9 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
                                     );
                                     generate_mutations_expr = chain(
                                         generate_mutations_expr,
-                                        parse_quote! {
-                                            mikrotik_model::resource::generate_add_update_remove_by_id(&from.#field_name,
+                                        reconcile_by_id(&field_name, &field_type, &owned, ordered, parse_quote! {
                                                 self.#field_name.iter().map(|(#key_values,entry)|#generate_block).map(std::borrow::Cow::<mikrotik_model::model::#field_type>::Owned)
-                                            )
-                                        },
+                                            }),
                                     );
                                 }
                             } else {
@@ -331,12 +327,42 @@ struct MikrotikModelParams {
     fields: HashMap<Ident, TypeEntry>,
 }
 
+/// The mutations of a `by_id` field from its `targets`: all entries are the target's, or with
+/// `owned` only those with the prefix in their comment.
+fn reconcile_by_id(
+    field_name: &Ident,
+    field_type: &syn::Type,
+    owned: &Option<String>,
+    ordered: bool,
+    targets: TokenStream,
+) -> Expr {
+    match owned {
+        None => parse_quote! {
+            mikrotik_model::resource::generate_add_update_remove_by_id(&from.#field_name, #targets)
+        },
+        Some(prefix) => {
+            let prefix = syn::LitByteStr::new(prefix.as_bytes(), field_name.span());
+            parse_quote! {
+                mikrotik_model::resource::generate_owned_by_id(&from.#field_name, #targets, #prefix, #ordered,
+                    |entry: &mikrotik_model::model::#field_type| entry.comment.as_deref())
+            }
+        }
+    }
+}
+
 #[derive(FromMeta, Debug)]
 enum TypeEntry {
     Single(SpannedValue<String>),
     ById {
         path: SpannedValue<String>,
         keys: PathList,
+        /// only the entries whose `comment` starts with it are the target's
+        /// (`generate_owned_by_id`)
+        #[darling(default)]
+        owned: Option<String>,
+        /// with `owned`: the own entries come first, in the target's order
+        #[darling(default)]
+        ordered: bool,
     },
     ByKey {
         path: SpannedValue<String>,

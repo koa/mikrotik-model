@@ -662,6 +662,12 @@ impl<'a> ResourceMutation<'a> {
     fn waits_for(&self, other: &ResourceMutation<'_>) -> bool {
         let ordering = &self.ordering;
         let other_ordering = &other.ordering;
+        // a move orders what the other mutations of its menu leave
+        if matches!(self.operation, ResourceMutationOperation::Move { .. })
+            && other.resource == self.resource
+        {
+            return true;
+        }
         // a name it provides is still held by `other`
         self.provides.iter().any(|name| other_ordering.releases.contains(name))
             // a unique value it claims is still held by `other`
@@ -679,6 +685,13 @@ pub enum ResourceMutationOperation<'a> {
     RemoveByKey(KeyValuePair<'a>),
     UpdateSingle,
     UpdateByKey(KeyValuePair<'a>),
+    /// Puts the entries found by each key, in this order, before the entry `.id` `before`, or at
+    /// the end without one: the order of a menu where it matters (firewall rules). Runs after
+    /// every other mutation of its menu, which may add, change or remove what it finds.
+    Move {
+        entries: Box<[KeyValuePair<'a>]>,
+        before: Option<Cow<'a, [u8]>>,
+    },
 }
 
 impl<'a> ResourceMutationOperation<'a> {
@@ -692,6 +705,10 @@ impl<'a> ResourceMutationOperation<'a> {
             ResourceMutationOperation::UpdateByKey(k) => {
                 ResourceMutationOperation::UpdateByKey(k.into_owned())
             }
+            ResourceMutationOperation::Move { entries, before } => ResourceMutationOperation::Move {
+                entries: entries.into_iter().map(KeyValuePair::into_owned).collect(),
+                before: before.map(|b| Cow::Owned(b.into_owned())),
+            },
         }
     }
 }
@@ -741,6 +758,20 @@ pub async fn apply_mutation(
                 )
             })
             .await
+        }
+        ResourceMutationOperation::Move { entries, before } => {
+            for entry in entries {
+                let id = find_id_by_key(device, mutation.resource, entry).await?;
+                write_command(device, mutation.resource, b"move", |cmd| {
+                    let cmd = cmd.attribute(b"numbers".as_slice(), id.as_bytes());
+                    match before {
+                        Some(before) => cmd.attribute(b"destination".as_slice(), before.as_ref()),
+                        None => cmd,
+                    }
+                })
+                .await?;
+            }
+            Ok(())
         }
     }
 }
@@ -1263,6 +1294,114 @@ where
     <TargetIter as IntoIterator>::IntoIter: 'r,
 {
     let targets = target.into_iter().map(Into::into).collect::<Vec<Cow<'t, Target>>>();
+    let current = current.iter().collect::<Vec<_>>();
+    let paired = pair_by_id(&current, &targets, |_, _| true);
+    let (removes, updates, creates) = mutations_by_id(&current, &paired, targets, current.len());
+    removes.into_iter().chain(updates).chain(creates)
+}
+
+/// [`generate_add_update_remove_by_id`] for a menu shared with entries of others (firewall
+/// rules): only the entries whose `comment` starts with `prefix` are the target's, every other one
+/// stays as it is. The targets carry such a comment, unique in the menu. An entry of another
+/// without a comment that is a target but for the comment is taken over (by setting the comment),
+/// so a rule written before the prefix existed isn't doubled.
+///
+/// `ordered`: the own entries come first, in the target's order, before the others; a
+/// [`ResourceMutationOperation::Move`] puts them there by their comments, before the first other
+/// entry, where the order on the device isn't that already. A new entry is added at the end, so
+/// any addition moves them all.
+pub fn generate_owned_by_id<'c, 't, 'r, Target, Current, TargetIter, IntoTarget>(
+    current: &'c [Current],
+    target: TargetIter,
+    prefix: &'static [u8],
+    ordered: bool,
+    comment: fn(&Target) -> Option<&[u8]>,
+) -> impl Iterator<Item = ResourceMutation<'r>> + 'r
+where
+    'c: 'r,
+    't: 'r,
+    Current: KeyedResource<Value = Target>,
+    Target: RosResource + CfgResource + Creatable + Updatable<Current> + Clone + 'static,
+    TargetIter: IntoIterator<Item = IntoTarget>,
+    IntoTarget: Into<Cow<'t, Target>>,
+    <TargetIter as IntoIterator>::IntoIter: 'r,
+{
+    let targets = target.into_iter().map(Into::into).collect::<Vec<Cow<'t, Target>>>();
+    debug_assert!(
+        targets
+            .iter()
+            .all(|t| comment(t).is_some_and(|c| c.starts_with(prefix))),
+        "a target without the prefix would be another's on the next run"
+    );
+    let own = |c: &Current| comment(c.value()).is_some_and(|c| c.starts_with(prefix));
+    // own entries first: only they are removed when unpaired
+    let (own_entries, others): (Vec<&Current>, Vec<&Current>) = current.iter().partition(|c| own(c));
+    let adoptable = others.iter().copied().filter(|c| comment(c.value()).is_none());
+    let candidates = own_entries.iter().copied().chain(adoptable).collect::<Vec<_>>();
+    let paired = pair_by_id(&candidates, &targets, |c, update| {
+        own(c) || update.fields.iter().all(|f| f.key == b"comment")
+    });
+    let order = ordered
+        .then(|| {
+            let kept = |c: &Current| {
+                candidates
+                    .iter()
+                    .zip(&paired)
+                    .find(|(candidate, _)| std::ptr::eq(**candidate, c))
+                    .and_then(|(_, t)| *t)
+            };
+            // the device's order: the kept own entries, by their target, before every other
+            let mut first_other = None;
+            let mut last_target = None;
+            let mut in_order = true;
+            for entry in current {
+                match kept(entry) {
+                    Some(t) => {
+                        in_order &= first_other.is_none() && last_target < Some(t);
+                        last_target = Some(t);
+                    }
+                    None if !own(entry) => {
+                        first_other.get_or_insert(entry);
+                    }
+                    None => {}
+                }
+            }
+            let added = paired.iter().flatten().count() < targets.len();
+            (!in_order || added).then(|| ResourceMutation {
+                resource: Current::path(),
+                operation: ResourceMutationOperation::Move {
+                    entries: targets
+                        .iter()
+                        .map(|t| KeyValuePair {
+                            key: b"comment",
+                            value: Cow::Owned(comment(t).unwrap_or_default().to_vec()),
+                        })
+                        .collect(),
+                    before: first_other.map(|o| Cow::Owned(o.key_value().encode_ros().into_owned())),
+                },
+                fields: Box::new([]),
+                depends: Box::new([]),
+                provides: Box::new([]),
+                ordering: MutationOrdering::default(),
+            })
+        })
+        .flatten();
+    let (removes, updates, creates) = mutations_by_id(&candidates, &paired, targets, own_entries.len());
+    removes.into_iter().chain(updates).chain(creates).chain(order)
+}
+
+/// The pairing of [`generate_add_update_remove_by_id`]: for each entry the target it becomes,
+/// considering only the pairs `allowed` accepts (given the update it would take).
+fn pair_by_id<'t, Target, Current>(
+    current: &[&Current],
+    targets: &[Cow<'t, Target>],
+    allowed: impl Fn(&Current, &ResourceMutation) -> bool,
+) -> Vec<Option<usize>>
+where
+    Current: KeyedResource,
+    <Current as KeyedResource>::Value: 'static,
+    Target: RosResource + CfgResource + Creatable + Updatable<Current> + Clone + 't,
+{
     let mut costs = Vec::with_capacity(current.len() * targets.len());
     for (c, current) in current.iter().enumerate() {
         let blocking = current.removal_blocking_references().collect::<HashSet<_>>();
@@ -1278,6 +1417,9 @@ where
             // for it, and two swapping them can't be ordered at all (bridge ports trading their
             // bridges: each set to the other's interface).
             let update = target.calculate_update(current);
+            if !allowed(current, &update) {
+                continue;
+            }
             costs.push(((update.ordering.claims.len(), update.fields.len()), c, t));
         }
     }
@@ -1291,10 +1433,30 @@ where
             target_paired[t] = true;
         }
     }
+    current_paired
+}
+
+/// The mutations of a pairing ([`pair_by_id`]): the unpaired of the first `removable` entries are
+/// removed, the pairs updated, the unpaired targets added.
+#[allow(clippy::type_complexity)]
+fn mutations_by_id<'c, 't, 'r, Target, Current>(
+    current: &[&'c Current],
+    paired: &[Option<usize>],
+    targets: Vec<Cow<'t, Target>>,
+    removable: usize,
+) -> (Vec<ResourceMutation<'r>>, Vec<ResourceMutation<'r>>, Vec<ResourceMutation<'r>>)
+where
+    'c: 'r,
+    't: 'r,
+    Current: KeyedResource,
+    <Current as KeyedResource>::Value: 'static,
+    Target: RosResource + CfgResource + Creatable + Updatable<Current> + Clone + 't,
+{
     let mut targets = targets.into_iter().map(Some).collect::<Vec<_>>();
     let removes = current
         .iter()
-        .zip(&current_paired)
+        .zip(paired)
+        .take(removable)
         .filter(|(_, paired)| paired.is_none())
         .map(|(current, _)| ResourceMutation {
             resource: Current::path(),
@@ -1305,13 +1467,13 @@ where
             fields: Box::new([]),
             depends: Box::new([]),
             provides: Box::new([]),
-            ordering: MutationOrdering::remove(current),
+            ordering: MutationOrdering::remove(*current),
         })
         .collect::<Vec<_>>();
     let updates = current
         .iter()
-        .zip(&current_paired)
-        .filter_map(|(current, paired)| Some((current, targets[(*paired)?].take()?)))
+        .zip(paired)
+        .filter_map(|(current, paired)| Some((*current, targets[(*paired)?].take()?)))
         .map(|(current, target)| match target {
             Cow::Borrowed(t) => t.calculate_update(current),
             Cow::Owned(t) => t.calculate_update(current).into_owned(),
@@ -1325,7 +1487,7 @@ where
             Cow::Owned(t) => t.calculate_create().into_owned(),
         })
         .collect::<Vec<_>>();
-    removes.into_iter().chain(updates).chain(creates)
+    (removes, updates, creates)
 }
 
 pub fn generate_add_update_remove_by_key<'c, 't, 'r, Target, Current>(

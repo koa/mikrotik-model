@@ -22,6 +22,22 @@ fn test_macro() {
 }
 
 #[test]
+fn test_owned() {
+    let attr: TokenStream = parse_quote! {
+        name=DeviceData,
+        detect=new,
+        fields(
+            ip_firewall_filter(by_id(path="ip/firewall/filter",keys(chain),owned="own:",ordered)),
+            ipv6_firewall_filter(by_id(path="ipv6/firewall/filter",keys(),owned="own:")),
+        )
+    };
+    let result = mikrotik_model(attr).expect("failed to run model");
+    let code = prettyplease::unparse(&syn::parse2(result).unwrap());
+    assert!(code.contains("generate_owned_by_id"), "{code}");
+    assert!(code.contains("b\"own:\""), "{code}");
+}
+
+#[test]
 fn test_routerboard() {
     let attr: TokenStream = parse_quote! {
         name=DeviceData,

@@ -24,7 +24,7 @@ impl<'a, W: Write> Generator<'a, W> {
     }
     pub fn append_mutation(&mut self, mutation: &ResourceMutation) -> std::fmt::Result {
         match &mutation.operation {
-            ResourceMutationOperation::RemoveByKey(_) => {}
+            ResourceMutationOperation::RemoveByKey(_) | ResourceMutationOperation::Move { .. } => {}
             _ => {
                 if mutation.fields.is_empty() {
                     return Ok(());
@@ -57,6 +57,17 @@ impl<'a, W: Write> Generator<'a, W> {
                 self.target.write_str("] ")?;
                 self.append_fields(&mutation.fields)?;
                 writeln!(self.target)?;
+            }
+            ResourceMutationOperation::Move { entries, before } => {
+                for entry in entries {
+                    self.target.write_str("move [find ")?;
+                    self.append_field(entry)?;
+                    self.target.write_str("]")?;
+                    if let Some(before) = before {
+                        write!(self.target, " destination={}", decode_latin1(before))?;
+                    }
+                    writeln!(self.target)?;
+                }
             }
         }
         Ok(())
@@ -116,6 +127,17 @@ pub fn generate_cfg(target: &mut impl Write, mutations: &[ResourceMutation]) -> 
                 target.write_str("] ")?;
                 append_fields(target, mutation)?;
                 writeln!(target)?;
+            }
+            ResourceMutationOperation::Move { entries, before } => {
+                for entry in entries {
+                    target.write_str("move [find ")?;
+                    append_field(target, entry)?;
+                    target.write_str("]")?;
+                    if let Some(before) = before {
+                        write!(target, " destination={}", decode_latin1(before))?;
+                    }
+                    writeln!(target)?;
+                }
             }
         }
     }

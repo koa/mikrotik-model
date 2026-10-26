@@ -101,3 +101,141 @@ fn a_rule_losing_its_match_fields_unsets_them() {
     keys.sort();
     assert_eq!(keys, ["!in-interface-list", "!protocol", "!src-address"]);
 }
+
+mod owned {
+    //! Only the rules whose comment has the prefix are the target's (`generate_owned_by_id`).
+    use crate::{
+        generator::Generator,
+        model::{IpFirewallFilterAction, IpFirewallFilterById, IpFirewallFilterCfg, ReferenceType},
+        resource::{ResourceMutation, ResourceMutationOperation, generate_owned_by_id},
+        value::Id,
+    };
+    use std::borrow::Cow;
+
+    fn rule(comment: Option<&str>, port: &str) -> IpFirewallFilterCfg {
+        IpFirewallFilterCfg {
+            chain: b"input".into(),
+            action: IpFirewallFilterAction::Drop,
+            comment: comment.map(Into::into),
+            in_interface: Some(b"ether1".into()),
+            protocol: Some(b"tcp".into()),
+            dst_port: Some(port.into()),
+            connection_state: None,
+            disabled: false,
+            dst_address: None,
+            in_interface_list: None,
+            jump_target: None,
+            out_interface: None,
+            out_interface_list: None,
+            src_address: None,
+        }
+    }
+    fn entry(id: u32, comment: Option<&str>, port: &str) -> IpFirewallFilterById {
+        IpFirewallFilterById { id: Id(id), data: rule(comment, port) }
+    }
+    fn reconcile<'a>(
+        current: &'a [IpFirewallFilterById],
+        target: &'a [IpFirewallFilterCfg],
+    ) -> Vec<ResourceMutation<'a>> {
+        generate_owned_by_id(current, target.iter().map(Cow::Borrowed), b"own:", true, |r| {
+            r.comment.as_deref()
+        })
+        .collect()
+    }
+    fn script(mutations: &[ResourceMutation]) -> String {
+        let mut text = String::new();
+        let mut generator = Generator::new(&mut text);
+        for mutation in mutations {
+            generator.append_mutation(mutation).unwrap();
+        }
+        text
+    }
+
+    #[test]
+    fn others_stay_and_own_go_first() {
+        let current = [
+            entry(1, Some("by hand"), "22"),
+            entry(2, Some("own: old"), "23"),
+            entry(3, Some("defconf: drop"), "80"),
+        ];
+        let target = [rule(Some("own: dns"), "53")];
+        let mutations = reconcile(&current, &target);
+        // the own rule is rewritten, the others stay; then it goes before the first other
+        assert_eq!(
+            script(&mutations),
+            "/ip/firewall/filter\n\
+             set [ find .id=*2] comment=\"own: dns\" dst-port=53 \n\
+             move [find comment=\"own: dns\"] destination=*1\n"
+        );
+    }
+
+    #[test]
+    fn rules_in_place_need_nothing() {
+        let current = [
+            entry(1, Some("own: a"), "22"),
+            entry(2, Some("own: b"), "53"),
+            entry(3, Some("by hand"), "80"),
+        ];
+        let target = [rule(Some("own: a"), "22"), rule(Some("own: b"), "53")];
+        assert_eq!(script(&reconcile(&current, &target)), "");
+    }
+
+    #[test]
+    fn own_rules_out_of_order_are_moved() {
+        let current = [
+            entry(1, Some("own: b"), "53"),
+            entry(2, Some("own: a"), "22"),
+            entry(3, Some("by hand"), "80"),
+        ];
+        let target = [rule(Some("own: a"), "22"), rule(Some("own: b"), "53")];
+        assert_eq!(
+            script(&reconcile(&current, &target)),
+            "/ip/firewall/filter\n\
+             move [find comment=\"own: a\"] destination=*3\n\
+             move [find comment=\"own: b\"] destination=*3\n"
+        );
+        // behind another rule
+        let current = [entry(3, Some("by hand"), "80"), entry(1, Some("own: a"), "22")];
+        let target = [rule(Some("own: a"), "22")];
+        assert_eq!(
+            script(&reconcile(&current, &target)),
+            "/ip/firewall/filter\nmove [find comment=\"own: a\"] destination=*3\n"
+        );
+    }
+
+    #[test]
+    fn a_rule_without_comment_is_taken_over() {
+        // written before the prefix: the same rule without a comment
+        let current = [entry(1, None, "53"), entry(2, None, "80"), entry(3, Some("by hand"), "22")];
+        let target = [rule(Some("own: dns"), "53"), rule(Some("own: ssh"), "22")];
+        let mutations = reconcile(&current, &target);
+        // the copy of dns is taken over; ssh has a comment of another: added, not taken
+        assert_eq!(
+            script(&mutations),
+            "/ip/firewall/filter\n\
+             set [ find .id=*1] comment=\"own: dns\" \n\
+             add action=drop chain=input comment=\"own: ssh\" disabled=no dst-port=22 \
+             in-interface=ether1 protocol=tcp \n\
+             move [find comment=\"own: dns\"] destination=*2\n\
+             move [find comment=\"own: ssh\"] destination=*2\n"
+        );
+    }
+
+    #[test]
+    fn the_move_waits_for_its_menu() {
+        let current = [entry(3, Some("by hand"), "80")];
+        let mut target = [rule(Some("own: a"), "22")];
+        target[0].in_interface = Some(b"vlan-new".into());
+        let mutations = reconcile(&current, &target);
+        assert!(matches!(mutations[0].operation, ResourceMutationOperation::Add));
+        assert!(matches!(mutations[1].operation, ResourceMutationOperation::Move { .. }));
+        // the move first in the list: it still runs after the add, which waits for its interface
+        let reversed = [mutations[1].clone(), mutations[0].clone()];
+        let sorted = ResourceMutation::sort_mutations_with_provided_dependencies(
+            &reversed,
+            [(ReferenceType::Interface, b"vlan-new".as_slice().into())],
+        )
+        .unwrap();
+        assert!(matches!(sorted[1].operation, ResourceMutationOperation::Move { .. }));
+    }
+}

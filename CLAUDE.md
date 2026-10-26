@@ -88,6 +88,17 @@ VNIs) are a `MissingDependenciesError` without missing dependencies, not a scrip
   reference names (a vtep to another VXLAN) but replaced, as the move would wait for the new
   VXLAN, which may wait for the old one to go.
 
+`by_id(..., owned = "<prefix>")` is for a menu shared with entries of others (the firewall):
+only the entries whose `comment` starts with the prefix are the target's
+(`generate_owned_by_id`); the others are neither changed nor removed, except that one without a
+comment equal to a target but for the comment is taken over by setting it. With `ordered` the
+own entries come first, in the target's order: a `ResourceMutationOperation::Move` (`move
+[find comment=…] destination=<.id>`, before the first other entry, or to the end without one)
+puts them there where the device's order isn't that already, or anything was added (an `add`
+goes to the end). The comments must be unique in the menu, as the move finds by them; the move
+waits for every other mutation of its menu (`waits_for`). `move X destination=Y` puts X before
+Y, without `destination` at the end (CHR 7.24.5).
+
 `default=<value>` gives a required field the value RouterOS leaves out: a firewall rule added
 without `disabled` doesn't report it (`default=false`), nor does an entry of the wifi menus
 (`aaa`, `channel`, `configuration`, `datapath`, `interworking`, `provisioning`, `security`,
