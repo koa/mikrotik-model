@@ -223,6 +223,27 @@ impl Default for InterfaceBridgeCfg {
     }
 }
 
+impl InterfaceBridgeCfg {
+    /// IGMP and MLD snooping on, with the multicast settings RouterOS then reports (and doesn't
+    /// let clear) at its values (CHR 7.24.5, with and without vlan filtering). The querier
+    /// stays off.
+    pub fn snoop_multicast(&mut self) {
+        self.igmp_snooping = true;
+        self.igmp_version = Some(InterfaceBridgeIgmpVersion::_2);
+        self.mld_version = Some(InterfaceBridgeMldVersion::_1);
+        self.multicast_querier = Some(false);
+        self.multicast_router = Some(InterfaceBridgeMulticastRouter::TemporaryQuery);
+        self.startup_query_count = Some(2);
+        self.last_member_query_count = Some(2);
+        self.last_member_interval = Some(Duration::from_secs(1));
+        self.membership_interval = Some(Duration::from_secs(260));
+        self.querier_interval = Some(Duration::from_secs(255));
+        self.query_interval = Some(Duration::from_secs(125));
+        self.query_response_interval = Some(Duration::from_secs(10));
+        self.startup_query_interval = Some(Duration::from_millis(31_250));
+    }
+}
+
 impl Default for InterfaceBridgeByName {
     fn default() -> Self {
         Self(InterfaceBridgeCfg::default())
