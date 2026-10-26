@@ -1011,7 +1011,7 @@ impl ParsedMessage for SentenceResult<Resource> {
         let mut builder = context.create_builder();
         let mut errors = Vec::new();
         let mut warnings = Vec::new();
-        for (key, value) in sentence {
+        for (key, value) in first_of_each(sentence) {
             match builder.append_field(key, value.as_deref()) {
                 AppendFieldResult::Appended => {}
                 AppendFieldResult::InvalidValue(field_name) => {
@@ -1064,6 +1064,19 @@ impl ParsedMessage for SentenceResult<Resource> {
     }
 }
 
+/// The fields of a sentence, each only once: a bridge port with IGMP snooping reports
+/// `multicast-router` twice, its setting (`temporary-query`) and further on its state (`false`,
+/// lab-core 7.24.5); the setting comes first.
+fn first_of_each<'s, 'v>(
+    sentence: &'s [(&'v [u8], Option<&'v [u8]>)],
+) -> impl Iterator<Item = &'s (&'v [u8], Option<&'v [u8]>)> {
+    sentence
+        .iter()
+        .enumerate()
+        .filter(|(index, (key, _))| !sentence[..*index].iter().any(|(earlier, _)| earlier == key))
+        .map(|(_, field)| field)
+}
+
 impl<R: DeserializeRosResource + Send + 'static> ParsedMessage for SentenceResult<R> {
     type Context = <<R as DeserializeRosResource>::Builder as DeserializeRosBuilder<R>>::Context;
 
@@ -1071,7 +1084,7 @@ impl<R: DeserializeRosResource + Send + 'static> ParsedMessage for SentenceResul
         let mut builder = R::Builder::init(context);
         let mut errors = Vec::new();
         let mut warnings = Vec::new();
-        for (key, value) in sentence {
+        for (key, value) in first_of_each(sentence) {
             match builder.append_field(key, value.as_deref()) {
                 AppendFieldResult::Appended => {}
                 AppendFieldResult::InvalidValue(field_name) => {

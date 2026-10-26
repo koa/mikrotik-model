@@ -108,3 +108,38 @@ fn ports_trading_bridges_keep_their_interfaces() {
     )
     .unwrap();
 }
+
+/// With IGMP snooping a port reports `multicast-router` twice, its setting first and its state
+/// (`false`) further on (lab-core, 7.24.5): the setting counts, or the diff sets it forever.
+#[test]
+fn a_ports_multicast_router_is_its_setting() {
+    use crate::{
+        model::{InterfaceBridgePortById, InterfaceBridgePortMulticastRouter},
+        resource::SentenceResult,
+    };
+    use mikrotik_api::prelude::ParsedMessage;
+    // the port as lab-core reports it, without `debug-info`
+    let reported = ".id=*0 interface=vxlan-lab-wlan bridge=bridge priority=0x80 edge=auto \
+        point-to-point=auto learn=auto horizon=none hw=true auto-isolate=false restricted-role=false \
+        restricted-tcn=false pvid=1 frame-types=admit-only-vlan-tagged ingress-filtering=true \
+        unknown-unicast-flood=true unknown-multicast-flood=true broadcast-flood=true \
+        tag-stacking=false bpdu-guard=false trusted=false trusted-ra=false trusted-dhcpv6=false \
+        mvrp-registrar-state=normal mvrp-applicant-state=normal-participant \
+        multicast-router=temporary-query fast-leave=false status=in-bridge role=designated-port \
+        edge-port=false point-to-point-port=true learning=true forwarding=true \
+        actual-path-cost=20000 multicast-router=false hw-offload=false inactive=false \
+        dynamic=false disabled=false";
+    let sentence = reported
+        .split_whitespace()
+        .map(|field| {
+            let (key, value) = field.split_once('=').unwrap();
+            (key.as_bytes(), Some(value.as_bytes()))
+        })
+        .collect::<Vec<_>>();
+    let parsed =
+        SentenceResult::<InterfaceBridgePortById>::parse_message(&sentence, &Default::default());
+    let SentenceResult::Row { value, .. } = &parsed else {
+        panic!("not a row: {parsed:?}");
+    };
+    assert_eq!(value.data.multicast_router, InterfaceBridgePortMulticastRouter::TemporaryQuery);
+}
