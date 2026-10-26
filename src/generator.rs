@@ -44,6 +44,7 @@ impl<'a, W: Write> Generator<'a, W> {
             ResourceMutationOperation::RemoveByKey(id_key) => {
                 self.target.write_str("remove [find ")?;
                 self.append_field(id_key)?;
+                self.target.write_str(static_only(mutation))?;
                 self.target.write_str("]\n")?;
             }
             ResourceMutationOperation::UpdateSingle => {
@@ -54,6 +55,7 @@ impl<'a, W: Write> Generator<'a, W> {
             ResourceMutationOperation::UpdateByKey(id_key) => {
                 self.target.write_str("set [ find ")?;
                 self.append_field(id_key)?;
+                self.target.write_str(static_only(mutation))?;
                 self.target.write_str("] ")?;
                 self.append_fields(&mutation.fields)?;
                 writeln!(self.target)?;
@@ -62,6 +64,7 @@ impl<'a, W: Write> Generator<'a, W> {
                 for entry in entries {
                     self.target.write_str("move [find ")?;
                     self.append_field(entry)?;
+                    self.target.write_str(static_only(mutation))?;
                     self.target.write_str("]")?;
                     if let Some(before) = before {
                         write!(self.target, " destination={}", decode_latin1(before))?;
@@ -98,6 +101,13 @@ impl<'a, W: Write> Generator<'a, W> {
     }
 }
 
+/// What a `[find ...]` adds in a menu read without its dynamic entries
+/// ([`crate::model::finds_static_only`]): an open connection of `/ip/service` has the name
+/// `api` too, and RouterOS refuses a `set` that finds it.
+fn static_only(mutation: &ResourceMutation) -> &'static str {
+    if crate::model::finds_static_only(mutation.resource) { " dynamic=no" } else { "" }
+}
+
 pub fn generate_cfg(target: &mut impl Write, mutations: &[ResourceMutation]) -> std::fmt::Result {
     let mut current_path = None;
     for mutation in mutations {
@@ -114,6 +124,7 @@ pub fn generate_cfg(target: &mut impl Write, mutations: &[ResourceMutation]) -> 
             ResourceMutationOperation::RemoveByKey(id_key) => {
                 target.write_str("remove [find ")?;
                 append_field(target, id_key)?;
+                target.write_str(static_only(mutation))?;
                 target.write_str("]\n")?;
             }
             ResourceMutationOperation::UpdateSingle => {
@@ -124,6 +135,7 @@ pub fn generate_cfg(target: &mut impl Write, mutations: &[ResourceMutation]) -> 
             ResourceMutationOperation::UpdateByKey(id_key) => {
                 target.write_str("set [ find ")?;
                 append_field(target, id_key)?;
+                target.write_str(static_only(mutation))?;
                 target.write_str("] ")?;
                 append_fields(target, mutation)?;
                 writeln!(target)?;
@@ -132,6 +144,7 @@ pub fn generate_cfg(target: &mut impl Write, mutations: &[ResourceMutation]) -> 
                 for entry in entries {
                     target.write_str("move [find ")?;
                     append_field(target, entry)?;
+                    target.write_str(static_only(mutation))?;
                     target.write_str("]")?;
                     if let Some(before) = before {
                         write!(target, " destination={}", decode_latin1(before))?;

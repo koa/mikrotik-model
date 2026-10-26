@@ -164,8 +164,8 @@ mod owned {
         assert_eq!(
             script(&mutations),
             "/ip/firewall/filter\n\
-             set [ find .id=*2] comment=\"own: dns\" dst-port=53 \n\
-             move [find comment=\"own: dns\"] destination=*1\n"
+             set [ find .id=*2 dynamic=no] comment=\"own: dns\" dst-port=53 \n\
+             move [find comment=\"own: dns\" dynamic=no] destination=*1\n"
         );
     }
 
@@ -191,15 +191,15 @@ mod owned {
         assert_eq!(
             script(&reconcile(&current, &target)),
             "/ip/firewall/filter\n\
-             move [find comment=\"own: a\"] destination=*3\n\
-             move [find comment=\"own: b\"] destination=*3\n"
+             move [find comment=\"own: a\" dynamic=no] destination=*3\n\
+             move [find comment=\"own: b\" dynamic=no] destination=*3\n"
         );
         // behind another rule
         let current = [entry(3, Some("by hand"), "80"), entry(1, Some("own: a"), "22")];
         let target = [rule(Some("own: a"), "22")];
         assert_eq!(
             script(&reconcile(&current, &target)),
-            "/ip/firewall/filter\nmove [find comment=\"own: a\"] destination=*3\n"
+            "/ip/firewall/filter\nmove [find comment=\"own: a\" dynamic=no] destination=*3\n"
         );
     }
 
@@ -213,11 +213,11 @@ mod owned {
         assert_eq!(
             script(&mutations),
             "/ip/firewall/filter\n\
-             set [ find .id=*1] comment=\"own: dns\" \n\
+             set [ find .id=*1 dynamic=no] comment=\"own: dns\" \n\
              add action=drop chain=input comment=\"own: ssh\" disabled=no dst-port=22 \
              in-interface=ether1 protocol=tcp \n\
-             move [find comment=\"own: dns\"] destination=*2\n\
-             move [find comment=\"own: ssh\"] destination=*2\n"
+             move [find comment=\"own: dns\" dynamic=no] destination=*2\n\
+             move [find comment=\"own: ssh\" dynamic=no] destination=*2\n"
         );
     }
 

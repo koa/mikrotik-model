@@ -682,6 +682,23 @@ impl Entity {
         }
     }
 
+    /// Whether its dynamic entries are left out when reading it ([`Self::dynamic_filter`]): not
+    /// where the key is hardware (`id=` in the header), whose entries are read even when dynamic.
+    pub fn finds_static_only(&self) -> bool {
+        let has_dynamic = self
+            .fields
+            .iter()
+            .any(|f| f.name.as_ref() == "dynamic" && f.field_type.as_deref() == Some("bool") && f.is_read_only);
+        let hardware_key = self
+            .key_field
+            .as_deref()
+            .is_some_and(|key| self.fields.iter().any(|f| f.name.as_ref() == key && f.is_read_only));
+        let has_builtin = self
+            .fields
+            .iter()
+            .any(|f| f.name.as_ref() == "builtin" && f.field_type.as_deref() == Some("bool") && f.is_read_only);
+        has_dynamic && (has_builtin || !hardware_key)
+    }
     fn dynamic_filter(&self) -> Option<Stmt> {
         let has_dynamic = self.fields.iter().any(|f| {
             f.name.as_ref() == "dynamic"

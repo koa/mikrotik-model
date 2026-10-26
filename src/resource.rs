@@ -895,7 +895,15 @@ async fn find_id_by_key(
     let mut stream = device
         .send_command(
             path.as_slice(),
-            |cmd| cmd.query_equal(key.key, key.value.as_ref()),
+            |cmd| {
+                let cmd = cmd.query_equal(key.key, key.value.as_ref());
+                // as the script's `[find ... dynamic=no]` (`generator::static_only`)
+                if crate::model::finds_static_only(resource) {
+                    cmd.query_equal(b"dynamic", b"false")
+                } else {
+                    cmd
+                }
+            },
             (),
         )
         .await;

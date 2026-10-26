@@ -100,7 +100,11 @@ pub fn generator() -> syn::File {
     let mut outgoing_chain_edges = HashMap::new();
     let mut entries_by_incoming_references = HashMap::new();
 
+    let mut static_only_paths = Vec::new();
     for entity in known_entities() {
+        if entity.finds_static_only() {
+            static_only_paths.push(entity.path.join("/"));
+        }
         let (entity_items, enum_fields, references) = entity.generate_code();
         for item in entity_items {
             items.push(item);
@@ -285,6 +289,19 @@ pub fn generator() -> syn::File {
             pub fn build(self) -> Result<Resource, &'static [u8]> {
                 Ok(#build_match)
             }
+        }
+    ));
+
+    static_only_paths.sort();
+    let static_only_paths = static_only_paths
+        .iter()
+        .map(|path| syn::LitByteStr::new(path.as_bytes(), proc_macro2::Span::call_site()));
+    items.push(parse_quote!(
+        /// Whether the menu at `path` is read without its dynamic entries: a `[find ...]` there
+        /// looks only at the static ones too, or it finds an open connection as well (`/ip/service`
+        /// `api`), which RouterOS refuses to change ("this is configured elsewhere").
+        pub fn finds_static_only(path: &[u8]) -> bool {
+            matches!(path, #(#static_only_paths)|*)
         }
     ));
 
