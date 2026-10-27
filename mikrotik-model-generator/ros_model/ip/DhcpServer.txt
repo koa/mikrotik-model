@@ -17,7 +17,8 @@ disabled: bool
 insert-queue-before: o
 interface: ref=>interface; 
 lease-script: o
-lease-time: o
+# a Duration: RouterOS reports what was set as `120s` as `2m`
+lease-time: o; Duration
 name: id; ref=dhcp-server
 parent-queue: o; none; 
 relay: o; Ipv4Addr

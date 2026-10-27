@@ -512,7 +512,7 @@ impl Default for IpDhcpServerCfg {
             insert_queue_before: None,
             interface: Default::default(),
             lease_script: Default::default(),
-            lease_time: Some(b"30m".into()),
+            lease_time: Some(Duration::from_secs(30 * 60)),
             name: Default::default(),
             parent_queue: None,
             relay: Default::default(),
