@@ -44,8 +44,8 @@ gre-key: ro;
 /ipv6/firewall/filter:can-add;
 .id: ro;id;Id
 action: enum= accept, add-dst-to-address-list, add-src-to-address-list, drop, fasttrack-connection, jump, log, passthrough, reject, return; default=accept
-address-list: o;ref=>ipv6-addresslist;
-address-list-timeout: o;Duration
+address-list: unset; o
+address-list-timeout: unset; o; Duration
 chain: ref=firewall-chain
 comment: o
 connection-bytes: unset; o
@@ -56,10 +56,10 @@ connection-rate: unset; o
 connection-state: o
 connection-type: unset; o
 content: o
-disabled: o;bool
+disabled: bool; default=false
 dscp: unset; o
 dst-address: unset; o
-dst-address-list: o; ref=>address-list
+dst-address-list: unset; o
 dst-address-type: o
 dst-limit: unset; o
 dst-port: o
@@ -91,7 +91,7 @@ random: unset; o
 reject-with: o; enum= icmp-address-unreachable, icmp-admin-prohibited, icmp-err-src-routing-header, icmp-headers-too-long, icmp-no-route, icmp-not-neighbour, icmp-port-unreachable, tcp-reset; 
 routing-mark: o
 src-address: unset; o
-src-address-list: o; ref=>address-list
+src-address-list: unset; o
 src-address-type: o
 src-mac-address: unset; o
 src-port: o
