@@ -191,31 +191,31 @@ impl Default for InterfaceBridgeCfg {
             forward_reserved_addresses: None,
             frame_types: Some(VlanFrameTypes::AdmitAll),
             igmp_snooping: false,
-            igmp_version: None,
+            igmp_version: InterfaceBridgeIgmpVersion::_2,
             ingress_filtering: Some(true),
-            last_member_interval: None,
-            last_member_query_count: None,
+            last_member_interval: Duration::from_secs(1),
+            last_member_query_count: 2,
             max_hops: 20,
             max_learned_entries: value::HasUnlimited::Value(value::Auto::Auto),
             max_message_age: Duration::from_secs(20),
-            membership_interval: None,
-            mld_version: None,
+            membership_interval: Duration::from_secs(260),
+            mld_version: InterfaceBridgeMldVersion::_1,
             mtu: value::Auto::Auto,
-            multicast_querier: None,
-            multicast_router: None,
+            multicast_querier: false,
+            multicast_router: InterfaceBridgeMulticastRouter::TemporaryQuery,
             mvrp: None,
             name: Default::default(),
             port_cost_mode: InterfaceBridgePortCostMode::Long,
             priority: value::Hex(0x8000),
             protocol_mode: InterfaceBridgeProtocolMode::Rstp,
             pvid: Some(1),
-            querier_interval: None,
-            query_interval: None,
-            query_response_interval: None,
+            querier_interval: Duration::from_secs(255),
+            query_interval: Duration::from_secs(125),
+            query_response_interval: Duration::from_secs(10),
             region_name: None,
             region_revision: 0,
-            startup_query_count: None,
-            startup_query_interval: None,
+            startup_query_count: 2,
+            startup_query_interval: Duration::from_millis(31_250),
             transmit_hold_count: 6,
             vlan_filtering: false,
             mac_address: None,
@@ -224,23 +224,11 @@ impl Default for InterfaceBridgeCfg {
 }
 
 impl InterfaceBridgeCfg {
-    /// IGMP and MLD snooping on, with the multicast settings RouterOS then reports (and doesn't
-    /// let clear) at its values (CHR 7.24.5, with and without vlan filtering). The querier
-    /// stays off.
+    /// IGMP and MLD snooping on, the querier off. The multicast settings stay at RouterOS's
+    /// values (the `Default`), which it reports with snooping and keeps hidden without, where it
+    /// refuses to clear them (`igmp-version=""` is ambiguous; CHR 7.24.5, 7.23.7).
     pub fn snoop_multicast(&mut self) {
         self.igmp_snooping = true;
-        self.igmp_version = Some(InterfaceBridgeIgmpVersion::_2);
-        self.mld_version = Some(InterfaceBridgeMldVersion::_1);
-        self.multicast_querier = Some(false);
-        self.multicast_router = Some(InterfaceBridgeMulticastRouter::TemporaryQuery);
-        self.startup_query_count = Some(2);
-        self.last_member_query_count = Some(2);
-        self.last_member_interval = Some(Duration::from_secs(1));
-        self.membership_interval = Some(Duration::from_secs(260));
-        self.querier_interval = Some(Duration::from_secs(255));
-        self.query_interval = Some(Duration::from_secs(125));
-        self.query_response_interval = Some(Duration::from_secs(10));
-        self.startup_query_interval = Some(Duration::from_millis(31_250));
     }
 }
 

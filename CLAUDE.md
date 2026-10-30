@@ -155,8 +155,10 @@ reported as none. The formats are `default`, `syslog` and `cef` (ap-2og-aussen, 
 `syslog-severity` and `add-topics-string` besides, read-only here as the target is CEF, where
 they are hidden. `prefix=""` and `regex=""` of a rule clear them.
 
-`InterfaceBridgeCfg::snoop_multicast` turns IGMP/MLD snooping on with the multicast settings
-RouterOS then reports and refuses to clear, at its values (CHR 7.24.5); the querier stays off.
+`InterfaceBridgeCfg::snoop_multicast` turns IGMP/MLD snooping on; the querier stays off. The
+multicast settings are required with RouterOS's values (`default=`): with snooping it reports
+them, without it hides and keeps them and refuses to clear them (`igmp-version=""` is
+ambiguous; CHR 7.24.5, ap-klr-solar 7.23.7), so turning snooping off sets only `igmp-snooping`.
 
 A field reported twice in one answer counts once, with its first value (`first_of_each`): a
 bridge port of a bridge with IGMP snooping reports `multicast-router` as its setting and further

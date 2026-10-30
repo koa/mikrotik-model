@@ -143,3 +143,52 @@ fn a_ports_multicast_router_is_its_setting() {
     };
     assert_eq!(value.data.multicast_router, InterfaceBridgePortMulticastRouter::TemporaryQuery);
 }
+
+/// ap-klr-solar (7.23.7) snooped, and the target with snooping off set the multicast settings
+/// to `""`, which RouterOS refuses ("ambiguous value of igmp-version"; CHR 7.24.5 too). Without
+/// snooping it hides them and keeps them, so they are required with RouterOS's values: turning
+/// snooping off sets only `igmp-snooping`, and a bridge reporting none of them has them.
+#[test]
+fn snooping_goes_off_without_clearing_the_multicast_settings() {
+    use crate::{
+        model::InterfaceBridgeCfg,
+        resource::generate_add_update_remove_by_key,
+    };
+    use std::borrow::Cow;
+    let mut snooping = BRIDGE_WITHOUT_MVRP.to_vec();
+    snooping.retain(|(key, _)| *key != b"igmp-snooping".as_slice());
+    snooping.extend([
+        (b"igmp-snooping".as_slice(), b"true".as_slice()),
+        (b"multicast-router", b"temporary-query"),
+        (b"multicast-querier", b"false"),
+        (b"startup-query-count", b"2"),
+        (b"last-member-query-count", b"2"),
+        (b"last-member-interval", b"1s"),
+        (b"membership-interval", b"4m20s"),
+        (b"querier-interval", b"4m15s"),
+        (b"query-interval", b"2m5s"),
+        (b"query-response-interval", b"10s"),
+        (b"startup-query-interval", b"31s250ms"),
+        (b"igmp-version", b"2"),
+        (b"mld-version", b"1"),
+    ]);
+    let current: InterfaceBridgeByName = build::<InterfaceBridgeByNameBuilder, _>(&snooping);
+    let hidden: InterfaceBridgeByName = build::<InterfaceBridgeByNameBuilder, _>(BRIDGE_WITHOUT_MVRP);
+    let mut snooped = hidden.clone();
+    snooped.0.snoop_multicast();
+    assert_eq!(current, snooped);
+
+    let target = InterfaceBridgeByName(InterfaceBridgeCfg {
+        igmp_snooping: false,
+        ..current.0.clone()
+    });
+    assert_eq!(target, hidden);
+    let current = [current];
+    let mutations = generate_add_update_remove_by_key(&current, [Cow::Borrowed(&target)])
+        .collect::<Vec<_>>();
+    let changed = mutations
+        .iter()
+        .flat_map(|m| m.fields.iter().map(|f| String::from_utf8_lossy(f.key).into_owned()))
+        .collect::<Vec<_>>();
+    assert_eq!(changed, ["igmp-snooping"], "{mutations:?}");
+}
