@@ -52,6 +52,9 @@ wifi provisioning's `master-configuration` and `radio-mac`, the OSPF area's `def
 way (`!comment` is accepted but leaves the comment), so it is only on the fields where it was
 checked on a CHR. Fields that take neither (`horizon`, `hw` of a bridge port, the bridge's
 multicast settings, most of `/ip/dhcp-server`) need a value in the target or `default=`.
+`/ipv6/dhcp-client` is keyed by `interface`: RouterOS takes one client per interface ("dhcp-client
+on that interface already exists", CHR 7.24.5). It reports `pool-prefix-length` only once set,
+and `default-route-distance` only with a default route, so both are `o`.
 The static DHCP leases (`/ip/dhcp-server/lease`, keyed by `address`) are such a menu (CHR
 7.24.5, the notes in `DhcpServer.txt`): the flags refuse `""` and are reported only when on
 (`default=false`, cleared with `no`), `lease-time` takes `0s`, not `""`, `parent-queue=""`

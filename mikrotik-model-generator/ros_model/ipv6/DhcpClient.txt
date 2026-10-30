@@ -1,0 +1,28 @@
+/ipv6/dhcp-client:can-add;id=interface
+.id: ro
+interface: id; unique; ref=>interface
+request: mu; enum=address,prefix,info
+accept-prefix-without-address: bool
+add-default-route: bool
+default-route-distance: o; u8
+default-route-tables: o
+allow-reconfigure: bool
+check-gateway: o
+comment: o
+dhcp-options: o
+disabled: bool; default=false
+pool-name: o
+pool-prefix-length: o; u8
+prefix-address-lists: o
+prefix-hint: o
+script: o
+use-peer-dns: bool
+validate-server-duid: bool
+status: ro
+duid: o; ro
+dhcp-server-v6: o; ro
+prefix: o; ro
+address: o; ro
+expires-after: o; ro
+dynamic: o; ro; bool
+invalid: ro; bool

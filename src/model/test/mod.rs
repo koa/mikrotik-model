@@ -2,6 +2,7 @@ mod bgp;
 mod bridge;
 mod capsman;
 mod dhcp;
+mod dhcp_v6_client;
 mod ethernet;
 mod firewall;
 mod lease;
