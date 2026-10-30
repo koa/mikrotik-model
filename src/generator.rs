@@ -60,7 +60,7 @@ impl<'a, W: Write> Generator<'a, W> {
                 self.append_fields(&mutation.fields)?;
                 writeln!(self.target)?;
             }
-            ResourceMutationOperation::Move { entries, before } => {
+            ResourceMutationOperation::Move { entries, before, .. } => {
                 for entry in entries {
                     self.target.write_str("move [find ")?;
                     self.append_field(entry)?;
@@ -140,7 +140,7 @@ pub fn generate_cfg(target: &mut impl Write, mutations: &[ResourceMutation]) -> 
                 append_fields(target, mutation)?;
                 writeln!(target)?;
             }
-            ResourceMutationOperation::Move { entries, before } => {
+            ResourceMutationOperation::Move { entries, before, .. } => {
                 for entry in entries {
                     target.write_str("move [find ")?;
                     append_field(target, entry)?;

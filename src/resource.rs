@@ -659,14 +659,16 @@ impl<'a> ResourceMutation<'a> {
     }
 
     /// Whether `other`, still pending, has to run before this one.
-    fn waits_for(&self, other: &ResourceMutation<'_>) -> bool {
+    pub(crate) fn waits_for(&self, other: &ResourceMutation<'_>) -> bool {
         let ordering = &self.ordering;
         let other_ordering = &other.ordering;
-        // a move orders what the other mutations of its menu leave
-        if matches!(self.operation, ResourceMutationOperation::Move { .. })
+        // a move orders what the other mutations of its menu leave, the move to the end
+        // what the other move leaves
+        if let ResourceMutationOperation::Move { last, .. } = self.operation
             && other.resource == self.resource
         {
-            return true;
+            return last
+                || !matches!(other.operation, ResourceMutationOperation::Move { last: true, .. });
         }
         // a name it provides is still held by `other`
         self.provides.iter().any(|name| other_ordering.releases.contains(name))
@@ -687,10 +689,12 @@ pub enum ResourceMutationOperation<'a> {
     UpdateByKey(KeyValuePair<'a>),
     /// Puts the entries found by each key, in this order, before the entry `.id` `before`, or at
     /// the end without one: the order of a menu where it matters (firewall rules). Runs after
-    /// every other mutation of its menu, which may add, change or remove what it finds.
+    /// every other mutation of its menu, which may add, change or remove what it finds; one
+    /// `last` (the entries that go after all others) after the other move too.
     Move {
         entries: Box<[KeyValuePair<'a>]>,
         before: Option<Cow<'a, [u8]>>,
+        last: bool,
     },
 }
 
@@ -705,10 +709,13 @@ impl<'a> ResourceMutationOperation<'a> {
             ResourceMutationOperation::UpdateByKey(k) => {
                 ResourceMutationOperation::UpdateByKey(k.into_owned())
             }
-            ResourceMutationOperation::Move { entries, before } => ResourceMutationOperation::Move {
-                entries: entries.into_iter().map(KeyValuePair::into_owned).collect(),
-                before: before.map(|b| Cow::Owned(b.into_owned())),
-            },
+            ResourceMutationOperation::Move { entries, before, last } => {
+                ResourceMutationOperation::Move {
+                    entries: entries.into_iter().map(KeyValuePair::into_owned).collect(),
+                    before: before.map(|b| Cow::Owned(b.into_owned())),
+                    last,
+                }
+            }
         }
     }
 }
@@ -759,7 +766,7 @@ pub async fn apply_mutation(
             })
             .await
         }
-        ResourceMutationOperation::Move { entries, before } => {
+        ResourceMutationOperation::Move { entries, before, .. } => {
             for entry in entries {
                 let id = find_id_by_key(device, mutation.resource, entry).await?;
                 write_command(device, mutation.resource, b"move", |cmd| {
@@ -1321,6 +1328,19 @@ where
     removes.into_iter().chain(updates).chain(creates)
 }
 
+/// What after the owner's prefix marks an own entry that goes after all others (the last
+/// rule of a firewall chain, which drops what no rule before it, the others' included, took).
+pub const OWNED_LAST: &[u8] = b"last ";
+
+/// Whether the comment of an own entry marks it as one of the last ([`OWNED_LAST`] after the
+/// prefix and any blanks).
+fn is_owned_last(comment: Option<&[u8]>, prefix: &[u8]) -> bool {
+    comment
+        .and_then(|c| c.strip_prefix(prefix))
+        .map(|rest| rest.trim_ascii_start())
+        .is_some_and(|rest| rest.starts_with(OWNED_LAST))
+}
+
 /// [`generate_add_update_remove_by_id`] for a menu shared with entries of others (firewall
 /// rules): only the entries whose `comment` starts with `prefix` are the target's, every other one
 /// stays as it is. The targets carry such a comment, unique in the menu. An entry of another
@@ -1330,7 +1350,8 @@ where
 /// `ordered`: the own entries come first, in the target's order, before the others; a
 /// [`ResourceMutationOperation::Move`] puts them there by their comments, before the first other
 /// entry, where the order on the device isn't that already. A new entry is added at the end, so
-/// any addition moves them all.
+/// any addition moves them all. An own entry whose comment goes on with [`OWNED_LAST`] comes
+/// after all others instead, at the end (a second move, after the first).
 pub fn generate_owned_by_id<'c, 't, 'r, Target, Current, TargetIter, IntoTarget>(
     current: &'c [Current],
     target: TargetIter,
@@ -1371,41 +1392,70 @@ where
                     .find(|(candidate, _)| std::ptr::eq(**candidate, c))
                     .and_then(|(_, t)| *t)
             };
-            // the device's order: the kept own entries, by their target, before every other
+            let is_last = |t: usize| is_owned_last(comment(&targets[t]), prefix);
+            // the device's order: the kept own entries by their target, the first ones before
+            // every other, the last ones after
             let mut first_other = None;
-            let mut last_target = None;
+            let mut first_last = None;
+            let mut last_first = None;
+            let mut last_last = None;
             let mut in_order = true;
             for entry in current {
                 match kept(entry) {
+                    Some(t) if is_last(t) => {
+                        in_order &= last_last < Some(t);
+                        last_last = Some(t);
+                        first_last.get_or_insert(entry);
+                    }
                     Some(t) => {
-                        in_order &= first_other.is_none() && last_target < Some(t);
-                        last_target = Some(t);
+                        in_order &= first_other.is_none() && first_last.is_none() && last_first < Some(t);
+                        last_first = Some(t);
                     }
                     None if !own(entry) => {
+                        in_order &= first_last.is_none();
                         first_other.get_or_insert(entry);
                     }
                     None => {}
                 }
             }
             let added = paired.iter().flatten().count() < targets.len();
-            (!in_order || added).then(|| ResourceMutation {
-                resource: Current::path(),
-                operation: ResourceMutationOperation::Move {
-                    entries: targets
-                        .iter()
-                        .map(|t| KeyValuePair {
-                            key: b"comment",
-                            value: Cow::Owned(comment(t).unwrap_or_default().to_vec()),
-                        })
-                        .collect(),
-                    before: first_other.map(|o| Cow::Owned(o.key_value().encode_ros().into_owned())),
-                },
-                fields: Box::new([]),
-                depends: Box::new([]),
-                provides: Box::new([]),
-                ordering: MutationOrdering::default(),
-            })
+            let by_comment = |last: bool| {
+                (0..targets.len())
+                    .filter(|t| is_last(*t) == last)
+                    .map(|t| KeyValuePair {
+                        key: b"comment",
+                        value: Cow::Owned(comment(&targets[t]).unwrap_or_default().to_vec()),
+                    })
+                    .collect::<Box<[_]>>()
+            };
+            let (first, last) = (by_comment(false), by_comment(true));
+            let move_of = |entries: Box<[KeyValuePair<'static>]>, before: Option<&Current>, last| {
+                (!entries.is_empty()).then(|| ResourceMutation {
+                    resource: Current::path(),
+                    operation: ResourceMutationOperation::Move {
+                        entries,
+                        before: before.map(|o| Cow::Owned(o.key_value().encode_ros().into_owned())),
+                        last,
+                    },
+                    fields: Box::new([]),
+                    depends: Box::new([]),
+                    provides: Box::new([]),
+                    ordering: MutationOrdering::default(),
+                })
+            };
+            (!in_order || added)
+                .then(|| {
+                    // the first ones before the first other, else before the last ones; the last
+                    // ones to the end, after that move
+                    move_of(first, first_other.or(first_last), false)
+                        .into_iter()
+                        .chain(move_of(last, None, true))
+                })
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>()
         })
+        .into_iter()
         .flatten();
     let (removes, updates, creates) = mutations_by_id(&candidates, &paired, targets, own_entries.len());
     removes.into_iter().chain(updates).chain(creates).chain(order)

@@ -222,6 +222,66 @@ mod owned {
         );
     }
 
+    /// A rule marked `last` goes after the others, the rest before them (the drop that ends a
+    /// chain, after the rules set up by hand).
+    #[test]
+    fn a_last_rule_goes_after_the_others() {
+        let current = [entry(1, Some("by hand"), "80"), entry(2, Some("by hand 2"), "443")];
+        let target = [rule(Some("own: ssh"), "22"), rule(Some("own: last drop"), "1-65535")];
+        assert_eq!(
+            script(&reconcile(&current, &target)),
+            "/ip/firewall/filter\n\
+             add action=drop chain=input comment=\"own: ssh\" disabled=no dst-port=22 \
+             in-interface=ether1 protocol=tcp \n\
+             add action=drop chain=input comment=\"own: last drop\" disabled=no \
+             dst-port=1-65535 in-interface=ether1 protocol=tcp \n\
+             move [find comment=\"own: ssh\" dynamic=no] destination=*1\n\
+             move [find comment=\"own: last drop\" dynamic=no]\n"
+        );
+        // in place: nothing
+        let current = [
+            entry(1, Some("own: ssh"), "22"),
+            entry(2, Some("by hand"), "80"),
+            entry(3, Some("own: last drop"), "1-65535"),
+        ];
+        assert_eq!(script(&reconcile(&current, &target)), "");
+        // without others: still first, then last
+        let current = [entry(3, Some("own: last drop"), "1-65535"), entry(1, Some("own: ssh"), "22")];
+        assert_eq!(
+            script(&reconcile(&current, &target)),
+            "/ip/firewall/filter\n\
+             move [find comment=\"own: ssh\" dynamic=no] destination=*3\n\
+             move [find comment=\"own: last drop\" dynamic=no]\n"
+        );
+        // another rule after the last one: it goes to the end again
+        let current = [
+            entry(1, Some("own: ssh"), "22"),
+            entry(3, Some("own: last drop"), "1-65535"),
+            entry(2, Some("by hand"), "80"),
+        ];
+        assert_eq!(
+            script(&reconcile(&current, &target)),
+            "/ip/firewall/filter\n\
+             move [find comment=\"own: ssh\" dynamic=no] destination=*2\n\
+             move [find comment=\"own: last drop\" dynamic=no]\n"
+        );
+    }
+
+    /// The move to the end waits for the other move, not that for it: no cycle.
+    #[test]
+    fn the_move_to_the_end_comes_after_the_other() {
+        let current = [entry(1, Some("by hand"), "80")];
+        let target = [rule(Some("own: ssh"), "22"), rule(Some("own: last drop"), "1-65535")];
+        let mutations = reconcile(&current, &target);
+        let moves = mutations
+            .iter()
+            .filter(|m| matches!(m.operation, ResourceMutationOperation::Move { .. }))
+            .collect::<Vec<_>>();
+        assert_eq!(moves.len(), 2);
+        assert!(moves[1].waits_for(moves[0]));
+        assert!(!moves[0].waits_for(moves[1]));
+    }
+
     #[test]
     fn a_rule_without_comment_is_taken_over() {
         // written before the prefix: the same rule without a comment

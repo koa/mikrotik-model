@@ -98,8 +98,11 @@ comment equal to a target but for the comment is taken over by setting it. With 
 own entries come first, in the target's order: a `ResourceMutationOperation::Move` (`move
 [find comment=…] destination=<.id>`, before the first other entry, or to the end without one)
 puts them there where the device's order isn't that already, or anything was added (an `add`
-goes to the end). The comments must be unique in the menu, as the move finds by them; the move
-waits for every other mutation of its menu (`waits_for`). `move X destination=Y` puts X before
+goes to the end). An own entry whose comment goes on after the prefix with `last `
+(`OWNED_LAST`) comes after all others instead, by a second move to the end: the drop that ends a
+firewall chain, after the rules of others (set up by hand) had their say. The comments must be
+unique in the menu, as the move finds by them; a move waits for every other mutation of its menu
+(`waits_for`), the one to the end (`Move { last: true }`) for the other move too. `move X destination=Y` puts X before
 Y, without `destination` at the end (CHR 7.24.5).
 
 `default=<value>` gives a required field the value RouterOS leaves out: a firewall rule added
