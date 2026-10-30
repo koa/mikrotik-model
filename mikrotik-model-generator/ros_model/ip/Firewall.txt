@@ -1,8 +1,11 @@
 /ip/firewall/filter:can-add;
 .id: ro;id;Id
 action: enum= accept, add-dst-to-address-list, add-src-to-address-list, drop, fasttrack-connection, jump, log, passthrough, reject, return, tarpit; default=accept
+address-list: unset; o
+address-list-timeout: unset; o; Duration
 chain: ref=firewall-chain
 comment: o
+connection-nat-state: unset; o
 connection-state: o
 disabled: bool; default=false
 dst-address: unset; o
@@ -14,6 +17,7 @@ out-interface: unset; o; ref=>interface;
 out-interface-list: unset; o; ref=>interface-list;
 protocol: unset; o
 src-address: unset; o
+src-address-list: unset; o
 dynamic: ro; bool
 invalid: ro; bool
 

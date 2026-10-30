@@ -59,6 +59,30 @@ fn rule_added_without_action_accepts() {
     assert_eq!(rule.action, IpFirewallNatAction::Accept);
 }
 
+/// A stage of the SSH bruteforce protection as CHR 7.24.5 reports it; `10d` comes back as
+/// `1w3d`.
+#[test]
+fn decodes_a_bruteforce_stage() {
+    let rule: IpFirewallFilterCfg = build::<IpFirewallFilterCfgBuilder, _>(&[
+        (b"chain", b"input"),
+        (b"action", b"add-src-to-address-list"),
+        (b"connection-state", b"new"),
+        (b"protocol", b"tcp"),
+        (b"src-address-list", b"ssh_stage3"),
+        (b"address-list", b"ssh_blacklist"),
+        (b"address-list-timeout", b"1w3d"),
+        (b"dst-port", b"22"),
+    ]);
+    assert_eq!(rule.action, IpFirewallFilterAction::AddSrcToAddressList);
+    assert_eq!(rule.address_list_timeout, Some(std::time::Duration::from_secs(10 * 24 * 3600)));
+    assert_eq!(rule.src_address_list.as_deref(), Some(b"ssh_stage3".as_slice()));
+    let rule: IpFirewallFilterCfg = build::<IpFirewallFilterCfgBuilder, _>(&[
+        (b"chain", b"forward"),
+        (b"connection-nat-state", b"dstnat"),
+    ]);
+    assert_eq!(rule.connection_nat_state.as_deref(), Some(b"dstnat".as_slice()));
+}
+
 /// The match fields of the IPv6 defconf rules are ranges, lists, negations and
 /// `value:mode` pairs, kept as RouterOS text.
 #[test]
@@ -139,6 +163,9 @@ mod owned {
             in_interface: Some(b"ether1".into()),
             protocol: Some(b"tcp".into()),
             dst_port: Some(port.into()),
+            address_list: None,
+            address_list_timeout: None,
+            connection_nat_state: None,
             connection_state: None,
             disabled: false,
             dst_address: None,
@@ -147,6 +174,7 @@ mod owned {
             out_interface: None,
             out_interface_list: None,
             src_address: None,
+            src_address_list: None,
         }
     }
     fn entry(id: u32, comment: Option<&str>, port: &str) -> IpFirewallFilterById {
