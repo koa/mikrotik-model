@@ -3,7 +3,8 @@
 //! RouterOS 6 to 7.23.8.
 
 use crate::model::{
-    IpFirewallFilterCfg, IpFirewallFilterCfgBuilder, Ipv6FirewallFilterCfg,
+    IpFirewallFilterAction, IpFirewallFilterCfg, IpFirewallFilterCfgBuilder, IpFirewallNatAction,
+    IpFirewallNatCfg, IpFirewallNatCfgBuilder, Ipv6FirewallFilterAction, Ipv6FirewallFilterCfg,
     Ipv6FirewallFilterCfgBuilder, RoutingOspfInstanceCfg, RoutingOspfInstanceCfgBuilder,
 };
 use crate::resource::{AppendFieldResult, DeserializeRosBuilder, DeserializeRosResource};
@@ -38,6 +39,24 @@ fn rule_added_without_disabled_is_enabled() {
         (b"comment", b"defconf: fasttrack"),
     ]);
     assert!(!rule.disabled);
+}
+
+/// A rule added without `action` doesn't report it either, in the filter and NAT: it accepts
+/// (`default=accept`; router-faesigrund-keller's IPv6 filter, CHR 7.24.5).
+#[test]
+fn rule_added_without_action_accepts() {
+    let rule: Ipv6FirewallFilterCfg = build::<Ipv6FirewallFilterCfgBuilder, _>(&[
+        (b"chain", b"input"),
+        (b"protocol", b"icmpv6"),
+    ]);
+    assert_eq!(rule.action, Ipv6FirewallFilterAction::Accept);
+    let rule: IpFirewallFilterCfg = build::<IpFirewallFilterCfgBuilder, _>(&[
+        (b"chain", b"input"),
+        (b"protocol", b"icmp"),
+    ]);
+    assert_eq!(rule.action, IpFirewallFilterAction::Accept);
+    let rule: IpFirewallNatCfg = build::<IpFirewallNatCfgBuilder, _>(&[(b"chain", b"srcnat")]);
+    assert_eq!(rule.action, IpFirewallNatAction::Accept);
 }
 
 /// The match fields of the IPv6 defconf rules are ranges, lists, negations and

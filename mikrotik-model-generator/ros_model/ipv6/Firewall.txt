@@ -43,7 +43,7 @@ gre-key: ro;
 
 /ipv6/firewall/filter:can-add;
 .id: ro;id;Id
-action: enum= accept, add-dst-to-address-list, add-src-to-address-list, drop, fasttrack-connection, jump, log, passthrough, reject, return;
+action: enum= accept, add-dst-to-address-list, add-src-to-address-list, drop, fasttrack-connection, jump, log, passthrough, reject, return; default=accept
 address-list: o;ref=>ipv6-addresslist;
 address-list-timeout: o;Duration
 chain: ref=firewall-chain

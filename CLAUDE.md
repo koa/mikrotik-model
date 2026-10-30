@@ -100,7 +100,9 @@ waits for every other mutation of its menu (`waits_for`). `move X destination=Y`
 Y, without `destination` at the end (CHR 7.24.5).
 
 `default=<value>` gives a required field the value RouterOS leaves out: a firewall rule added
-without `disabled` doesn't report it (`default=false`), nor does an entry of the wifi menus
+without `disabled` doesn't report it (`default=false`), nor one added without `action`
+(`default=accept` in `/ip/firewall/filter`, `nat` and `/ipv6/firewall/filter`; the other IPv6
+tables are unrefined and unused), nor does an entry of the wifi menus
 (`aaa`, `channel`, `configuration`, `datapath`, `interworking`, `provisioning`, `security`,
 `steering`; 7.24.5, `multi-passphrase` does), nor does the OSPF instance an update from
 RouterOS 6 brings report `vrf` (`default=main`). A dhcp-client with

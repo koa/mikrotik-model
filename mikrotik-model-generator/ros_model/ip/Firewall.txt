@@ -1,6 +1,6 @@
 /ip/firewall/filter:can-add;
 .id: ro;id;Id
-action: enum= accept, add-dst-to-address-list, add-src-to-address-list, drop, fasttrack-connection, jump, log, passthrough, reject, return, tarpit;
+action: enum= accept, add-dst-to-address-list, add-src-to-address-list, drop, fasttrack-connection, jump, log, passthrough, reject, return, tarpit; default=accept
 chain: ref=firewall-chain
 comment: o
 connection-state: o
@@ -19,7 +19,7 @@ invalid: ro; bool
 
 /ip/firewall/nat:can-add;
 .id: ro;id;Id
-action: enum= accept, add-dst-to-address-list, add-src-to-address-list, dst-nat, endpoint-independent-nat, jump, log, masquerade, netmap, passthrough, redirect, return, same, src-nat;
+action: enum= accept, add-dst-to-address-list, add-src-to-address-list, dst-nat, endpoint-independent-nat, jump, log, masquerade, netmap, passthrough, redirect, return, same, src-nat; default=accept
 chain: ref=firewall-chain
 comment: o
 disabled: bool; default=false
