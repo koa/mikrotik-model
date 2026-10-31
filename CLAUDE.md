@@ -147,10 +147,13 @@ radios of a CAP that CAPsMAN manages are flagged dynamic (`/interface/wifi`, 7.2
 virtual slaves too, but only the radios have a `default-name`. The exception follows the header's
 `id=`, not the read-only key alone: `/ip/service` has a read-only `name` (set, never added) but no
 `id=name`, so its dynamic entries (open connections, `socks`, `btest`) are left out. Where they are
-left out, a `[find ...]` of the script looks only at the static ones too (`dynamic=no`,
-`model::finds_static_only`, likewise the API's `?dynamic=false`): `[find name=api]` also found
+left out, a `[find ...]` of the script looks only at the static ones too (`dynamic!=yes`,
+`model::finds_static_only`, likewise the API's `?dynamic=false` or no `dynamic`): `[find name=api]` also found
 the open API connection, and RouterOS refused the `set` with "this is configured elsewhere
-(/ip/service/set *0 = telnet)" (lab-wap 7.23.8, CHR 7.24.5).
+(/ip/service/set *0 = telnet)" (lab-wap 7.23.8, CHR 7.24.5). Not `dynamic=no`: an OSPF area has no
+`dynamic` property, `dynamic=no` found none of them and `set … disabled=no` changed nothing
+without an error (sat-switch 7.23.8, CHR 7.24.5); `!dynamic` is a syntax error in
+`/ipv6/address`, `dynamic!=yes` works in every menu tried.
 
 `can-add` says the menu adds entries (`/interface/wifi` adds virtual interfaces). A
 `by_key` field on a read-only key (`default-name`) still only updates: what has that key is

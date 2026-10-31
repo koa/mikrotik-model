@@ -904,9 +904,18 @@ async fn find_id_by_key(
             path.as_slice(),
             |cmd| {
                 let cmd = cmd.query_equal(key.key, key.value.as_ref());
-                // as the script's `[find ... dynamic=no]` (`generator::static_only`)
+                // as the script's `[find ... dynamic!=yes]` (`generator::static_only`): an entry
+                // of a menu without the property (`/routing/ospf/area`) counts as static
                 if crate::model::finds_static_only(resource) {
                     cmd.query_equal(b"dynamic", b"false")
+                        .query_not_present(b"dynamic")
+                        .query_operations(
+                            [
+                                mikrotik_api::prelude::QueryOperator::Or,
+                                mikrotik_api::prelude::QueryOperator::And,
+                            ]
+                            .into_iter(),
+                        )
                 } else {
                     cmd
                 }
