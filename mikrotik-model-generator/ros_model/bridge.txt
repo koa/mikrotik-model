@@ -24,7 +24,7 @@ horizon:o;none;u32
 point-to-point: auto;YesNo
 restricted-role:bool
 trusted:bool
-hw: o;bool
+hw: o;k;bool
 disabled: bool
 port-number: ro;o;u16
 bpdu-guard: bool

@@ -53,8 +53,10 @@ a CHR: `power-cycle-ping-address=""` stopped an apply on lab-np2 (CRS318, 7.23.8
 for argument ip"), so it and `power-cycle-ping-timeout` are `unset` on the strength of `!field`
 clearing an address in a CHR script (`local-address` of a VXLAN). Not every field can be unset this
 way (`!comment` is accepted but leaves the comment), so it is only on the fields where it was
-checked on a CHR. Fields that take neither (`horizon`, `hw` of a bridge port, the bridge's
-multicast settings, most of `/ip/dhcp-server`) need a value in the target or `default=`.
+checked on a CHR. Fields that take neither (`horizon`, the bridge's multicast settings, most of
+`/ip/dhcp-server`) need a value in the target or `default=`. The `hw` of a bridge port is `k`: only
+a radio's port has none in the target (RouterOS doesn't report it there), and a port taken over for
+one refused `hw=""` (lab-wap, 7.23.8).
 `/ipv6/dhcp-client` is keyed by `interface`: RouterOS takes one client per interface ("dhcp-client
 on that interface already exists", CHR 7.24.5). It reports `pool-prefix-length` only once set,
 and `default-route-distance` only with a default route, so both are `o`.

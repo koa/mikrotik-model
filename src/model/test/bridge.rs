@@ -192,3 +192,39 @@ fn snooping_goes_off_without_clearing_the_multicast_settings() {
         .collect::<Vec<_>>();
     assert_eq!(changed, ["igmp-snooping"], "{mutations:?}");
 }
+
+/// A port taken over for a radio (lab-wap, 7.23.8: the port of a former `wlan1` set to
+/// `wifi1`): a radio has no hardware offloading and RouterOS doesn't report `hw` for it, so the
+/// target has none, but RouterOS refuses `hw=""` ("must be either yes or no"); the port keeps
+/// what it has.
+#[test]
+fn a_port_taken_over_for_a_radio_keeps_hw() {
+    use crate::{
+        model::{InterfaceBridgePortById, InterfaceBridgePortCfg},
+        resource::generate_add_update_remove_by_id,
+        value::Id,
+    };
+    let current = [InterfaceBridgePortById {
+        id: Id(1),
+        data: InterfaceBridgePortCfg {
+            interface: "wlan1".into(),
+            bridge: "bridge-caps".into(),
+            hw: Some(true),
+            ..Default::default()
+        },
+    }];
+    let target = [InterfaceBridgePortCfg {
+        interface: "wifi1".into(),
+        bridge: "bridge-caps".into(),
+        hw: None,
+        ..Default::default()
+    }];
+    let mutations =
+        generate_add_update_remove_by_id(&current, target.iter().map(std::borrow::Cow::Borrowed))
+            .collect::<Vec<_>>();
+    let changed = mutations
+        .iter()
+        .flat_map(|m| m.fields.iter().map(|f| String::from_utf8_lossy(f.key).into_owned()))
+        .collect::<Vec<_>>();
+    assert_eq!(changed, ["interface"], "{mutations:?}");
+}
