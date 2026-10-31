@@ -1,5 +1,8 @@
 //! `/ip/dhcp-server/network` (`ros_model/ip/DhcpServer.txt`), with the API output of CHR 7.24.5.
-use crate::model::{IpDhcpServerNetworkByAddress, IpDhcpServerNetworkByAddressBuilder};
+use crate::model::{
+    IpDhcpServerByName, IpDhcpServerByNameBuilder, IpDhcpServerNetworkByAddress,
+    IpDhcpServerNetworkByAddressBuilder,
+};
 use crate::resource::{CfgResource, DeserializeRosBuilder};
 
 fn network(fields: &[(&[u8], &[u8])]) -> IpDhcpServerNetworkByAddress {
@@ -51,4 +54,45 @@ fn dropping_next_server_unsets_it() {
         .map(|field| String::from_utf8_lossy(field.key).into_owned())
         .collect::<Vec<_>>();
     assert_eq!(fields, ["!next-server"]);
+}
+
+/// A server with BOOTP changed by hand going back to the factory settings: RouterOS refuses
+/// both empty (ambiguous enum, 1og-sw2) and `!bootp-…` (a syntax error), and hides them again
+/// at `forever` and `static` (CHR 7.24.5).
+#[test]
+fn dropping_bootp_settings_writes_their_defaults() {
+    fn server(fields: &[(&[u8], &[u8])]) -> IpDhcpServerByName {
+        let mut builder = IpDhcpServerByNameBuilder::init(&Default::default());
+        for (key, value) in fields {
+            builder.append_field(key, Some(value));
+        }
+        builder.build().unwrap()
+    }
+    let base: &[(&[u8], &[u8])] = &[
+        (b"name", b"dhcp-lan"),
+        (b"interface", b"bridge"),
+        (b"address-pool", b"static-only"),
+        (b"disabled", b"false"),
+        (b"use-radius", b"no"),
+    ];
+    let plain = server(base);
+    let set = server(&[base, &[(b"bootp-lease-time", b"lease-time"), (b"bootp-support", b"dynamic")]].concat());
+    let fields = IpDhcpServerByName::default()
+        .0
+        .changed_values(&set.0)
+        .chain(plain.0.changed_values(&set.0))
+        .filter(|field| field.key.starts_with(b"bootp"))
+        .map(|field| {
+            format!(
+                "{}={}",
+                String::from_utf8_lossy(field.key),
+                String::from_utf8_lossy(&field.value)
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        fields,
+        ["bootp-lease-time=forever", "bootp-support=static", "bootp-lease-time=forever", "bootp-support=static"]
+    );
+    assert_eq!(plain.0.changed_values(&server(base).0).count(), 0);
 }

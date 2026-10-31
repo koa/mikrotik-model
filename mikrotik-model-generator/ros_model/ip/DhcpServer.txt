@@ -6,8 +6,10 @@ address-pool: ref=>ipv4-pool
 allow-dual-stack-queue: o; bool
 always-broadcast: o; bool
 authoritative: o; enum= after-10sec-delay, after-2sec-delay, no, yes;
-bootp-lease-time: o; enum=forever, lease-time;
-bootp-support: o; enum=dynamic, static, none;
+# "" is ambiguous (or an invalid time) and `!bootp-…` a syntax error; RouterOS hides them at
+# forever and static (CHR 7.24.5, 1og-sw2 refused the "")
+bootp-lease-time: enum=forever, lease-time; default=forever
+bootp-support: enum=dynamic, static, none; default=static
 client-mac-limit: o; unlimited;
 comment: o
 conflict-detection: o; bool
