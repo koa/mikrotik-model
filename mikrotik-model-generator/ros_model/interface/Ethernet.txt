@@ -25,9 +25,9 @@ poe-out: o;enum=off, auto-on, forced-on
 poe-priority: o;u8
 poe-voltage: o; auto; enum= high, low;
 power-cycle-interval: none; Duration; o
-power-cycle-ping-address: o; IpAddr
+power-cycle-ping-address: unset; o; IpAddr
 power-cycle-ping-enabled: bool; o
-power-cycle-ping-timeout: Duration; o
+power-cycle-ping-timeout: unset; Duration; o
 sfp-shutdown-temperature:o;u8
 sfp-rate-select: o;enum=high,low
 # kept where NetBox gives none: the port negotiates then and ignores it, and RouterOS refuses

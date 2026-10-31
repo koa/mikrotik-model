@@ -48,7 +48,10 @@ real entry (set, then `!field`, then read back empty) they are `unset` too: the 
 paired with a rule without one), the legacy CAPsMAN configuration, datapath and security, the
 wifi provisioning's `master-configuration` and `radio-mac`, the OSPF area's `default-cost` and
 `nssa-translator`, the instance's `domain-tag`, `originate-default`, `use-dn`, and the VXLAN's
-`interface` and `group` (only together). Not every field can be unset this
+`interface` and `group` (only together). The PoE fields of `/interface/ethernet` are missing on
+a CHR: `power-cycle-ping-address=""` stopped an apply on lab-np2 (CRS318, 7.23.8, "invalid value
+for argument ip"), so it and `power-cycle-ping-timeout` are `unset` on the strength of `!field`
+clearing an address in a CHR script (`local-address` of a VXLAN). Not every field can be unset this
 way (`!comment` is accepted but leaves the comment), so it is only on the fields where it was
 checked on a CHR. Fields that take neither (`horizon`, `hw` of a bridge port, the bridge's
 multicast settings, most of `/ip/dhcp-server`) need a value in the target or `default=`.
