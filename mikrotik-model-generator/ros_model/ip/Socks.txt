@@ -12,3 +12,13 @@ name: id
 password
 only-one: bool
 disabled: bool
+
+/ip/socks/access:can-add;
+.id: ro;id;Id
+action: enum=allow,deny
+comment: o
+disabled: bool; default=false
+dst-address: unset; o
+dst-port: unset; o
+src-address: unset; o
+src-port: unset; o
