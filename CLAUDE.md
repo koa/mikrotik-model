@@ -205,6 +205,8 @@ its `mod.rs`; not as `*_tests.rs` next to the model.
 - Update this file in the same commit as the change it describes.
 - Commits by Claude end with the `Co-Authored-By: Claude …` trailer, without a session link.
 - Push to `master` only when asked.
+- Format with `cargo fmt` before every commit; a formatting-only commit goes into
+  `.git-blame-ignore-revs`.
 - Verify with `cargo clippy --all-targets` in addition to `cargo check`/`cargo test`, here and
   in `mikrotik-model-generator/` (its tests and lints don't run from the crate root). Both are
   without warnings, the generated code included: a generator change that brings one back
