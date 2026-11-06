@@ -1,4 +1,4 @@
-use crate::{cleanup_field_name, known_entities, name2ident};
+use crate::{known_entities, name2ident, snake_field_name};
 use convert_case::{Case, Casing};
 use darling::{
     ast::NestedMeta,
@@ -53,9 +53,7 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
         (Fields::Named(current_struct_fields), Fields::Named(target_struct_fields)) => {
             for (field, f_type) in params.fields {
                 let field_name = Ident::new(
-                    cleanup_field_name(field.to_string().as_str())
-                        .to_case(Case::Snake)
-                        .as_str(),
+                    snake_field_name(field.to_string().as_str()).as_str(),
                     field.span(),
                 );
                 match f_type {

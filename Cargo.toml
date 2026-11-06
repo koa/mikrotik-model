@@ -5,26 +5,25 @@ edition = "2024"
 
 [dependencies]
 mikrotik-api = { version = "0.1.0", git = "https://github.com/koa/mikrotik-api", branch = "master" }
-config = "0.14.1"
-serde = { version = "1.0.216", features = ["derive"] }
-thiserror = "2.0.9"
-log = "0.4.22"
-tokio-stream = "0.1.17"
-tokio-util = "0.7.18"
-mac_address = "1.1.8"
-ipnet = "2.5.0"
-itertools = "0.13.0"
-encoding_rs = "0.8.35"
-derive_builder = "0.20.2"
-enum-iterator = "2.1.0"
-const-str = "0.6.2"
+serde = { version = "1.0.229", features = ["derive"] }
+thiserror = "2.0.21"
+log = "0.4.35"
+tokio-stream = "0.1.19"
+tokio-util = "0.7.20"
+mac_address = "1.2.1"
+ipnet = "2.12.2"
+itertools = "0.15.0"
+encoding_rs = "0.8.44"
+enum-iterator = "2.3.0"
 mikrotik-model-generator-macro={version = "0.1.0", path = "mikrotik-model-generator-macro"}
 
 [dev-dependencies]
-tokio = { version = "1.42.0" , features = ["macros","rt-multi-thread"]}
-env_logger = "0.11.6"
-anyhow = "1.0.95"
+tokio = { version = "1.54.1" , features = ["macros","rt-multi-thread"]}
+env_logger = "0.11.11"
+anyhow = "1.0.104"
+config = "0.15.27"
+const-str = "1.1.0"
 [build-dependencies]
 mikrotik-model-generator={version = "0.1.0", path = "mikrotik-model-generator"}
-quote = "1.0.37"
-prettyplease = "0.2.19"
+quote = "1.0.47"
+prettyplease = "0.3.0"

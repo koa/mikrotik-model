@@ -3,7 +3,7 @@ use convert_case::{Case, Casing};
 use encoding_rs::mem::encode_latin1_lossy;
 use env_logger::{Env, TimestampPrecision};
 use lazy_static::lazy_static;
-use log::{error, info};
+use log::error;
 use mikrotik_api::prelude::MikrotikDevice;
 use mikrotik_api::simple::SimpleResult;
 use mikrotik_model_generator::known_entities;
@@ -115,7 +115,7 @@ async fn main() -> anyhow::Result<()> {
 
     let mut entity_list_file = File::create("target/ros_model/entities.txt")?;
     for (filename, entries) in entries_by_group {
-        write!(&mut entity_list_file, "{filename}.txt\n")?;
+        writeln!(&mut entity_list_file, "{filename}.txt")?;
         let path = format!("target/ros_model/{filename}.txt");
         let path = Path::new(&path);
         if let Some(parent) = path.parent() {
@@ -123,7 +123,7 @@ async fn main() -> anyhow::Result<()> {
                 create_dir_all(parent)?;
             }
         }
-        let mut file = File::create(&path)?;
+        let mut file = File::create(path)?;
         for entity in entries {
             let mut content = String::new();
             entity.write_entity_lines(&mut content)?;
@@ -134,7 +134,7 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn walk_dir<'a>(
+async fn walk_dir(
     device: &MikrotikDevice<SimpleResult>,
     path: &[Box<str>],
     existing_entities: &mut HashMap<Box<[Box<str>]>, &Entity>,
@@ -216,11 +216,11 @@ async fn walk_dir<'a>(
     }
 }
 
-async fn process_entry<'a>(
+async fn process_entry(
     device: &MikrotikDevice<SimpleResult>,
     path: &[Box<str>],
     can_add: bool,
-    can_edit: bool,
+    _can_edit: bool,
     can_remove: bool,
     can_find: bool,
     existing_entities: &mut HashMap<Box<[Box<str>]>, &Entity>,
@@ -314,27 +314,8 @@ async fn process_entry<'a>(
     for field_name in ro_fields {
         fields.push(Field {
             name: field_name,
-            field_type: None,
-            inline_enum: None,
-            is_key: false,
-            has_auto: false,
-            is_set: false,
-            is_range_dot: false,
-            is_range_dash: false,
-            is_optional: false,
             is_read_only: true,
-            is_multiple: false,
-            is_hex: false,
-            reference: Default::default(),
-            has_none: false,
-            has_unlimited: false,
-            has_disabled: false,
-            has_never: false,
-            is_rxtx_pair: false,
-            is_stats_pair: false,
-            keep_if_none: false,
-            default: None,
-            monitor: Default::default(),
+            ..Default::default()
         });
     }
     entity.fields = fields;
@@ -480,27 +461,7 @@ async fn guess_field(
         .cloned()
         .unwrap_or_else(|| Field {
             name: Box::from(field_name),
-            field_type: None,
-            inline_enum: None,
-            is_key: false,
-            has_auto: false,
-            is_set: false,
-            is_range_dot: false,
-            is_range_dash: false,
-            is_optional: false,
-            is_read_only: false,
-            is_multiple: false,
-            is_hex: false,
-            reference: Default::default(),
-            has_none: false,
-            has_unlimited: false,
-            has_disabled: false,
-            has_never: false,
-            is_rxtx_pair: false,
-            is_stats_pair: false,
-            keep_if_none: false,
-            default: None,
-            monitor: Default::default(),
+            ..Default::default()
         });
     field.is_read_only = false;
     if let Some((field_type, is_hex)) = number_type {

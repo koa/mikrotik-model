@@ -235,7 +235,7 @@ impl Entity {
                 let struct_ident_cfg = self.struct_type_cfg();
                 let mut impl_item: ItemImpl = parse_quote! {impl #struct_ident_cfg{}};
                 impl_item.items.extend(cfg_struct_items);
-                items.push(impl_item.into());
+                items.push(Item::Impl(impl_item));
             }
         };
         if has_readonly_fields {
@@ -2286,6 +2286,7 @@ impl Field {
                 let mut segments: Punctuated<PathSegment, Token![::]> = Default::default();
                 segments.push(PathSegment::from(ident));
                 Type::Path(TypePath {
+                    attrs: vec![],
                     qself: None,
                     path: Path {
                         leading_colon: None,
@@ -2343,7 +2344,7 @@ impl Field {
     }
 
     pub fn generate_field_name(&self) -> Ident {
-        let field_name = crate::cleanup_field_name(self.name.as_ref()).to_case(Case::Snake);
+        let field_name = crate::snake_field_name(self.name.as_ref());
 
         let field_name = if crate::KEYWORDS.contains(field_name.as_str())
             || field_name

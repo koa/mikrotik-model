@@ -341,6 +341,7 @@ pub fn generator() -> syn::File {
 
     syn::File {
         shebang: None,
+        frontmatter: None,
         attrs: vec![],
         items,
     }
@@ -433,6 +434,17 @@ fn cleanup_field_name(name: &str) -> String {
     name.replace(['.', '/', '+', ':'], "_")
 }
 
+/// The snake case field name of a RouterOS name: `.id` becomes `id` and `By_.id` `by_id`, as
+/// convert_case keeps empty words around a `_` since 0.7
+fn snake_field_name(name: &str) -> String {
+    cleanup_field_name(name)
+        .to_case(Case::Snake)
+        .split('_')
+        .filter(|word| !word.is_empty())
+        .collect::<Vec<_>>()
+        .join("_")
+}
+
 fn derive_ident(value: &str) -> String {
     let base = cleanup_field_name(value).to_case(Case::UpperCamel);
     if let Some(first_char) = base.chars().next() {
@@ -453,10 +465,7 @@ fn name2ident(name: &str) -> Ident {
     )
 }
 fn name2field_ident(name: &str) -> Ident {
-    Ident::new(
-        cleanup_field_name(name).to_case(Case::Snake).as_str(),
-        Span::call_site(),
-    )
+    Ident::new(snake_field_name(name).as_str(), Span::call_site())
 }
 
 #[cfg(test)]
@@ -507,6 +516,7 @@ mod test {
         let items = entiries.iter().flat_map(|e| e.generate_code().0).collect();
         let f = syn::File {
             shebang: None,
+            frontmatter: None,
             attrs: vec![],
             items,
         };
