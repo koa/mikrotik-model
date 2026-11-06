@@ -3,10 +3,10 @@
 Typed RouterOS configuration model, generated at build time from declarative `.txt` definition
 files under `mikrotik-model-generator/ros_model/{interface,ip,ipv6,routing,system,caps-man}/*.txt`
 (plus `enums.yaml`), via the `mikrotik_model!` macro (`mikrotik-model-generator-macro`). Builds on
-`mikrotik-api` for the transport: a git dependency (branch `claude-edition`), which builds in
-this workspace take from `../mikrotik-api` (`paths` in the workspace's `.cargo/config.toml`,
-outside the repositories; it keeps `Cargo.lock` on the git source, so a change there must not
-add dependencies). Provides, per modeled RouterOS path, both a `{Name}Current` fetcher and a
+`mikrotik-api` for the transport: a git dependency (branch `master`), which builds in this
+workspace take from `../mikrotik-api` (`[patch]` in the workspace's `.cargo/config.toml`,
+outside the repositories). Such a build drops mikrotik-api's git `source` from `Cargo.lock`:
+commit only the git version. Provides, per modeled RouterOS path, both a `{Name}Current` fetcher and a
 `{Name}Target` diff/mutation generator.
 
 `inspect-device` (binary in this crate) connects to a live device and dumps its discovered
