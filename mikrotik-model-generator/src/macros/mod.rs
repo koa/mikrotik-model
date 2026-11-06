@@ -94,7 +94,12 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
                             }
                         }
                     }
-                    TypeEntry::ById { path, keys, owned, ordered } => match known_structs.get(path.as_str()) {
+                    TypeEntry::ById {
+                        path,
+                        keys,
+                        owned,
+                        ordered,
+                    } => match known_structs.get(path.as_str()) {
                         None => {
                             accumulator.push(
                                 Error::custom("mikrotik path not found").with_span(&path.span()),
@@ -146,9 +151,15 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
                                         .push(parse_quote!(#field_name:Vec<mikrotik_model::model::#field_type>));
                                     generate_mutations_expr = chain(
                                         generate_mutations_expr,
-                                        reconcile_by_id(&field_name, &field_type, &owned, ordered, parse_quote! {
+                                        reconcile_by_id(
+                                            &field_name,
+                                            &field_type,
+                                            &owned,
+                                            ordered,
+                                            parse_quote! {
                                                 self.#field_name.iter().map(std::borrow::Cow::<mikrotik_model::model::#field_type>::Borrowed)
-                                            }),
+                                            },
+                                        ),
                                     );
                                 } else {
                                     let mut key_type: TypeTuple = parse_quote!(());
@@ -179,9 +190,15 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
                                     );
                                     generate_mutations_expr = chain(
                                         generate_mutations_expr,
-                                        reconcile_by_id(&field_name, &field_type, &owned, ordered, parse_quote! {
+                                        reconcile_by_id(
+                                            &field_name,
+                                            &field_type,
+                                            &owned,
+                                            ordered,
+                                            parse_quote! {
                                                 self.#field_name.iter().map(|(#key_values,entry)|#generate_block).map(std::borrow::Cow::<mikrotik_model::model::#field_type>::Owned)
-                                            }),
+                                            },
+                                        ),
                                     );
                                 }
                             } else {

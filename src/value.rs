@@ -977,10 +977,16 @@ mod tests {
             (b"1s500ms", Duration::from_millis(1500)),
             (b"0s", Duration::ZERO),
             // uptimes (`/system/resource`)
-            (b"4d13h54m28s", Duration::from_secs(((4 * 24 + 13) * 60 + 54) * 60 + 28)),
+            (
+                b"4d13h54m28s",
+                Duration::from_secs(((4 * 24 + 13) * 60 + 54) * 60 + 28),
+            ),
             (b"1w2d", Duration::from_secs(9 * 86400)),
         ] {
-            assert_eq!(Duration::parse_ros(text), ParseRosValueResult::Value(duration));
+            assert_eq!(
+                Duration::parse_ros(text),
+                ParseRosValueResult::Value(duration)
+            );
             assert_eq!(
                 Duration::parse_ros(&duration.encode_ros()),
                 ParseRosValueResult::Value(duration)
@@ -988,8 +994,14 @@ mod tests {
         }
         assert_eq!(Duration::from_millis(100).encode_ros().as_ref(), b"100ms");
         // seconds without unit, also after other units
-        assert_eq!(Duration::parse_ros(b"12"), ParseRosValueResult::Value(Duration::from_secs(12)));
-        assert_eq!(Duration::parse_ros(b"1m30"), ParseRosValueResult::Value(Duration::from_secs(90)));
+        assert_eq!(
+            Duration::parse_ros(b"12"),
+            ParseRosValueResult::Value(Duration::from_secs(12))
+        );
+        assert_eq!(
+            Duration::parse_ros(b"1m30"),
+            ParseRosValueResult::Value(Duration::from_secs(90))
+        );
     }
     #[test]
     fn test_parse_id() {

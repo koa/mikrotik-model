@@ -446,7 +446,6 @@ fn derive_ident(value: &str) -> String {
     }
 }
 
-
 fn name2ident(name: &str) -> Ident {
     Ident::new(
         cleanup_field_name(name).to_case(Case::UpperCamel).as_str(),

@@ -32,15 +32,19 @@ fn decodes_an_inactive_template_reporting_few_fields() {
             String::from_utf8_lossy(key)
         );
     }
-    let template: RoutingOspfInterfaceTemplateById =
-        builder.build().expect("RouterOS's values for the missing fields");
+    let template: RoutingOspfInterfaceTemplateById = builder
+        .build()
+        .expect("RouterOS's values for the missing fields");
     assert_eq!(template.data.cost, 1);
     assert_eq!(template.data.dead_interval, Duration::from_secs(40));
     assert_eq!(template.data.hello_interval, Duration::from_secs(10));
     assert_eq!(template.data.instance_id, 0);
     assert_eq!(template.data.retransmit_interval, Duration::from_secs(5));
     assert_eq!(template.data.transmit_delay, Duration::from_secs(1));
-    assert_eq!(template.data._type, RoutingOspfInterfaceTemplateType::Broadcast);
+    assert_eq!(
+        template.data._type,
+        RoutingOspfInterfaceTemplateType::Broadcast
+    );
     assert_eq!(template.data.priority, 1);
     assert!(!template.data.disabled);
 }

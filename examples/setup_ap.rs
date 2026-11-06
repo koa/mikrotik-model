@@ -99,9 +99,7 @@ impl DeviceDataTarget {
         let vxlan_if = self.vxlan.entry(ifname.into()).or_default();
         vxlan_if.vni = vni;
         for addr in other_vxlan {
-            self.vxlan_vteps
-                .entry((ifname.into(), *addr))
-                .or_default();
+            self.vxlan_vteps.entry((ifname.into(), *addr)).or_default();
         }
     }
 

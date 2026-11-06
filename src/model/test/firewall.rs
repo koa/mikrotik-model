@@ -45,15 +45,11 @@ fn rule_added_without_disabled_is_enabled() {
 /// (`default=accept`; router-faesigrund-keller's IPv6 filter, CHR 7.24.5).
 #[test]
 fn rule_added_without_action_accepts() {
-    let rule: Ipv6FirewallFilterCfg = build::<Ipv6FirewallFilterCfgBuilder, _>(&[
-        (b"chain", b"input"),
-        (b"protocol", b"icmpv6"),
-    ]);
+    let rule: Ipv6FirewallFilterCfg =
+        build::<Ipv6FirewallFilterCfgBuilder, _>(&[(b"chain", b"input"), (b"protocol", b"icmpv6")]);
     assert_eq!(rule.action, Ipv6FirewallFilterAction::Accept);
-    let rule: IpFirewallFilterCfg = build::<IpFirewallFilterCfgBuilder, _>(&[
-        (b"chain", b"input"),
-        (b"protocol", b"icmp"),
-    ]);
+    let rule: IpFirewallFilterCfg =
+        build::<IpFirewallFilterCfgBuilder, _>(&[(b"chain", b"input"), (b"protocol", b"icmp")]);
     assert_eq!(rule.action, IpFirewallFilterAction::Accept);
     let rule: IpFirewallNatCfg = build::<IpFirewallNatCfgBuilder, _>(&[(b"chain", b"srcnat")]);
     assert_eq!(rule.action, IpFirewallNatAction::Accept);
@@ -74,13 +70,22 @@ fn decodes_a_bruteforce_stage() {
         (b"dst-port", b"22"),
     ]);
     assert_eq!(rule.action, IpFirewallFilterAction::AddSrcToAddressList);
-    assert_eq!(rule.address_list_timeout, Some(std::time::Duration::from_secs(10 * 24 * 3600)));
-    assert_eq!(rule.src_address_list.as_deref(), Some(b"ssh_stage3".as_slice()));
+    assert_eq!(
+        rule.address_list_timeout,
+        Some(std::time::Duration::from_secs(10 * 24 * 3600))
+    );
+    assert_eq!(
+        rule.src_address_list.as_deref(),
+        Some(b"ssh_stage3".as_slice())
+    );
     let rule: IpFirewallFilterCfg = build::<IpFirewallFilterCfgBuilder, _>(&[
         (b"chain", b"forward"),
         (b"connection-nat-state", b"dstnat"),
     ]);
-    assert_eq!(rule.connection_nat_state.as_deref(), Some(b"dstnat".as_slice()));
+    assert_eq!(
+        rule.connection_nat_state.as_deref(),
+        Some(b"dstnat".as_slice())
+    );
 }
 
 /// The match fields of the IPv6 defconf rules are ranges, lists, negations and
@@ -137,7 +142,11 @@ fn a_rule_losing_its_match_fields_unsets_them() {
     let mut keys = plain
         .changed_values(&defconf)
         .map(|field| {
-            assert!(field.value.is_empty(), "{}", String::from_utf8_lossy(field.key));
+            assert!(
+                field.value.is_empty(),
+                "{}",
+                String::from_utf8_lossy(field.key)
+            );
             String::from_utf8_lossy(field.key).into_owned()
         })
         .collect::<Vec<_>>();
@@ -178,15 +187,22 @@ mod owned {
         }
     }
     fn entry(id: u32, comment: Option<&str>, port: &str) -> IpFirewallFilterById {
-        IpFirewallFilterById { id: Id(id), data: rule(comment, port) }
+        IpFirewallFilterById {
+            id: Id(id),
+            data: rule(comment, port),
+        }
     }
     fn reconcile<'a>(
         current: &'a [IpFirewallFilterById],
         target: &'a [IpFirewallFilterCfg],
     ) -> Vec<ResourceMutation<'a>> {
-        generate_owned_by_id(current, target.iter().map(Cow::Borrowed), b"own:", true, |r| {
-            r.comment.as_deref()
-        })
+        generate_owned_by_id(
+            current,
+            target.iter().map(Cow::Borrowed),
+            b"own:",
+            true,
+            |r| r.comment.as_deref(),
+        )
         .collect()
     }
     fn script(mutations: &[ResourceMutation]) -> String {
@@ -242,7 +258,10 @@ mod owned {
              move [find comment=\"own: b\" dynamic!=yes] destination=*3\n"
         );
         // behind another rule
-        let current = [entry(3, Some("by hand"), "80"), entry(1, Some("own: a"), "22")];
+        let current = [
+            entry(3, Some("by hand"), "80"),
+            entry(1, Some("own: a"), "22"),
+        ];
         let target = [rule(Some("own: a"), "22")];
         assert_eq!(
             script(&reconcile(&current, &target)),
@@ -254,8 +273,14 @@ mod owned {
     /// chain, after the rules set up by hand).
     #[test]
     fn a_last_rule_goes_after_the_others() {
-        let current = [entry(1, Some("by hand"), "80"), entry(2, Some("by hand 2"), "443")];
-        let target = [rule(Some("own: ssh"), "22"), rule(Some("own: last drop"), "1-65535")];
+        let current = [
+            entry(1, Some("by hand"), "80"),
+            entry(2, Some("by hand 2"), "443"),
+        ];
+        let target = [
+            rule(Some("own: ssh"), "22"),
+            rule(Some("own: last drop"), "1-65535"),
+        ];
         assert_eq!(
             script(&reconcile(&current, &target)),
             "/ip/firewall/filter\n\
@@ -274,7 +299,10 @@ mod owned {
         ];
         assert_eq!(script(&reconcile(&current, &target)), "");
         // without others: still first, then last
-        let current = [entry(3, Some("own: last drop"), "1-65535"), entry(1, Some("own: ssh"), "22")];
+        let current = [
+            entry(3, Some("own: last drop"), "1-65535"),
+            entry(1, Some("own: ssh"), "22"),
+        ];
         assert_eq!(
             script(&reconcile(&current, &target)),
             "/ip/firewall/filter\n\
@@ -299,7 +327,10 @@ mod owned {
     #[test]
     fn the_move_to_the_end_comes_after_the_other() {
         let current = [entry(1, Some("by hand"), "80")];
-        let target = [rule(Some("own: ssh"), "22"), rule(Some("own: last drop"), "1-65535")];
+        let target = [
+            rule(Some("own: ssh"), "22"),
+            rule(Some("own: last drop"), "1-65535"),
+        ];
         let mutations = reconcile(&current, &target);
         let moves = mutations
             .iter()
@@ -313,7 +344,11 @@ mod owned {
     #[test]
     fn a_rule_without_comment_is_taken_over() {
         // written before the prefix: the same rule without a comment
-        let current = [entry(1, None, "53"), entry(2, None, "80"), entry(3, Some("by hand"), "22")];
+        let current = [
+            entry(1, None, "53"),
+            entry(2, None, "80"),
+            entry(3, Some("by hand"), "22"),
+        ];
         let target = [rule(Some("own: dns"), "53"), rule(Some("own: ssh"), "22")];
         let mutations = reconcile(&current, &target);
         // the copy of dns is taken over; ssh has a comment of another: added, not taken
@@ -334,8 +369,14 @@ mod owned {
         let mut target = [rule(Some("own: a"), "22")];
         target[0].in_interface = Some(b"vlan-new".into());
         let mutations = reconcile(&current, &target);
-        assert!(matches!(mutations[0].operation, ResourceMutationOperation::Add));
-        assert!(matches!(mutations[1].operation, ResourceMutationOperation::Move { .. }));
+        assert!(matches!(
+            mutations[0].operation,
+            ResourceMutationOperation::Add
+        ));
+        assert!(matches!(
+            mutations[1].operation,
+            ResourceMutationOperation::Move { .. }
+        ));
         // the move first in the list: it still runs after the add, which waits for its interface
         let reversed = [mutations[1].clone(), mutations[0].clone()];
         let sorted = ResourceMutation::sort_mutations_with_provided_dependencies(
@@ -343,6 +384,9 @@ mod owned {
             [(ReferenceType::Interface, b"vlan-new".as_slice().into())],
         )
         .unwrap();
-        assert!(matches!(sorted[1].operation, ResourceMutationOperation::Move { .. }));
+        assert!(matches!(
+            sorted[1].operation,
+            ResourceMutationOperation::Move { .. }
+        ));
     }
 }

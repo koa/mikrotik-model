@@ -4,8 +4,7 @@ use env_logger::{Env, TimestampPrecision};
 use log::{error, info, warn};
 use mikrotik_model::ascii::AsciiString;
 use mikrotik_model::model::{
-    CapsManInterfaceById, CapsManInterfaceState, CapsManRadioState,
-    CapsManRegistrationTableState,
+    CapsManInterfaceById, CapsManInterfaceState, CapsManRadioState, CapsManRegistrationTableState,
 };
 use mikrotik_model::resource::{SentenceResult, stream_resource};
 use mikrotik_model::{Credentials, MikrotikDevice};

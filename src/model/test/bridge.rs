@@ -89,22 +89,39 @@ fn ports_trading_bridges_keep_their_interfaces() {
         ..Default::default()
     };
     let current = [
-        InterfaceBridgePortById { id: Id(0), data: port("vxlan-netze", "bridge-caps") },
-        InterfaceBridgePortById { id: Id(1), data: port("ether2", "bridge-lan") },
+        InterfaceBridgePortById {
+            id: Id(0),
+            data: port("vxlan-netze", "bridge-caps"),
+        },
+        InterfaceBridgePortById {
+            id: Id(1),
+            data: port("ether2", "bridge-lan"),
+        },
     ];
-    let target = [port("ether2", "bridge-caps"), port("vxlan-netze", "bridge-lan")];
+    let target = [
+        port("ether2", "bridge-caps"),
+        port("vxlan-netze", "bridge-lan"),
+    ];
     let mutations =
         generate_add_update_remove_by_id(&current, target.iter().map(std::borrow::Cow::Borrowed))
             .collect::<Vec<_>>();
     let changed = mutations
         .iter()
-        .flat_map(|m| m.fields.iter().map(|f| String::from_utf8_lossy(f.key).into_owned()))
+        .flat_map(|m| {
+            m.fields
+                .iter()
+                .map(|f| String::from_utf8_lossy(f.key).into_owned())
+        })
         .collect::<Vec<_>>();
     assert_eq!(changed, ["bridge", "bridge"], "{mutations:?}");
     ResourceMutation::sort_mutations_with_provided_dependencies(
         &mutations,
-        ["vxlan-netze", "ether2", "bridge-caps", "bridge-lan"]
-            .map(|name| (crate::model::ReferenceType::Interface, name.as_bytes().into())),
+        ["vxlan-netze", "ether2", "bridge-caps", "bridge-lan"].map(|name| {
+            (
+                crate::model::ReferenceType::Interface,
+                name.as_bytes().into(),
+            )
+        }),
     )
     .unwrap();
 }
@@ -141,7 +158,10 @@ fn a_ports_multicast_router_is_its_setting() {
     let SentenceResult::Row { value, .. } = &parsed else {
         panic!("not a row: {parsed:?}");
     };
-    assert_eq!(value.data.multicast_router, InterfaceBridgePortMulticastRouter::TemporaryQuery);
+    assert_eq!(
+        value.data.multicast_router,
+        InterfaceBridgePortMulticastRouter::TemporaryQuery
+    );
 }
 
 /// ap-klr-solar (7.23.7) snooped, and the target with snooping off set the multicast settings
@@ -150,10 +170,7 @@ fn a_ports_multicast_router_is_its_setting() {
 /// snooping off sets only `igmp-snooping`, and a bridge reporting none of them has them.
 #[test]
 fn snooping_goes_off_without_clearing_the_multicast_settings() {
-    use crate::{
-        model::InterfaceBridgeCfg,
-        resource::generate_add_update_remove_by_key,
-    };
+    use crate::{model::InterfaceBridgeCfg, resource::generate_add_update_remove_by_key};
     use std::borrow::Cow;
     let mut snooping = BRIDGE_WITHOUT_MVRP.to_vec();
     snooping.retain(|(key, _)| *key != b"igmp-snooping".as_slice());
@@ -173,7 +190,8 @@ fn snooping_goes_off_without_clearing_the_multicast_settings() {
         (b"mld-version", b"1"),
     ]);
     let current: InterfaceBridgeByName = build::<InterfaceBridgeByNameBuilder, _>(&snooping);
-    let hidden: InterfaceBridgeByName = build::<InterfaceBridgeByNameBuilder, _>(BRIDGE_WITHOUT_MVRP);
+    let hidden: InterfaceBridgeByName =
+        build::<InterfaceBridgeByNameBuilder, _>(BRIDGE_WITHOUT_MVRP);
     let mut snooped = hidden.clone();
     snooped.0.snoop_multicast();
     assert_eq!(current, snooped);
@@ -184,11 +202,15 @@ fn snooping_goes_off_without_clearing_the_multicast_settings() {
     });
     assert_eq!(target, hidden);
     let current = [current];
-    let mutations = generate_add_update_remove_by_key(&current, [Cow::Borrowed(&target)])
-        .collect::<Vec<_>>();
+    let mutations =
+        generate_add_update_remove_by_key(&current, [Cow::Borrowed(&target)]).collect::<Vec<_>>();
     let changed = mutations
         .iter()
-        .flat_map(|m| m.fields.iter().map(|f| String::from_utf8_lossy(f.key).into_owned()))
+        .flat_map(|m| {
+            m.fields
+                .iter()
+                .map(|f| String::from_utf8_lossy(f.key).into_owned())
+        })
         .collect::<Vec<_>>();
     assert_eq!(changed, ["igmp-snooping"], "{mutations:?}");
 }
@@ -224,7 +246,11 @@ fn a_port_taken_over_for_a_radio_keeps_hw() {
             .collect::<Vec<_>>();
     let changed = mutations
         .iter()
-        .flat_map(|m| m.fields.iter().map(|f| String::from_utf8_lossy(f.key).into_owned()))
+        .flat_map(|m| {
+            m.fields
+                .iter()
+                .map(|f| String::from_utf8_lossy(f.key).into_owned())
+        })
         .collect::<Vec<_>>();
     assert_eq!(changed, ["interface"], "{mutations:?}");
 }

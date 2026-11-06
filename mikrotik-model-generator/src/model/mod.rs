@@ -3,13 +3,12 @@ use proc_macro2::{Ident, Literal, Span, TokenStream};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use syn::{
-    Stmt,
     __private::ToTokens,
     parse_quote,
     punctuated::Punctuated,
     token::{Colon, Comma},
     Block, Expr, ExprArray, ExprField, ExprMatch, ExprStruct, FieldValue, FieldsNamed, FnArg,
-    ImplItem, Item, ItemFn, ItemImpl, Member, Path, PathSegment, Token, Type, TypePath,
+    ImplItem, Item, ItemFn, ItemImpl, Member, Path, PathSegment, Stmt, Token, Type, TypePath,
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -685,18 +684,21 @@ impl Entity {
     /// Whether its dynamic entries are left out when reading it ([`Self::dynamic_filter`]): not
     /// where the key is hardware (`id=` in the header), whose entries are read even when dynamic.
     pub fn finds_static_only(&self) -> bool {
-        let has_dynamic = self
-            .fields
-            .iter()
-            .any(|f| f.name.as_ref() == "dynamic" && f.field_type.as_deref() == Some("bool") && f.is_read_only);
-        let hardware_key = self
-            .key_field
-            .as_deref()
-            .is_some_and(|key| self.fields.iter().any(|f| f.name.as_ref() == key && f.is_read_only));
-        let has_builtin = self
-            .fields
-            .iter()
-            .any(|f| f.name.as_ref() == "builtin" && f.field_type.as_deref() == Some("bool") && f.is_read_only);
+        let has_dynamic = self.fields.iter().any(|f| {
+            f.name.as_ref() == "dynamic"
+                && f.field_type.as_deref() == Some("bool")
+                && f.is_read_only
+        });
+        let hardware_key = self.key_field.as_deref().is_some_and(|key| {
+            self.fields
+                .iter()
+                .any(|f| f.name.as_ref() == key && f.is_read_only)
+        });
+        let has_builtin = self.fields.iter().any(|f| {
+            f.name.as_ref() == "builtin"
+                && f.field_type.as_deref() == Some("bool")
+                && f.is_read_only
+        });
         has_dynamic && (has_builtin || !hardware_key)
     }
     fn dynamic_filter(&self) -> Option<Stmt> {
@@ -1047,10 +1049,10 @@ impl Entity {
             let expr: Expr = if field.is_optional {
                 let field_access = receiver(&field_access);
                 parse_quote! {#field_access.iter()
-                    .map(|value| (#name.as_slice(), value::RosValue::encode_ros(value)))}
+                .map(|value| (#name.as_slice(), value::RosValue::encode_ros(value)))}
             } else {
                 parse_quote! {Some(#field_access).into_iter()
-                    .map(|value| (#name.as_slice(), value::RosValue::encode_ros(value)))}
+                .map(|value| (#name.as_slice(), value::RosValue::encode_ros(value)))}
             };
             values_expr = Some(match values_expr.take() {
                 Some(previous) => parse_quote!(#previous.chain(#expr)),
@@ -1262,14 +1264,17 @@ impl Entity {
                         let (Some(old_value),Some(new_value)) = (old_value_any.downcast_ref::<#base_type>(),new_value_any.downcast_ref::<#base_type>())
                     };
                     // one field in one `if` (clippy: collapsible_if), several each in their own
-                    reference_block.stmts.push(if let [(condition, update)] = &updates[..] {
-                        parse_quote! {if #values && #condition #update}
-                    } else {
-                        let updates = updates
-                            .iter()
-                            .map(|(condition, update)| -> TokenStream { parse_quote! {if #condition #update} });
-                        parse_quote! {if #values {#(#updates)*}}
-                    });
+                    reference_block
+                        .stmts
+                        .push(if let [(condition, update)] = &updates[..] {
+                            parse_quote! {if #values && #condition #update}
+                        } else {
+                            let updates =
+                                updates.iter().map(|(condition, update)| -> TokenStream {
+                                    parse_quote! {if #condition #update}
+                                });
+                            parse_quote! {if #values {#(#updates)*}}
+                        });
                 }
                 let return_statement = Stmt::Expr(parse_quote!(modified), None);
                 reference_block.stmts.push(return_statement);
@@ -1578,13 +1583,15 @@ impl Entity {
                 // rule that was added without it)
                 let attribute_name = field.attribute_name();
                 let default = Literal::byte_string(default.as_bytes());
-                init_struct.fields.push(parse_quote!(#field_name: match self.#field_name {
-                    Some(value) => value,
-                    None => match crate::value::RosValue::parse_ros(#default) {
-                        crate::value::ParseRosValueResult::Value(value) => value,
-                        _ => return Err(#attribute_name as &[u8]),
-                    },
-                }));
+                init_struct
+                    .fields
+                    .push(parse_quote!(#field_name: match self.#field_name {
+                        Some(value) => value,
+                        None => match crate::value::RosValue::parse_ros(#default) {
+                            crate::value::ParseRosValueResult::Value(value) => value,
+                            _ => return Err(#attribute_name as &[u8]),
+                        },
+                    }));
             } else {
                 let attribute_name = field.attribute_name();
                 init_struct.fields.push(
@@ -2372,7 +2379,6 @@ fn parse_path(name: &str) -> Box<[Box<str>]> {
         .collect();
     path
 }
-
 
 /// The place a field accessor `&self.x` borrows, as the receiver of a method call: `self.x.iter()`
 /// rather than `(&self.x).iter()`, which clippy calls a needless borrow. Anything else stays as

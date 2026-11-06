@@ -60,7 +60,9 @@ impl<'a, W: Write> Generator<'a, W> {
                 self.append_fields(&mutation.fields)?;
                 writeln!(self.target)?;
             }
-            ResourceMutationOperation::Move { entries, before, .. } => {
+            ResourceMutationOperation::Move {
+                entries, before, ..
+            } => {
                 for entry in entries {
                     self.target.write_str("move [find ")?;
                     self.append_field(entry)?;
@@ -107,7 +109,11 @@ impl<'a, W: Write> Generator<'a, W> {
 /// OSPF area has no `dynamic` at all, `dynamic=no` found none and the `set` did nothing
 /// (sat-switch 7.23.8, CHR 7.24.5); `!dynamic` is a syntax error in `/ipv6/address`.
 fn static_only(mutation: &ResourceMutation) -> &'static str {
-    if crate::model::finds_static_only(mutation.resource) { " dynamic!=yes" } else { "" }
+    if crate::model::finds_static_only(mutation.resource) {
+        " dynamic!=yes"
+    } else {
+        ""
+    }
 }
 
 pub fn generate_cfg(target: &mut impl Write, mutations: &[ResourceMutation]) -> std::fmt::Result {
@@ -142,7 +148,9 @@ pub fn generate_cfg(target: &mut impl Write, mutations: &[ResourceMutation]) -> 
                 append_fields(target, mutation)?;
                 writeln!(target)?;
             }
-            ResourceMutationOperation::Move { entries, before, .. } => {
+            ResourceMutationOperation::Move {
+                entries, before, ..
+            } => {
                 for entry in entries {
                     target.write_str("move [find ")?;
                     append_field(target, entry)?;

@@ -45,7 +45,11 @@ fn a_client_without_prefix_delegation_asks_for_a_prefix() {
     assert_eq!(plain.cfg.default_route_distance, None);
     assert!(!plain.cfg.disabled);
     let target = Ipv6DhcpClientCfg {
-        request: [Ipv6DhcpClientRequest::Address, Ipv6DhcpClientRequest::Prefix].into(),
+        request: [
+            Ipv6DhcpClientRequest::Address,
+            Ipv6DhcpClientRequest::Prefix,
+        ]
+        .into(),
         add_default_route: true,
         default_route_distance: Some(10),
         pool_name: Some("pd-ether3".into()),

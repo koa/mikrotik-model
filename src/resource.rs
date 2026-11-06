@@ -390,8 +390,16 @@ impl MutationOrdering<'_> {
         }
         MutationOrdering {
             releases: owned(self.releases),
-            claims: self.claims.into_iter().map(UniqueValue::into_owned).collect(),
-            frees: self.frees.into_iter().map(UniqueValue::into_owned).collect(),
+            claims: self
+                .claims
+                .into_iter()
+                .map(UniqueValue::into_owned)
+                .collect(),
+            frees: self
+                .frees
+                .into_iter()
+                .map(UniqueValue::into_owned)
+                .collect(),
             drops: owned(self.drops),
             finds: owned(self.finds),
         }
@@ -425,9 +433,19 @@ impl MutationOrdering<'_> {
         let still_provided = provided(target).collect::<HashSet<_>>();
         let blocking = target.removal_blocking_references().collect::<HashSet<_>>();
         MutationOrdering {
-            releases: provided(from).filter(|r| !still_provided.contains(r)).collect(),
-            claims: after.iter().filter(|v| !before.contains(*v)).cloned().collect(),
-            frees: before.iter().filter(|v| !after.contains(*v)).cloned().collect(),
+            releases: provided(from)
+                .filter(|r| !still_provided.contains(r))
+                .collect(),
+            claims: after
+                .iter()
+                .filter(|v| !before.contains(*v))
+                .cloned()
+                .collect(),
+            frees: before
+                .iter()
+                .filter(|v| !after.contains(*v))
+                .cloned()
+                .collect(),
             drops: from
                 .removal_blocking_references()
                 .filter(|(_, value)| !value.is_empty())
@@ -668,7 +686,10 @@ impl<'a> ResourceMutation<'a> {
             && other.resource == self.resource
         {
             return last
-                || !matches!(other.operation, ResourceMutationOperation::Move { last: true, .. });
+                || !matches!(
+                    other.operation,
+                    ResourceMutationOperation::Move { last: true, .. }
+                );
         }
         // a name it provides is still held by `other`
         self.provides.iter().any(|name| other_ordering.releases.contains(name))
@@ -709,13 +730,15 @@ impl<'a> ResourceMutationOperation<'a> {
             ResourceMutationOperation::UpdateByKey(k) => {
                 ResourceMutationOperation::UpdateByKey(k.into_owned())
             }
-            ResourceMutationOperation::Move { entries, before, last } => {
-                ResourceMutationOperation::Move {
-                    entries: entries.into_iter().map(KeyValuePair::into_owned).collect(),
-                    before: before.map(|b| Cow::Owned(b.into_owned())),
-                    last,
-                }
-            }
+            ResourceMutationOperation::Move {
+                entries,
+                before,
+                last,
+            } => ResourceMutationOperation::Move {
+                entries: entries.into_iter().map(KeyValuePair::into_owned).collect(),
+                before: before.map(|b| Cow::Owned(b.into_owned())),
+                last,
+            },
         }
     }
 }
@@ -766,7 +789,9 @@ pub async fn apply_mutation(
             })
             .await
         }
-        ResourceMutationOperation::Move { entries, before, .. } => {
+        ResourceMutationOperation::Move {
+            entries, before, ..
+        } => {
             for entry in entries {
                 let id = find_id_by_key(device, mutation.resource, entry).await?;
                 write_command(device, mutation.resource, b"move", |cmd| {
@@ -1190,7 +1215,9 @@ where
             .cloned()
             .map(Current::create_resource_ref)
             .map(|e| e.cloned())
-            .map(|entry| ResourceMutationError::Remove { entry: Box::new(entry) })
+            .map(|entry| ResourceMutationError::Remove {
+                entry: Box::new(entry),
+            })
             .map(Err)
             .chain(
                 self.new_entries
@@ -1198,7 +1225,9 @@ where
                     .map(|v| v.as_ref())
                     .map(|r| r.create_resource_ref())
                     .map(|e| e.cloned())
-                    .map(|entry| ResourceMutationError::Add { entry: Box::new(entry) })
+                    .map(|entry| ResourceMutationError::Add {
+                        entry: Box::new(entry),
+                    })
                     .map(Err),
             )
             .chain(
@@ -1223,7 +1252,9 @@ where
             .map(Current::create_resource_ref)
             .map(|e| e.cloned())
         {
-            Err(ResourceMutationError::Remove { entry: Box::new(entry) })
+            Err(ResourceMutationError::Remove {
+                entry: Box::new(entry),
+            })
         } else if let Some(entry) = self
             .new_entries
             .iter()
@@ -1232,7 +1263,9 @@ where
             .map(|r| r.create_resource_ref())
             .map(|e| e.cloned())
         {
-            Err(ResourceMutationError::Add { entry: Box::new(entry) })
+            Err(ResourceMutationError::Add {
+                entry: Box::new(entry),
+            })
         } else {
             Ok(self
                 .matched_entries
@@ -1330,7 +1363,10 @@ where
     IntoTarget: Into<Cow<'t, Target>>,
     <TargetIter as IntoIterator>::IntoIter: 'r,
 {
-    let targets = target.into_iter().map(Into::into).collect::<Vec<Cow<'t, Target>>>();
+    let targets = target
+        .into_iter()
+        .map(Into::into)
+        .collect::<Vec<Cow<'t, Target>>>();
     let current = current.iter().collect::<Vec<_>>();
     let paired = pair_by_id(&current, &targets, |_, _| true);
     let (removes, updates, creates) = mutations_by_id(&current, &paired, targets, current.len());
@@ -1377,7 +1413,10 @@ where
     IntoTarget: Into<Cow<'t, Target>>,
     <TargetIter as IntoIterator>::IntoIter: 'r,
 {
-    let targets = target.into_iter().map(Into::into).collect::<Vec<Cow<'t, Target>>>();
+    let targets = target
+        .into_iter()
+        .map(Into::into)
+        .collect::<Vec<Cow<'t, Target>>>();
     debug_assert!(
         targets
             .iter()
@@ -1386,9 +1425,17 @@ where
     );
     let own = |c: &Current| comment(c.value()).is_some_and(|c| c.starts_with(prefix));
     // own entries first: only they are removed when unpaired
-    let (own_entries, others): (Vec<&Current>, Vec<&Current>) = current.iter().partition(|c| own(c));
-    let adoptable = others.iter().copied().filter(|c| comment(c.value()).is_none());
-    let candidates = own_entries.iter().copied().chain(adoptable).collect::<Vec<_>>();
+    let (own_entries, others): (Vec<&Current>, Vec<&Current>) =
+        current.iter().partition(|c| own(c));
+    let adoptable = others
+        .iter()
+        .copied()
+        .filter(|c| comment(c.value()).is_none());
+    let candidates = own_entries
+        .iter()
+        .copied()
+        .chain(adoptable)
+        .collect::<Vec<_>>();
     let paired = pair_by_id(&candidates, &targets, |c, update| {
         own(c) || update.fields.iter().all(|f| f.key == b"comment")
     });
@@ -1417,7 +1464,8 @@ where
                         first_last.get_or_insert(entry);
                     }
                     Some(t) => {
-                        in_order &= first_other.is_none() && first_last.is_none() && last_first < Some(t);
+                        in_order &=
+                            first_other.is_none() && first_last.is_none() && last_first < Some(t);
                         last_first = Some(t);
                     }
                     None if !own(entry) => {
@@ -1438,7 +1486,9 @@ where
                     .collect::<Box<[_]>>()
             };
             let (first, last) = (by_comment(false), by_comment(true));
-            let move_of = |entries: Box<[KeyValuePair<'static>]>, before: Option<&Current>, last| {
+            let move_of = |entries: Box<[KeyValuePair<'static>]>,
+                           before: Option<&Current>,
+                           last| {
                 (!entries.is_empty()).then(|| ResourceMutation {
                     resource: Current::path(),
                     operation: ResourceMutationOperation::Move {
@@ -1466,8 +1516,13 @@ where
         })
         .into_iter()
         .flatten();
-    let (removes, updates, creates) = mutations_by_id(&candidates, &paired, targets, own_entries.len());
-    removes.into_iter().chain(updates).chain(creates).chain(order)
+    let (removes, updates, creates) =
+        mutations_by_id(&candidates, &paired, targets, own_entries.len());
+    removes
+        .into_iter()
+        .chain(updates)
+        .chain(creates)
+        .chain(order)
 }
 
 /// The pairing of [`generate_add_update_remove_by_id`]: for each entry the target it becomes,
@@ -1484,7 +1539,9 @@ where
 {
     let mut costs = Vec::with_capacity(current.len() * targets.len());
     for (c, current) in current.iter().enumerate() {
-        let blocking = current.removal_blocking_references().collect::<HashSet<_>>();
+        let blocking = current
+            .removal_blocking_references()
+            .collect::<HashSet<_>>();
         for (t, target) in targets.iter().enumerate() {
             // An entry doesn't move to another entry its `blocks-removal` references name (a
             // vtep to another VXLAN): it is replaced. The removal needs nothing, while the move
@@ -1524,7 +1581,11 @@ fn mutations_by_id<'c, 't, 'r, Target, Current>(
     paired: &[Option<usize>],
     targets: Vec<Cow<'t, Target>>,
     removable: usize,
-) -> (Vec<ResourceMutation<'r>>, Vec<ResourceMutation<'r>>, Vec<ResourceMutation<'r>>)
+) -> (
+    Vec<ResourceMutation<'r>>,
+    Vec<ResourceMutation<'r>>,
+    Vec<ResourceMutation<'r>>,
+)
 where
     'c: 'r,
     't: 'r,
@@ -1611,11 +1672,18 @@ where
     let reused = orphaned_entries.len().min(new_entries.len());
     let mut new_entries = new_entries.into_vec();
     let mut matched_entries = matched_entries.into_vec();
-    matched_entries.extend(orphaned_entries.iter().copied().zip(new_entries.drain(..reused)));
+    matched_entries.extend(
+        orphaned_entries
+            .iter()
+            .copied()
+            .zip(new_entries.drain(..reused)),
+    );
     let mut orphaned_entries = orphaned_entries[reused..].to_vec();
     if let Some(own) = current.first()
         && let Some(index) = orphaned_entries.iter().position(|o| std::ptr::eq(*o, own))
-        && let Some(taken) = matched_entries.iter().position(|(c, _)| !std::ptr::eq(*c, own))
+        && let Some(taken) = matched_entries
+            .iter()
+            .position(|(c, _)| !std::ptr::eq(*c, own))
     {
         let (kept, target) = matched_entries.remove(taken);
         orphaned_entries[index] = kept;
@@ -1944,7 +2012,10 @@ mod tests {
             generate_add_update_remove_by_key_reusing(&current, target.iter().map(Cow::Borrowed))
                 .collect::<Vec<_>>();
         let sorted = sorted_with_all(&mutations);
-        let operations = sorted.iter().map(|m| m.operation.clone()).collect::<Vec<_>>();
+        let operations = sorted
+            .iter()
+            .map(|m| m.operation.clone())
+            .collect::<Vec<_>>();
         assert_eq!(
             operations,
             [
@@ -2007,7 +2078,10 @@ mod tests {
         mutations.splice(0..0, removals);
         let sorted = sorted_with_all(&mutations);
         let position = |resource: &[u8]| sorted.iter().position(|m| m.resource == resource);
-        let last_nd = sorted.iter().rposition(|m| m.resource == b"ipv6/nd").unwrap();
+        let last_nd = sorted
+            .iter()
+            .rposition(|m| m.resource == b"ipv6/nd")
+            .unwrap();
         assert!(last_nd < position(b"interface/vlan").unwrap(), "{sorted:?}");
     }
 }

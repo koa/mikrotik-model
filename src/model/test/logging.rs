@@ -2,8 +2,8 @@
 //! with the API output of CHR 7.24.5.
 
 use crate::model::{
-    SystemLogging, SystemLoggingAction, SystemLoggingActionBuilder, SystemLoggingActionRemoteLogFormat,
-    SystemLoggingBuilder,
+    SystemLogging, SystemLoggingAction, SystemLoggingActionBuilder,
+    SystemLoggingActionRemoteLogFormat, SystemLoggingBuilder,
 };
 use crate::resource::{AppendFieldResult, DeserializeRosBuilder, DeserializeRosResource};
 

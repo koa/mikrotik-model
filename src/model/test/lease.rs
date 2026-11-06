@@ -102,7 +102,12 @@ fn dropping_settings_writes_what_routeros_accepts() {
     ]));
     assert_eq!(
         changes(&set, &plain),
-        ["block-access=no", "lease-time=0s", "!queue-type=", "use-src-mac=no"]
+        [
+            "block-access=no",
+            "lease-time=0s",
+            "!queue-type=",
+            "use-src-mac=no"
+        ]
     );
     assert!(changes(&plain, &plain).is_empty());
 }

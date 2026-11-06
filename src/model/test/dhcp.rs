@@ -46,7 +46,11 @@ fn dropping_netmask_and_dns_none_writes_their_defaults() {
 #[test]
 fn dropping_next_server_unsets_it() {
     let plain = network(&[(b".id", b"*1"), (b"address", b"10.192.7.0/24")]);
-    let set = network(&[(b".id", b"*1"), (b"address", b"10.192.7.0/24"), (b"next-server", b"10.192.7.5")]);
+    let set = network(&[
+        (b".id", b"*1"),
+        (b"address", b"10.192.7.0/24"),
+        (b"next-server", b"10.192.7.5"),
+    ]);
     assert_eq!(set.0.next_server, Some("10.192.7.5".parse().unwrap()));
     let fields = plain
         .0
@@ -76,7 +80,16 @@ fn dropping_bootp_settings_writes_their_defaults() {
         (b"use-radius", b"no"),
     ];
     let plain = server(base);
-    let set = server(&[base, &[(b"bootp-lease-time", b"lease-time"), (b"bootp-support", b"dynamic")]].concat());
+    let set = server(
+        &[
+            base,
+            &[
+                (b"bootp-lease-time", b"lease-time"),
+                (b"bootp-support", b"dynamic"),
+            ],
+        ]
+        .concat(),
+    );
     let fields = IpDhcpServerByName::default()
         .0
         .changed_values(&set.0)
@@ -92,7 +105,12 @@ fn dropping_bootp_settings_writes_their_defaults() {
         .collect::<Vec<_>>();
     assert_eq!(
         fields,
-        ["bootp-lease-time=forever", "bootp-support=static", "bootp-lease-time=forever", "bootp-support=static"]
+        [
+            "bootp-lease-time=forever",
+            "bootp-support=static",
+            "bootp-lease-time=forever",
+            "bootp-support=static"
+        ]
     );
     assert_eq!(plain.0.changed_values(&server(base).0).count(), 0);
 }

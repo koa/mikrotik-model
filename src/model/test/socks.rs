@@ -2,7 +2,9 @@
 //! factory CCR2004 (7.20.8) and of a user and access rules added on CHR 7.24.5, which reports
 //! the password.
 
-use crate::model::{IpSocksAccessAction, IpSocksAccessCfg, IpSocksAccessCfgBuilder, IpSocksUsersCfgBuilder};
+use crate::model::{
+    IpSocksAccessAction, IpSocksAccessCfg, IpSocksAccessCfgBuilder, IpSocksUsersCfgBuilder,
+};
 use crate::model::{IpSocksAuthMethod, IpSocksCfg, IpSocksCfgBuilder, IpSocksUsersCfg};
 use crate::resource::{DeserializeRosBuilder, DeserializeRosResource};
 
@@ -62,7 +64,10 @@ fn decodes_access_rules() {
         (b"disabled", b"false"),
     ]);
     assert_eq!(allow.action, IpSocksAccessAction::Allow);
-    assert_eq!(allow.src_address.as_ref().map(|a| a.0.as_ref()), Some(b"10.0.2.0/24".as_slice()));
+    assert_eq!(
+        allow.src_address.as_ref().map(|a| a.0.as_ref()),
+        Some(b"10.0.2.0/24".as_slice())
+    );
     assert_eq!(allow.comment, None);
     let deny: IpSocksAccessCfg = build::<IpSocksAccessCfgBuilder, _>(&[
         (b"comment", b"netbox-provisioner: last rest"),
