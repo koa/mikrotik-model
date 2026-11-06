@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-mikrotik-api = { version = "0.1.0", git = "https://github.com/koa/mikrotik-api", branch = "claude-edition" }
+mikrotik-api = { version = "0.1.0", git = "https://github.com/koa/mikrotik-api", branch = "master" }
 config = "0.14.1"
 serde = { version = "1.0.216", features = ["derive"] }
 thiserror = "2.0.9"

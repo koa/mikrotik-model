@@ -604,12 +604,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "md5"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ebb8d8732c6a6df3d8f032a82911cfc747e00efb95cc46e8d0acd5b5b88570c"
-
-[[package]]
 name = "memchr"
 version = "2.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -627,11 +621,10 @@ dependencies = [
 [[package]]
 name = "mikrotik-api"
 version = "0.1.0"
-source = "git+https://github.com/koa/mikrotik-api?branch=claude-edition#de8aea3b03eb5d954a9f74f2a092b2735cfbfa0b"
+source = "git+https://github.com/koa/mikrotik-api?branch=master#2680fe9aeb9f2bff6f629903c3a5a0a43ba2a30f"
 dependencies = [
  "encoding_rs",
  "log",
- "md5",
  "thiserror",
  "tokio",
  "tokio-stream",
