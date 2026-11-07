@@ -1551,6 +1551,19 @@ impl Entity {
             } else {
                 parse_quote!(Some(v))
             };
+            if field.empty_is_value {
+                assert!(
+                    field.is_optional && field.is_multiple,
+                    "{}: `empty` needs `o; mu`",
+                    field.name
+                );
+                append_field_match.arms.push(parse_quote! {
+                    (#attribute_name, Some(&b"")) => {
+                        self.#field_name = Some(Default::default());
+                        resource::AppendFieldResult::Appended
+                    }
+                });
+            }
             append_field_match.arms.push(parse_quote! {
                 (#attribute_name, Some(&value)) => match value::RosValue::parse_ros(value) {
                     value::ParseRosValueResult::None =>  {
@@ -1997,6 +2010,9 @@ pub struct Field {
     pub is_stats_pair: bool,
     pub keep_if_none: bool,
     pub unset_if_none: bool,
+    /// `o; mu` only: a reported `field=""` is an empty set, not `None` (absent); RouterOS tells
+    /// the two apart (an interface template's `networks=""` matches no network)
+    pub empty_is_value: bool,
     /// no two entries of the menu may hold the same value (`vni`): entries are also paired by
     /// it, and a mutation claiming a value runs after the one freeing it
     pub is_unique: bool,
@@ -2061,6 +2077,7 @@ impl Field {
                         "disabled" => field.has_disabled = true,
                         "k" => field.keep_if_none = true,
                         "unset" => field.unset_if_none = true,
+                        "empty" => field.empty_is_value = true,
                         "unique" => field.is_unique = true,
                         "blocks-removal" => field.blocks_removal = true,
                         "monitor" => field.monitor = MonitorVariant::Enabled,
@@ -2133,6 +2150,9 @@ impl Field {
         }
         if self.unset_if_none {
             write!(writer, "unset; ")?;
+        }
+        if self.empty_is_value {
+            write!(writer, "empty; ")?;
         }
         if self.is_unique {
             write!(writer, "unique; ")?;

@@ -18,7 +18,7 @@ mismatches (e.g. an address field that needs to accept a RouterOS `%zone`-suffix
 needing network access.
 
 Adding a new RouterOS config path is normally just a new `.txt` file in `ros_model/`, following
-the existing DSL (`id`/`ref=X`, `ref=>X`, `o`, `ro`, `mu`, `ordered`, `k`, `unset`, `unique`, `blocks-removal`,
+the existing DSL (`id`/`ref=X`, `ref=>X`, `o`, `ro`, `mu`, `ordered`, `k`, `unset`, `empty`, `unique`, `blocks-removal`,
 `enum=...`, scalar types) — no
 generator source changes needed for a simple addition.
 
@@ -33,6 +33,11 @@ A field RouterOS accepts but never reports in some state (a bridge without vlan 
 bridge is `k`: without vlan filtering it has no effect, and whether it is reported then depends
 on the version (7.20.8 reports `false`, 7.24.5 nothing), so neither a value nor a clearing `None`
 works there.
+
+`empty` (only with `o; mu`) decodes a reported `field=""` as an empty set instead of `None`,
+where RouterOS tells the two apart: an OSPF interface template's `networks=""` matches no
+network, so no interface comes of it, while one without `networks` matches every one
+(berghof-haus-stall, 7.24.6). With `unset` a `None` target clears it by `!networks` (CHR 7.24.6).
 
 `unset` clears an optional field with a `None` target by `!field` (API `=!field=`, script
 `set ... !field`) instead of `field=""`: RouterOS ignores `datapath=""` on `/interface/wifi`

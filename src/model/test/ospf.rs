@@ -105,3 +105,36 @@ fn decodes_whether_a_template_is_active() {
         assert_eq!(state.inactive, inactive);
     }
 }
+
+/// A template with `networks=""` (berghof-haus-stall, 7.24.6) matches no network, so RouterOS
+/// makes no interface of it (CHR 7.24.5: the adjacency goes); without `networks` it matches
+/// every one. The two decode apart, and the diff unsets the empty one.
+#[test]
+fn an_empty_networks_differs_from_none() {
+    let decode = |networks: Option<&[u8]>| {
+        let mut builder = RoutingOspfInterfaceTemplateByIdBuilder::init(&Default::default());
+        for (key, value) in [
+            (&b".id"[..], &b"*1"[..]),
+            (b"area", b"backbone-v2"),
+            (b"interfaces", b"bridge-bridge"),
+            (b"priority", b"0"),
+        ] {
+            builder.append_field(key, Some(value));
+        }
+        if let Some(networks) = networks {
+            builder.append_field(b"networks", Some(networks));
+        }
+        let template: RoutingOspfInterfaceTemplateById = builder.build().unwrap();
+        template
+    };
+    let without = decode(None);
+    let empty = decode(Some(b""));
+    assert_eq!(without.data.networks, None);
+    assert_eq!(empty.data.networks, Some(Default::default()));
+    let fields = without
+        .data
+        .changed_values(&empty.data)
+        .map(|field| String::from_utf8_lossy(field.key).into_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(fields, ["!networks"]);
+}

@@ -78,7 +78,7 @@ disabled: bool; default=false
 hello-interval: Duration; default=10s
 instance-id: u8; default=0
 interfaces: mu; ref=>interface;
-networks: mu; IpNet
+networks: o; mu; empty; unset; IpNet
 #passive: bool
 prefix-list: mu
 priority: u8
