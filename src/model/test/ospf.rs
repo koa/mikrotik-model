@@ -2,6 +2,7 @@
 
 use crate::model::{
     RoutingOspfInterfaceTemplateById, RoutingOspfInterfaceTemplateByIdBuilder,
+    RoutingOspfInterfaceTemplateState, RoutingOspfInterfaceTemplateStateBuilder,
     RoutingOspfInterfaceTemplateType,
 };
 use crate::resource::{AppendFieldResult, CfgResource, DeserializeRosBuilder};
@@ -76,4 +77,31 @@ fn dropping_authentication_unsets_its_fields() {
         .map(|field| String::from_utf8_lossy(field.key).into_owned())
         .collect::<Vec<_>>();
     assert_eq!(fields, ["!auth", "!auth-id", "!use-bfd"]);
+}
+
+/// Whether a template is active, for an active one without `.about` (lab-sxt-a, 7.24.6) and an
+/// inactive one with it: RouterOS reports `.about` only where it has something to say.
+#[test]
+fn decodes_whether_a_template_is_active() {
+    for (fields, inactive) in [
+        (
+            &[(&b".id"[..], &b"*1"[..]), (b"inactive", b"false")][..],
+            false,
+        ),
+        (
+            &[
+                (&b".id"[..], &b"*0"[..]),
+                (b"inactive", b"true"),
+                (b".about", b"ospf area not active"),
+            ][..],
+            true,
+        ),
+    ] {
+        let mut builder = RoutingOspfInterfaceTemplateStateBuilder::init(&Default::default());
+        for (key, value) in fields {
+            builder.append_field(key, Some(value));
+        }
+        let state: RoutingOspfInterfaceTemplateState = builder.build().expect("decodes");
+        assert_eq!(state.inactive, inactive);
+    }
 }

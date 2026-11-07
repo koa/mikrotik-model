@@ -89,7 +89,7 @@ use-bfd: o; unset; bool
 vlink-neighbor-id: o; Ipv4Addr
 vlink-transit-area: o; ref=>ospf-area
 inactive: ro; bool
-about: ro; 
+about: ro; o
 
 /routing/ospf/lsa:
 type: ro; 
