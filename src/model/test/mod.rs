@@ -11,6 +11,7 @@ mod ospf;
 mod reference;
 mod service;
 mod socks;
+mod switch;
 mod watchdog;
 mod wifi;
 mod wireless;

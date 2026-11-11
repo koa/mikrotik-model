@@ -1,123 +1,125 @@
-/interface/ethernet/switch:
+# as a CRS1xx/2xx has it: one switch, `set` without numbers (`/console/inspect`, lab-crs125
+# 7.24.6); a board with several switches (CRS3xx: `set <numbers>`) can't take it this way
+/interface/ethernet/switch:is-single
 l3-hw-offloading: bool; o
 qos-hw-offloading: bool; o
 cpu-flow-control: bool; o
-mirror-source: none;
-mirror-target: none;
-name: ref=switch;id
-switch-all-ports: bool
-tx-queue7-packet: ro;
-tx-1519-max: ro;
-tx-queue0-packet: ro;
-rx-error-events: ro;
-tx-queue-custom1-drop-byte: ro;
-tx-queue1-packet: ro;
-tx-queue5-packet: ro;
-rx-multicast: ro;
-tx-128-255: ro;
-tx-queue2-byte: ro;
-policy-drop-packet: ro;
-rx-fcs-error: ro;
-rs-fec-uncorrected: ro;
-tx-drop: ro;
-current-learned: ro;
-rx-code-error: ro;
-rx-carrier-error: ro;
-tx-rx-256-511: ro;
-rx-drop: ro;
-tx-total-collision: ro;
-rx-256-511: ro;
-rs-fec-corrected: ro;
-rx-65-127: ro;
-tx-64: ro;
-rs-fec-codewords: ro;
-tx-unicast: ro;
-rx-length-error: ro;
-tx-packet: ro;
-tx-1024-1518: ro;
-fc-fec-block-uncorrected: ro;
-tx-queue0-byte: ro;
-tx-underrun: ro;
-tx-pause-honored: ro;
-rx-1024-1518: ro;
-tx-late-collision: ro;
-rx-ip-header-checksum-error: ro;
-tx-broadcast: ro;
-about: ro;
-tx-all-queue-drop-byte: ro;
-type: ro;
-rx-unknown-op: ro;
-tx-fragment: ro;
-tx-pause: ro;
-tx-rx-65-127: ro;
-tx-queue6-byte: ro;
-tx-fcs-error: ro;
-fc-fec-rx-block: ro;
-fc-fec-block-corrected: ro;
-rx-64: ro;
-tx-65-127: ro;
-rx-align-error: ro;
-tx-all-queue-drop-packet: ro;
-invalid: ro;
-tx-bytes: ro;
-rx-128-255: ro;
-tx-deferred: ro;
-tx-excessive-deferred: ro;
-tx-queue2-packet: ro;
-tx-control: ro;
-driver-rx-byte: ro;
-driver-rx-packet: ro;
-rx-packet: ro;
-rs-fec-symbol-error: ro;
-driver-tx-byte: ro;
-tx-512-1023: ro;
-tx-too-long: ro;
-tx-queue3-packet: ro;
-tx-1024-max: ro;
-not-learned: ro;
-tx-rx-512-1023: ro;
-rx-broadcast: ro;
-tx-queue1-byte: ro;
-tx-queue-custom0-drop-byte: ro;
-rx-tcp-checksum-error: ro;
-custom-drop-packet: ro;
-rx-bytes: ro;
-rx-pause: ro;
-tx-queue-custom0-drop-packet: ro;
-rx-udp-checksum-error: ro;
-rx-fragment: ro;
-tx-collision: ro;
-tx-queue3-byte: ro;
-rx-control: ro;
-tx-queue-custom1-drop-packet: ro;
-tx-queue7-byte: ro;
-tx-256-511: ro;
-rx-overflow: ro;
-tx-queue6-packet: ro;
-tx-rx-64: ro;
-tx-too-short: ro;
-rx-1519-max: ro;
-tx-jabber: ro;
-driver-tx-packet: ro;
-tx-rx-128-255: ro;
-tx-multicast: ro;
-rx-too-short: ro;
-tx-single-collision: ro;
-tx-rx-1024-max: ro;
-tx-queue5-byte: ro;
-rx-too-long: ro;
-rx-512-1023: ro;
-rx-jabber: ro;
-tx-queue4-packet: ro;
-tx-queue4-byte: ro;
-rx-unicast: ro;
-tx-carrier-sense-error: ro;
-rx-1024-max: ro;
-tx-multiple-collision: ro;
-tx-excessive-collision: ro;
-tx-rx-1024-1518: ro;
-tx-rx-1519-max: ro;
-
+mirror-source: o; none;
+mirror-target: o; none;
+name: o; ro
+switch-all-ports: o; bool
+drop-if-invalid-or-src-port-not-member-of-vlan-on-ports: o; mu; empty; ref=>interface
+tx-queue7-packet: o; ro;
+tx-1519-max: o; ro;
+tx-queue0-packet: o; ro;
+rx-error-events: o; ro;
+tx-queue-custom1-drop-byte: o; ro;
+tx-queue1-packet: o; ro;
+tx-queue5-packet: o; ro;
+rx-multicast: o; ro;
+tx-128-255: o; ro;
+tx-queue2-byte: o; ro;
+policy-drop-packet: o; ro;
+rx-fcs-error: o; ro;
+rs-fec-uncorrected: o; ro;
+tx-drop: o; ro;
+current-learned: o; ro;
+rx-code-error: o; ro;
+rx-carrier-error: o; ro;
+tx-rx-256-511: o; ro;
+rx-drop: o; ro;
+tx-total-collision: o; ro;
+rx-256-511: o; ro;
+rs-fec-corrected: o; ro;
+rx-65-127: o; ro;
+tx-64: o; ro;
+rs-fec-codewords: o; ro;
+tx-unicast: o; ro;
+rx-length-error: o; ro;
+tx-packet: o; ro;
+tx-1024-1518: o; ro;
+fc-fec-block-uncorrected: o; ro;
+tx-queue0-byte: o; ro;
+tx-underrun: o; ro;
+tx-pause-honored: o; ro;
+rx-1024-1518: o; ro;
+tx-late-collision: o; ro;
+rx-ip-header-checksum-error: o; ro;
+tx-broadcast: o; ro;
+about: o; ro;
+tx-all-queue-drop-byte: o; ro;
+type: o; ro;
+rx-unknown-op: o; ro;
+tx-fragment: o; ro;
+tx-pause: o; ro;
+tx-rx-65-127: o; ro;
+tx-queue6-byte: o; ro;
+tx-fcs-error: o; ro;
+fc-fec-rx-block: o; ro;
+fc-fec-block-corrected: o; ro;
+rx-64: o; ro;
+tx-65-127: o; ro;
+rx-align-error: o; ro;
+tx-all-queue-drop-packet: o; ro;
+invalid: o; ro;
+tx-bytes: o; ro;
+rx-128-255: o; ro;
+tx-deferred: o; ro;
+tx-excessive-deferred: o; ro;
+tx-queue2-packet: o; ro;
+tx-control: o; ro;
+driver-rx-byte: o; ro;
+driver-rx-packet: o; ro;
+rx-packet: o; ro;
+rs-fec-symbol-error: o; ro;
+driver-tx-byte: o; ro;
+tx-512-1023: o; ro;
+tx-too-long: o; ro;
+tx-queue3-packet: o; ro;
+tx-1024-max: o; ro;
+not-learned: o; ro;
+tx-rx-512-1023: o; ro;
+rx-broadcast: o; ro;
+tx-queue1-byte: o; ro;
+tx-queue-custom0-drop-byte: o; ro;
+rx-tcp-checksum-error: o; ro;
+custom-drop-packet: o; ro;
+rx-bytes: o; ro;
+rx-pause: o; ro;
+tx-queue-custom0-drop-packet: o; ro;
+rx-udp-checksum-error: o; ro;
+rx-fragment: o; ro;
+tx-collision: o; ro;
+tx-queue3-byte: o; ro;
+rx-control: o; ro;
+tx-queue-custom1-drop-packet: o; ro;
+tx-queue7-byte: o; ro;
+tx-256-511: o; ro;
+rx-overflow: o; ro;
+tx-queue6-packet: o; ro;
+tx-rx-64: o; ro;
+tx-too-short: o; ro;
+rx-1519-max: o; ro;
+tx-jabber: o; ro;
+driver-tx-packet: o; ro;
+tx-rx-128-255: o; ro;
+tx-multicast: o; ro;
+rx-too-short: o; ro;
+tx-single-collision: o; ro;
+tx-rx-1024-max: o; ro;
+tx-queue5-byte: o; ro;
+rx-too-long: o; ro;
+rx-512-1023: o; ro;
+rx-jabber: o; ro;
+tx-queue4-packet: o; ro;
+tx-queue4-byte: o; ro;
+rx-unicast: o; ro;
+tx-carrier-sense-error: o; ro;
+rx-1024-max: o; ro;
+tx-multiple-collision: o; ro;
+tx-excessive-collision: o; ro;
+tx-rx-1024-1518: o; ro;
+tx-rx-1519-max: o; ro;
 /interface/ethernet/switch/host:can-add;
 copy-to-cpu: bool
 drop: bool
@@ -294,48 +296,47 @@ invalid: bool; ro;
 /interface/ethernet/switch/vlan:can-add;
 comment: o
 disabled: bool
-independent-learning: bool
+independent-learning: o; bool
 ports: mu; ref=>interface;
-switch: ref=>switch
+switch: o; ref=>switch
 vlan-id: id; u16
 ingress-mirror: bool
 svl: bool
 learn: bool
 flood: bool
 dynamic: bool; ro
-qos-group:
-message:
-about: ro;
-invalid: bool;ro;
-
+qos-group: o; ro
+message: o; ro
+about: o; ro;
+invalid: o; bool; ro;
 
 /interface/ethernet/switch/egress-vlan-tag:can-add
-vlan-id:u16
-tagged-ports: mu;ref=>interface
-comment
+.id: ro; Id; id
+vlan-id: u16
+tagged-ports: mu; ref=>interface
+comment: o
 disabled: bool
-dynamic: bool
+dynamic: bool; ro
 
 /interface/ethernet/switch/ingress-vlan-translation:can-add
-.nextid
-comment
-customer-pcp
+.id: ro; Id; id
+.nextid: o; ro
+comment: o
+customer-pcp: o
 customer-vlan-format: enum=any, priority-tagged-or-tagged, tagged, untagged-or-tagged
-new-customer-vid: u16
-ports: mu;ref=>interface
+new-customer-vid: o; u16
+ports: mu; ref=>interface
 sa-learning: bool
-service-pcp
+service-pcp: o
 service-vlan-format: enum=any, priority-tagged-or-tagged, tagged, untagged-or-tagged
-customer-dei
-customer-vid:u16
-disabled:bool
-new-service-vid:u16
+customer-dei: o
+customer-vid: o; u16
+disabled: bool
+new-service-vid: o; u16
 pcp-propagation: bool
-protocol: enum=802.2,arp,homeplug-av,ip,ipv6,ipx,length,llc-bpdu,lldp,loop-protect,mpls-multicast,mpls-unicast,packing-compr,packing-simple,pppoe,pppoe-discovery,rarp,service-vlan,vlan
-service-dei
-service-vid:u16
-swap-vids: enum=assign-cvid-to-svid,no
-message
-
-dynamic:bool
-
+protocol: o; enum=802.2,arp,homeplug-av,ip,ipv6,ipx,length,llc-bpdu,lldp,loop-protect,mpls-multicast,mpls-unicast,packing-compr,packing-simple,pppoe,pppoe-discovery,rarp,service-vlan,vlan
+service-dei: o
+service-vid: o; u16
+swap-vids: o; enum=assign-cvid-to-svid,no
+message: o; ro
+dynamic: bool; ro

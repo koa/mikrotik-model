@@ -281,6 +281,74 @@ impl Default for InterfaceBridgeVlanCfg {
         }
     }
 }
+/// The switch as the diff starts from it: nothing of it is required.
+impl Default for InterfaceEthernetSwitchCfg {
+    fn default() -> Self {
+        Self {
+            drop_if_invalid_or_src_port_not_member_of_vlan_on_ports: None,
+            l_3_hw_offloading: None,
+            qos_hw_offloading: None,
+            cpu_flow_control: None,
+            mirror_source: None,
+            mirror_target: None,
+            switch_all_ports: None,
+        }
+    }
+}
+/// A CRS1xx/2xx switch VLAN as `/interface/ethernet/switch/vlan add` makes it.
+impl Default for InterfaceEthernetSwitchVlanCfg {
+    fn default() -> Self {
+        Self {
+            comment: None,
+            disabled: false,
+            independent_learning: None,
+            ports: Default::default(),
+            switch: None,
+            vlan_id: 0,
+            ingress_mirror: false,
+            svl: false,
+            learn: true,
+            flood: false,
+        }
+    }
+}
+impl Default for InterfaceEthernetSwitchEgressVlanTagCfg {
+    fn default() -> Self {
+        Self {
+            vlan_id: 0,
+            tagged_ports: Default::default(),
+            comment: None,
+            disabled: false,
+        }
+    }
+}
+/// As `/interface/ethernet/switch/ingress-vlan-translation add` makes it (lab-crs125, 7.24.6):
+/// any VLAN format, nothing translated.
+impl Default for InterfaceEthernetSwitchIngressVlanTranslationCfg {
+    fn default() -> Self {
+        Self {
+            comment: None,
+            customer_pcp: None,
+            customer_vlan_format:
+                InterfaceEthernetSwitchIngressVlanTranslationCustomerVlanFormat::Any,
+            new_customer_vid: None,
+            ports: Default::default(),
+            sa_learning: false,
+            service_pcp: None,
+            service_vlan_format:
+                InterfaceEthernetSwitchIngressVlanTranslationServiceVlanFormat::Any,
+            customer_dei: None,
+            customer_vid: None,
+            disabled: false,
+            new_service_vid: None,
+            pcp_propagation: false,
+            protocol: None,
+            service_dei: None,
+            service_vid: None,
+            swap_vids: None,
+        }
+    }
+}
 impl Default for InterfaceVlanCfg {
     fn default() -> Self {
         InterfaceVlanCfg {
