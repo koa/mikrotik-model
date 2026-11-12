@@ -11,7 +11,7 @@ channel.secondary-frequency: o; disabled; u32
 channel.skip-dfs-channels: o; bool
 channel.tx-power: o; u8
 comment: o
-configuration.country: o; WifiCountry
+configuration.country: o; WifiCountryLower
 configuration.disconnect-timeout: o
 configuration.distance: hex; i64; o
 configuration.frame-lifetime: o

@@ -13,7 +13,7 @@ channel.skip-dfs-channels: o; bool
 channel.tx-power: o; u8
 comment: o
 configuration: o; ref=>caps-configuration
-configuration.country: o; WifiCountry
+configuration.country: o; WifiCountryLower
 configuration.disconnect-timeout: o
 configuration.distance: o; hex; i64
 configuration.frame-lifetime: o
