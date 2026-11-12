@@ -133,7 +133,7 @@ name: ref=wifi-aaa
 nas-identifier: o
 password-format: o
 username-format: o
-about: ro; 
+about: ro; o
 
 /interface/wifi/access-list:can-add
 action: o; enum= accept, query-radius, reject;
@@ -154,7 +154,7 @@ vlan-id: o; none; u16
 last-logged-in: ro; 
 last-logged-out: ro; 
 match-count: ro; 
-about: ro;
+about: ro; o
 .id: ro; id
 
 /interface/wifi/cap:is-single;
@@ -192,7 +192,7 @@ board-name: ro;
 identity: ro; 
 serial: ro; 
 common-name: ro; 
-about: ro; 
+about: ro; o
 
 /interface/wifi/channel:can-add;
 band: o; WifiChannelBand;
@@ -204,7 +204,7 @@ reselect-interval: o; range-dot; Duration
 secondary-frequency: mu; disabled; u32
 skip-dfs-channels: o; disabled; WifiSkipDfsChannels;
 width: o; WifiChannelWidth;
-about: ro; 
+about: ro; o
 
 /interface/wifi/configuration:can-add;id=name
 aaa: o; unset; ref=>wifi-aaa
@@ -312,7 +312,7 @@ steering.rrm: unset; o; bool
 steering.wnm: unset; o; bool
 tx-chains: mu;u8
 tx-power: unset; o; u8
-about: ro; 
+about: ro; o
 
 /interface/wifi/datapath:can-add;id=name
 bridge: o; none; unset; ref=> interface
@@ -324,7 +324,7 @@ disabled: bool; default=false
 interface-list: o; none; unset; ref=>interface-list
 name: id;ref=wifi-datapath
 vlan-id: o; none; unset; u16
-about: ro; 
+about: ro; o
 
 /interface/wifi/interworking:can-add;
 3gpp-info: o
@@ -357,7 +357,7 @@ wan-status: o; InterworkingWanStatus;
 wan-symmetric: o; bool
 wan-uplink: o; u32
 wan-uplink-load: o; u32
-about: ro; 
+about: ro; o
 
 /interface/wifi/provisioning:can-add;
 .id: id;ro;Id
@@ -463,7 +463,7 @@ sae-anti-clogging-threshold: o; disabled; u16
 sae-max-failure-rate: o; disabled; u16
 sae-pwe: o; WifiSecuritySaePwe;
 wps: o; WifiSecurityWps;
-about: ro; 
+about: ro; o
 
 /interface/wifi/security/multi-passphrase:can-add;
 comment: 
@@ -473,7 +473,7 @@ group: ref=wifi-multi-passphrase
 isolation: bool
 passphrase: 
 vlan-id: u16
-about: ro; 
+about: ro; o
 expired: ro; 
 
 /interface/wifi/steering:can-add;
@@ -483,11 +483,11 @@ name: ref=wifi-steering
 neighbor-group: o
 rrm: o; bool
 wnm: o; bool
-about: ro; 
+about: ro; o
 
 /interface/wifi/steering/neighbor-group:
 comment: ro
 name: ro; ref=wifi-neighbor-group
-about: ro; 
+about: ro; o
 bssids: ro; mu;MacAddress
 

@@ -16,6 +16,6 @@ ssid-regexp:  o
 time: o
 vlan-id: o;none; u16
 vlan-mode: o; enum= no-tag, use-service-tag, use-tag;
-about: ro;
+about: ro; o
 .id: ro; id
 

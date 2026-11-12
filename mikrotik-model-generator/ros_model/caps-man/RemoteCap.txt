@@ -1,5 +1,5 @@
 /caps-man/remote-cap:
-about: ro; 
+about: ro; o
 radios: ro; 
 address: ro; 
 base-mac: ro; 

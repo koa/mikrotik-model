@@ -9,7 +9,7 @@ name: id; ref=bgp-instance
 router-id: o; Ipv4Addr
 routing-table: o
 vrf: ref=>routing-table;
-about: ro;
+about: ro; o
 inactive: ro;
 
 /routing/bgp/connection:can-add;
@@ -71,7 +71,7 @@ tcp-md5-key: o
 templates: mu; ref=>bgp-template;
 use-bfd: bool
 vrf: o
-about: ro;
+about: ro; o
 dynamic: ro;
 inactive: ro;
 local.default-address: ro;

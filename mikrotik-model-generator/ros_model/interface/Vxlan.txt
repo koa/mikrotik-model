@@ -21,13 +21,13 @@ vtep-vrf: o; ref=>routing-table;
 vteps-ip-version: enum= ipv4, ipv6; 
 running: ro; 
 loop-protect-status: ro; 
-about: ro; 
+about: ro; o
 l2mtu: ro; 
 
 /interface/vxlan/fdb:
 mac-address: ro; 
 interface: ro; 
-about: ro; 
+about: ro; o
 remote-ip: ro; 
 
 /interface/vxlan/vteps:can-add;
@@ -35,6 +35,6 @@ remote-ip: ro;
 comment: o
 interface: id; ref=>interface; blocks-removal;
 remote-ip: id; IpAddr
-about: ro;
+about: ro; o
 disabled: bool
 

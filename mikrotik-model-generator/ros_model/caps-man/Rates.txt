@@ -7,5 +7,5 @@ name: id; ref=caps-rate
 supported: mu; CapsRates
 vht-basic-mcs: mu; CapsMcsGroup;
 vht-supported-mcs: mu; CapsMcsGroup;
-about: ro; 
+about: ro; o
 

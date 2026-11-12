@@ -10,6 +10,6 @@ save-selected: o; bool
 secondary-frequency: o; disabled; u32
 skip-dfs-channels: o; bool
 tx-power: o; u8
-about: ro;
+about: ro; o
 .id: ro; id
 

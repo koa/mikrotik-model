@@ -103,7 +103,7 @@ mac-address: o;k;MacAddress
 actual-mtu: ro; u16
 running: ro; bool
 .id: id;ro;Id
-about: ro;
+about: ro; o
 
 */interface/bridge/vlan
 .id: id;ro;Id

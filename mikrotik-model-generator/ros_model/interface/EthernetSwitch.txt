@@ -133,7 +133,7 @@ vlan-id: auto;
 dynamic: bool; ro;
 invalid: bool; ro;
 timeout: ro;
-about: ro;
+about: ro; o
 
 /interface/ethernet/switch/port:
 default-vlan-id: auto;
@@ -216,7 +216,7 @@ tx-64: ro;
 rx-drop: ro;
 switch: ro; ref=>switch
 tx-queue3-packet: ro;
-about: ro;
+about: ro; o
 rx-128-255: ro;
 rx-bytes: ro;
 rx-control: ro;
@@ -256,7 +256,7 @@ tx-queue6-byte: ro;
 /interface/ethernet/switch/port-isolation:
 forwarding-override:
 name: ro;
-about: ro;
+about: ro; o
 switch: ro; ref=>switch
 invalid: ro;
 
@@ -289,7 +289,7 @@ vlan-header: enum= not-present, present;
 vlan-id: u16
 vlan-priority: u8
 dynamic: bool; ro;
-about: ro;
+about: ro; o
 internal-priority: ro;
 invalid: bool; ro;
 

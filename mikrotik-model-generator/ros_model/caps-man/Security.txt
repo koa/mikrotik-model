@@ -11,5 +11,5 @@ name: id; ref=caps-security
 passphrase: unset; o
 tls-certificate: o; none;
 tls-mode: o; enum= dont-verify-certificate, no-certificates, verify-certificate, verify-certificate-with-crl;
-about: ro; 
+about: ro; o
 

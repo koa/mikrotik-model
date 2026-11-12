@@ -4,7 +4,7 @@ exclude: mu;ref=>interface-list;
 include: mu;ref=>interface-list;
 name: id; ref=interface-list;
 builtin: ro; bool
-about: ro; 
+about: ro; o
 dynamic: ro; bool
 
 /interface/list/member:can-add;
@@ -12,7 +12,7 @@ comment: o
 disabled: bool
 interface: ref=>interface; 
 list: ref=>interface-list;
-about: ro; 
+about: ro; o
 dynamic: ro;
 .id: ro;id
 

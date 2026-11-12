@@ -7,7 +7,7 @@ dynamic: ro; bool
 list: ref=ipv6-addresslist
 timeout: o; Duration
 creation-time: ro; 
-about: ro; 
+about: ro; o
 
 /ipv6/firewall/connection:
 .id: ro;id;Id
@@ -16,7 +16,7 @@ assured: ro;
 connection-type: ro; 
 dstnat: ro; 
 connection-mark: ro; 
-about: ro; 
+about: ro; o
 protocol: ro; 
 gre-protocol: ro; 
 gre-version: ro; 
@@ -100,7 +100,7 @@ tcp-mss: unset; o
 time: unset; o
 tls-host: o
 invalid: ro; bool
-about: ro; 
+about: ro; o
 bytes: ro; 
 dynamic: ro; bool
 packets: ro; 
@@ -178,7 +178,7 @@ tls-host:
 bytes: ro; 
 invalid: ro; 
 packets: ro; 
-about: ro; 
+about: ro; o
 dynamic: ro; 
 
 /ipv6/firewall/nat:can-add;
@@ -238,7 +238,7 @@ tcp-mss: u16
 time: 
 to-address: 
 to-ports:
-about: ro; 
+about: ro; o
 dynamic: ro; 
 packets: ro; 
 bytes: ro; 
@@ -295,7 +295,7 @@ time:
 tls-host: 
 invalid: ro; 
 bytes: ro; 
-about: ro; 
+about: ro; o
 dynamic: ro; 
 packets: ro; 
 

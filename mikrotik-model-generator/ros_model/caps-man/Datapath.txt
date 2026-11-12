@@ -13,5 +13,5 @@ name: id; ref=caps-datapath
 openflow-switch: o
 vlan-id: o; unset; u16
 vlan-mode: o; unset; enum= no-tag, use-service-tag, use-tag;
-about: ro; 
+about: ro; o
 

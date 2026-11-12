@@ -67,16 +67,16 @@ security.group-key-update: o; Duration
 security.passphrase: o
 security.tls-certificate: o; none;
 security.tls-mode: o; enum= dont-verify-certificate, no-certificates, verify-certificate, verify-certificate-with-crl;
-current-rate-set: ro;
+current-rate-set: ro; o
 .id: ro; Id; id
-current-state: ro;
-current-registered-clients: ro; u16
+current-state: ro; o
+current-registered-clients: ro; o; u16
 master: ro; bool
 running: ro; bool
 current-channel: o; ro;
 bound: ro; bool
-current-authorized-clients: ro; u16
-dynamic: ro; bool
+current-authorized-clients: ro; o; u16
+dynamic: ro; o; bool
 inactive: ro; bool
 about: ro; o;
-current-basic-rate-set: ro;
+current-basic-rate-set: ro; o

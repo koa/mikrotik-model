@@ -38,8 +38,8 @@ datapath.openflow-switch: o
 datapath.vlan-id: u16; o
 datapath.vlan-mode: enum= no-tag, use-service-tag, use-tag; o
 disable-running-check: bool; o
-disabled: bool
-l2mtu: u16
+disabled: o; bool
+l2mtu: o; u16
 mac-address: MacAddress;
 master-interface: none; o; ref=>interface
 mtu: u16; o
@@ -59,6 +59,6 @@ inactive: ro; bool
 about: ro; o
 master: ro; bool
 bound: ro; bool
-dynamic: ro; bool
+dynamic: ro; o; bool
 running: ro; bool
 .id: ro; id

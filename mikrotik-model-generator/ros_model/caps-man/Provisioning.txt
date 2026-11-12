@@ -12,5 +12,5 @@ name-format: enum= cap, identity, prefix, prefix-identity;
 name-prefix: 
 radio-mac: 
 slave-configurations: mu; ref=>caps-configuration
-about: ro; 
+about: ro; o
 

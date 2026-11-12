@@ -27,7 +27,7 @@ relay: o; Ipv4Addr
 server-address: o;Ipv4Addr
 use-framed-as-classless: o; bool
 use-radius: enum= accounting, no, yes; 
-about: ro; 
+about: ro; o
 invalid: ro; 
 dynamic: ro; bool
 
@@ -39,7 +39,7 @@ interface: ref=>interface;
 on-alert: 
 valid-server: 
 unknown-server: ro; 
-about: ro; 
+about: ro; o
 invalid: ro; 
 
 /ip/dhcp-server/config:is-single;
@@ -106,7 +106,7 @@ name:
 option-set: none; 
 server: 
 value: 
-about: ro; 
+about: ro; o
 
 /ip/dhcp-server/network:can-add;
 address: Ipv4Net;id
@@ -128,7 +128,7 @@ netmask: u8; default=0
 next-server: o; unset; Ipv4Addr
 ntp-server: mu; Ipv4Addr
 wins-server: mu; Ipv4Addr
-about: ro; 
+about: ro; o
 dynamic: ro; bool
 
 /ip/dhcp-server/option:can-add;
@@ -137,11 +137,11 @@ comment: o
 force: bool; o
 name: id; ref=dhcp-v4-option-set
 value: 
-about: ro; 
+about: ro; o
 raw-value: ro; 
 
 /ip/dhcp-server/option/sets:can-add;
 name: id
 options: 
-about: ro; 
+about: ro; o
 

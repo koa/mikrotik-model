@@ -4,5 +4,5 @@ chain: ref=>routing-filter;
 comment: o
 disabled: bool
 rule: o
-about: ro;
+about: ro; o
 inactive: ro;

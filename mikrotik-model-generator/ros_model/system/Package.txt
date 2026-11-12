@@ -15,7 +15,7 @@ source: ro;
 status: ro; 
 version: ro; 
 name: ro; 
-about: ro; 
+about: ro; o
 completed: ro; 
 
 /system/package/local-update/mirror:is-single;
@@ -30,7 +30,7 @@ software-id: ro;
 /system/package/local-update/update-package-source:can-add;
 address: 
 user: 
-about: ro; 
+about: ro; o
 
 /system/package/update:is-single;
 channel: enum= development, long-term, stable, testing; 

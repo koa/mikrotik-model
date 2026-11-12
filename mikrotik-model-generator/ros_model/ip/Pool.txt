@@ -3,7 +3,7 @@ comment: o
 name: id; ref=ipv4-pool
 next-pool: o; ref=>ipv4-pool
 ranges: mu
-about: ro; 
+about: ro; o
 total: ro; 
 available: ro; 
 used: ro; 
@@ -13,5 +13,5 @@ address: Ipv4Addr
 info: 
 owner: 
 pool: ref=>ipv4-pool
-about: ro; 
+about: ro; o
 

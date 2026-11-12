@@ -11,7 +11,7 @@ no-dad: bool
 valid: ro; bool
 invalid: ro; bool
 slave: ro; bool
-about: ro; 
+about: ro; o
 actual-interface: ro; 
 dynamic: ro; bool
 deprecated: ro; bool

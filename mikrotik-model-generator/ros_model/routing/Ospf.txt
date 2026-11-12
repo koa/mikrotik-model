@@ -7,7 +7,7 @@ instance: ref=>ospf-instance
 name: id; ref=ospf-area
 nssa-translator: unset; o; enum= candidate, no, yes;
 type: enum= default, nssa, stub; 
-about: ro; 
+about: ro; o
 dynamic: ro; bool
 inactive: ro; bool
 transit-capable: ro; bool
@@ -19,7 +19,7 @@ comment: o
 cost: o; u32
 disabled: bool
 prefix: IpNet
-about: ro; 
+about: ro; o
 inactive: ro; bool
 
 /routing/ospf/instance:can-add;
@@ -41,7 +41,7 @@ use-dn: unset; o; bool
 version: enum= 2, 3; 
 vrf: ref=>routing-table; default=main
 in-filter: o; ref=>routing-filter; 
-about: ro; 
+about: ro; o
 inactive: ro; bool
 
 /routing/ospf/interface:
@@ -57,7 +57,7 @@ retransmit-interval: ro;
 dead-interval: ro; 
 vlink-remote-address: ro; 
 vlink-transit-area: ro; 
-about: ro; 
+about: ro; o
 use-bfd: ro; bool
 address: ro; 
 cost: ro; 
@@ -103,7 +103,7 @@ dynamic: ro;
 sequence: ro; 
 instance: ro; 
 flushing: ro; 
-about: ro; 
+about: ro; o
 checksum: ro; 
 body: ro; 
 link: ro; 
@@ -113,7 +113,7 @@ age: ro;
 comment: ro;
 ls-requests: ro; 
 timeout: ro; 
-about: ro; 
+about: ro; o
 bdr: ro; 
 dr: ro; 
 dynamic: ro; 
@@ -136,6 +136,6 @@ comment:
 disabled: bool
 instance-id: u8
 poll-interval: Duration
-about: ro; 
+about: ro; o
 inactive: ro; 
 
