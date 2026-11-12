@@ -26,7 +26,7 @@ configuration.max-sta-count: u16; o
 configuration.mode: enum= ap; o
 configuration.multicast-helper: disabled; enum= default, dhcp, full;o
 configuration.rx-chains: o
-configuration.ssid: 
+configuration.ssid: o
 configuration.tx-chains: o
 datapath.bridge: o; ref=>interface
 datapath.bridge-cost: u32; o
@@ -56,8 +56,8 @@ security.passphrase: o
 security.tls-certificate: none; o
 security.tls-mode: enum= dont-verify-certificate, no-certificates, verify-certificate, verify-certificate-with-crl; o
 inactive: ro; bool
-about: ro; 
-master: ro; 
+about: ro; o
+master: ro; bool
 bound: ro; bool
 dynamic: ro; bool
 running: ro; bool

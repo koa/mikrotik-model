@@ -113,3 +113,16 @@ static-virtual: bool
 locked-caps-man-common-name: ro;
 requested-certificate: ro;
 
+/interface/wireless/registration-table:
+.id: ro; Id; id
+interface: ro;
+mac-address: ro; MacAddress
+ap: ro; o; bool
+radio-name: ro; o
+last-ip: ro; o
+bytes: ro; u64; statspair
+packets: ro; u64; statspair
+signal-strength: ro;
+signal-to-noise: ro; o; i16
+uptime: ro; Duration
+

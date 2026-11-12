@@ -194,11 +194,24 @@ pub async fn monitor_once_resource<R: DeserializeRosResource + RosResource>(
 pub async fn collect_resource<R: DeserializeRosResource + RosResource>(
     device: &MikrotikDevice,
 ) -> Result<Box<[R]>, Error> {
-    stream_resource(device)
-        .await
-        .map(|entry| value_or_error(entry))
-        .collect::<Result<Box<[R]>, _>>()
-        .await
+    // read up to `!done` even after an error: a `!trap` comes with more sentences, and a stream
+    // dropped before them makes the connection log that it can't deliver them
+    let mut entries = std::pin::pin!(stream_resource(device).await);
+    let mut rows = Vec::new();
+    let mut error = None;
+    while let Some(entry) = entries.next().await {
+        match value_or_error(entry) {
+            Ok(row) if error.is_none() => rows.push(row),
+            Ok(_) => {}
+            Err(e) => {
+                error.get_or_insert(e);
+            }
+        }
+    }
+    match error {
+        None => Ok(rows.into()),
+        Some(error) => Err(error),
+    }
 }
 
 pub trait RosResource: Sized {

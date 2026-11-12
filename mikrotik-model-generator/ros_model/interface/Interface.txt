@@ -1,0 +1,16 @@
+/interface:
+.id: ro; Id
+name: ro; id
+type: ro;
+running: ro; bool
+disabled: ro; o; bool
+rx-byte: ro; o; u64
+tx-byte: ro; o; u64
+rx-packet: ro; o; u64
+tx-packet: ro; o; u64
+rx-error: ro; o; u64
+tx-error: ro; o; u64
+rx-drop: ro; o; u64
+tx-drop: ro; o; u64
+link-downs: ro; o; u64
+
