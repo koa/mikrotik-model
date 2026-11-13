@@ -8,7 +8,7 @@
 
 use crate::model::{
     DeviceMode, File, FileBuilder, IpFirewallAddressList, IpFirewallAddressListBuilder, IpRoute,
-    IpRouteBuilder, Ipv6RouteState, Ipv6RouteStateBuilder, OspfInterfaceState, OspfInterfaceType,
+    IpRouteBuilder, Ipv6Route, Ipv6RouteBuilder, OspfInterfaceState, OspfInterfaceType,
     OspfLsaType, RoutingOspfInterfaceState, RoutingOspfInterfaceStateBuilder, RoutingOspfLsaState,
     RoutingOspfLsaStateBuilder, SystemDeviceModeState, SystemDeviceModeStateBuilder,
     SystemHealthState, SystemHealthStateBuilder, SystemPackageState, SystemPackageStateBuilder,
@@ -187,7 +187,7 @@ fn decodes_the_routes() {
         (b"active", b"true"),
         (b"connect", b"true"),
     ]);
-    let _: Ipv6RouteState = build::<Ipv6RouteStateBuilder, _>(&[
+    let _: Ipv6Route = build::<Ipv6RouteBuilder, _>(&[
         (b".id", b"*20183020"),
         (b"dst-address", b"fe80::/64"),
         (b"routing-table", b"main"),

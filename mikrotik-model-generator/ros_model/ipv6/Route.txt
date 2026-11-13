@@ -1,8 +1,9 @@
-# read only (the routes check of the helpers); gateways as RouterOS writes them (`fe80::1%ether1`)
-/ipv6/route
+# read by the routes check of the helpers, gateways as RouterOS writes them (`fe80::1%ether1`);
+# the CHR harness adds static routes
+/ipv6/route:can-add
 .id: ro; Id; id
-dst-address: ro; Ipv6Net
-gateway: o; ro
+dst-address: Ipv6Net
+gateway: o
 immediate-gw: o; ro
 distance: o; ro; u8
 routing-table: o; ro
@@ -17,4 +18,4 @@ bgp: o; ro; bool
 dhcp: o; ro; bool
 blackhole: o; ro; bool
 dynamic: o; ro; bool
-comment: o; ro
+comment: o

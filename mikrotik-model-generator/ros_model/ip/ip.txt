@@ -32,7 +32,7 @@ dhcp-server: o;ro;IpAddr
 invalid: ro;bool
 
 */ip/route
-.id: id
+.id: ro;id
 active: o;ro;bool
 bgp: o;ro;bool
 blackhole:o;ro;bool
