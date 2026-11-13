@@ -14,3 +14,8 @@ address: o
 # alone (`device::www_certificate`), the target keeps what the device has
 certificate: o; none
 dynamic: ro; bool
+# only on the dynamic entry of an open connection: both ends, with the port (`10.0.2.2:34720`;
+# an IPv6 one without brackets, `2a02:610:7501:1000::201:0`, lab-wap 7.23.8)
+local: o; ro
+remote: o; ro
+connection: o; ro; bool

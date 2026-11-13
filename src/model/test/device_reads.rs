@@ -332,3 +332,27 @@ fn decodes_a_certificate_and_a_tls_service() {
         Some(crate::value::HasNone::NoneValue)
     );
 }
+
+#[test]
+fn decodes_the_service_entry_of_an_open_connection() {
+    use crate::model::{IpService, IpServiceBuilder};
+    let service: IpService = build::<IpServiceBuilder, _>(&[
+        (b".id", b"*C"),
+        (b"name", b"api"),
+        (b"local", b"10.0.2.15"),
+        (b"remote", b"10.0.2.2:34720"),
+        (b"dynamic", b"true"),
+        (b"connection", b"true"),
+        (b"disabled", b"false"),
+    ]);
+    assert!(service.status.dynamic);
+    assert_eq!(
+        service
+            .status
+            .remote
+            .as_ref()
+            .map(ToString::to_string)
+            .as_deref(),
+        Some("10.0.2.2:34720")
+    );
+}
