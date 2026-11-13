@@ -1,2 +1,16 @@
+# added by the provisioner for WebFig over HTTPS (`/file/add` and `/certificate/import`), the
+# rest of an entry as RouterOS reports it (CHR 7.24.5)
 /certificate:can-add;id=name
+.id: ro; Id
 name: id
+common-name: o; ro
+trust-store: o; ro
+subject-alt-name: o; ro
+akid: o; ro
+skid: o; ro
+fingerprint: o; ro
+expires-after: o; ro; Duration
+private-key: o; ro; bool
+trusted: o; ro; bool
+authority: o; ro; bool
+issued: o; ro; bool

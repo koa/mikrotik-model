@@ -10,4 +10,7 @@ disabled: bool
 # open to all (CHR 7.24.5); writing `address` works on both
 available-from: o
 address: o
+# only on the services with TLS (`www-ssl`, `api-ssl`), `none` without one; set by the provisioner
+# alone (`device::www_certificate`), the target keeps what the device has
+certificate: o; none
 dynamic: ro; bool

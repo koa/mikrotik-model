@@ -300,3 +300,35 @@ fn decodes_a_partition() {
     ]);
     assert_eq!(partition.size, Some(64));
 }
+
+#[test]
+fn decodes_a_certificate_and_a_tls_service() {
+    use crate::model::{Certificate, CertificateBuilder, IpService, IpServiceBuilder};
+    let certificate: Certificate = build::<CertificateBuilder, _>(&[
+        (b".id", b"*1"),
+        (b"name", b"probe-ca"),
+        (b"trust-store", b"all"),
+        (b"common-name", b"probe-ca"),
+        (b"subject-alt-name", b""),
+        (b"akid", b""),
+        (b"skid", b"41A9A6C951D08A6FD1C038A2ECB5DAED511D66E4"),
+        (b"expires-after", b"52w23h59m59s"),
+        (b"private-key", b"true"),
+        (b"authority", b"true"),
+        (b"issued", b"false"),
+        (b"trusted", b"true"),
+    ]);
+    assert_eq!(certificate.status.private_key, Some(true));
+    let service: IpService = build::<IpServiceBuilder, _>(&[
+        (b".id", b"*6"),
+        (b"name", b"www-ssl"),
+        (b"available-from", b""),
+        (b"certificate", b"none"),
+        (b"dynamic", b"false"),
+        (b"disabled", b"true"),
+    ]);
+    assert_eq!(
+        service.cfg.certificate,
+        Some(crate::value::HasNone::NoneValue)
+    );
+}
