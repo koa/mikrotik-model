@@ -9,7 +9,7 @@ use crate::{
 use encoding_rs::mem::decode_latin1;
 use itertools::Itertools;
 use log::{debug, info};
-use mikrotik_api::prelude::{CommandBuilder, ParsedMessage, TrapCategory, TrapResult};
+use mikrotik_api::prelude::{ParsedMessage, TrapCategory, TrapResult};
 use mikrotik_api::simple::SimpleResult;
 use std::{
     borrow::Cow,
@@ -303,8 +303,9 @@ pub trait KeyedResource: DeserializeRosResource + RosResource {
     }
     fn key_value(&self) -> &Self::Key;
     fn value(&self) -> &Self::Value;
-    fn filter(cmd: CommandBuilder) -> CommandBuilder {
-        cmd
+    /// Which of the menu's entries are its own (not RouterOS's).
+    fn entries() -> EntryFilter {
+        EntryFilter::All
     }
     fn fetch_all<T: FromStream<Self> + Send>(
         device: &impl Reads,
@@ -317,6 +318,7 @@ pub trait KeyedResource: DeserializeRosResource + RosResource {
             device
                 .read(&PrintKeyed::<Self>::all())
                 .await
+                .filter_map(KeyedRow::entry)
                 .map(|entry| {
                     entry.map(|r| Self::unwrap_resource(r).expect("Unexpected result type"))
                 })
@@ -338,6 +340,7 @@ pub trait KeyedResource: DeserializeRosResource + RosResource {
                 match device
                     .read(&PrintKeyed::<Self>::with(key))
                     .await
+                    .filter_map(KeyedRow::entry)
                     .map(|entry| {
                         entry.map(|r| Self::unwrap_resource(r).expect("Unexpected result type"))
                     })
@@ -351,6 +354,118 @@ pub trait KeyedResource: DeserializeRosResource + RosResource {
         }
     }
 }
+/// Which entries of a keyed menu are read, by the menu's read-only `dynamic` and `builtin`:
+/// RouterOS's own are left out. Judged on the row as the device sent it, before it is parsed
+/// (an entry of RouterOS's may lack what the model requires), the way the device judges a
+/// query: a field missing is no `false` (CHR 7.24.5).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EntryFilter {
+    All,
+    /// `dynamic=false` and `builtin=false`
+    NotDynamicNorBuiltin,
+    /// `dynamic=false`, or without `dynamic`
+    NotDynamic,
+    /// as [`EntryFilter::NotDynamic`], or with this read-only key (hardware, read even when
+    /// RouterOS calls it dynamic: the radios of a CAP that CAPsMAN manages, `wifi1`, 7.23.7)
+    NotDynamicOrHardware(&'static [u8]),
+    /// `builtin=false`
+    NotBuiltin,
+}
+
+impl EntryFilter {
+    pub fn keeps(self, row: &[(&[u8], Option<&[u8]>)]) -> bool {
+        let is_false = |name: &[u8]| field_of(row, name) == Some(Some(b"false".as_slice()));
+        let lacks = |name: &[u8]| field_of(row, name).is_none();
+        match self {
+            EntryFilter::All => true,
+            EntryFilter::NotDynamicNorBuiltin => is_false(b"dynamic") && is_false(b"builtin"),
+            EntryFilter::NotDynamic => is_false(b"dynamic") || lacks(b"dynamic"),
+            EntryFilter::NotDynamicOrHardware(key) => {
+                is_false(b"dynamic") || lacks(b"dynamic") || !lacks(key)
+            }
+            EntryFilter::NotBuiltin => is_false(b"builtin"),
+        }
+    }
+}
+
+/// The first value of the field `name` in `row` (`Some(None)`: there without a value).
+fn field_of<'v>(row: &[(&[u8], Option<&'v [u8]>)], name: &[u8]) -> Option<Option<&'v [u8]>> {
+    row.iter()
+        .find(|(key, _)| *key == name)
+        .map(|(_, value)| *value)
+}
+
+/// A row of a keyed menu's print ([`PrintKeyed`]): an entry asked for, or none for one left out by the
+/// key or [`KeyedResource::entries`]. The whole menu is asked, so that a reader keeping the
+/// replies (the provisioner's facts) has one answer for every reader of the menu.
+#[derive(Debug)]
+pub struct KeyedRow(pub Option<SentenceResult<Resource>>);
+
+impl KeyedRow {
+    fn entry(self) -> Option<SentenceResult<Resource>> {
+        self.0
+    }
+}
+
+/// What a [`KeyedRow`] is judged by.
+#[derive(Debug, Clone)]
+pub struct KeyedRowContext {
+    pub resource: ResourceType,
+    pub key_name: &'static [u8],
+    /// the key asked for, as written (`RosValue::encode_ros`); none: every entry with the key
+    pub key: Option<Box<[u8]>>,
+    /// the key as the row has it, written the same way (none: not a key's value)
+    pub written: fn(&[u8]) -> Option<Box<[u8]>>,
+    pub entries: EntryFilter,
+}
+
+/// `value` as `V` writes it, so that two spellings of one key compare equal.
+pub fn written_as<V: RosValue>(value: &[u8]) -> Option<Box<[u8]>> {
+    match V::parse_ros(value) {
+        crate::value::ParseRosValueResult::Value(value) => Some(value.encode_ros().into()),
+        _ => None,
+    }
+}
+
+impl ParsedMessage for KeyedRow {
+    type Context = KeyedRowContext;
+
+    fn parse_message(sentence: &[(&[u8], Option<&[u8]>)], context: &Self::Context) -> Self {
+        let key = match field_of(sentence, context.key_name) {
+            Some(Some(key)) => key,
+            _ => return KeyedRow(None),
+        };
+        let asked = match &context.key {
+            None => true,
+            Some(asked) => {
+                (context.written)(key).is_some_and(|key| key == *asked) || key == asked.as_ref()
+            }
+        };
+        if asked && context.entries.keeps(sentence) {
+            KeyedRow(Some(SentenceResult::parse_message(
+                sentence,
+                &context.resource,
+            )))
+        } else {
+            KeyedRow(None)
+        }
+    }
+
+    fn process_error(error: &mikrotik_api::error::Error, context: &Self::Context) -> Self {
+        KeyedRow(Some(SentenceResult::process_error(
+            error,
+            &context.resource,
+        )))
+    }
+
+    fn process_trap(result: TrapResult, context: &Self::Context) -> Self {
+        KeyedRow(Some(SentenceResult::process_trap(
+            result,
+            &context.resource,
+        )))
+    }
+}
+
 pub trait CfgResource: DeserializeRosResource {
     #[allow(clippy::needless_lifetimes)]
     fn changed_values<'a, 'b>(&'a self, before: &'b Self)

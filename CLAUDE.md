@@ -42,7 +42,12 @@ but the ones always there optional; `/ipv6/route` takes a static route (`dst-add
 `gateway`, `comment`), the rest is read only. A `/file` entry's
 `.id` is not a number (`**1louYup4…`). `/ip/route`'s `hw-offloaded` is optional (a CHR doesn't
 report it). `collect_resource` reads dynamic entries too (routes); only `PrintKeyed` leaves them
-out.
+out. `PrintKeyed` asks the whole menu without a query and judges each row before it is parsed
+(`KeyedRow`, by the key and `KeyedResource::entries`, an `EntryFilter`), so a reader keeping the
+replies (the provisioner's facts) has one answer per menu for every type reading it. A field
+missing is no `false` there, as for the device's query (`?builtin=false` keeps no row without
+`builtin`, CHR 7.24.5). No keyed menu is too big to ask whole (routes, leases, the log are read
+with `Print`); one that is would need the query back.
 
 `inspect-device` (binary in this crate) connects to a live device and dumps its discovered
 config/model — useful for validating new `ros_model/*.txt` entity definitions against real
@@ -194,7 +199,7 @@ virtual slaves too, but only the radios have a `default-name`. The exception fol
 `id=`, not the read-only key alone: `/ip/service` has a read-only `name` (set, never added) but no
 `id=name`, so its dynamic entries (open connections, `socks`, `btest`) are left out. Where they are
 left out, a `[find ...]` of the script looks only at the static ones too (`dynamic!=yes`,
-`model::finds_static_only`, likewise the API's `?dynamic=false` or no `dynamic`): `[find name=api]` also found
+`model::finds_static_only`, likewise `EntryFilter::NotDynamic`: `dynamic=false` or no `dynamic`): `[find name=api]` also found
 the open API connection, and RouterOS refused the `set` with "this is configured elsewhere
 (/ip/service/set *0 = telnet)" (lab-wap 7.23.8, CHR 7.24.5). Not `dynamic=no`: an OSPF area has no
 `dynamic` property, `dynamic=no` found none of them and `set … disabled=no` changed nothing

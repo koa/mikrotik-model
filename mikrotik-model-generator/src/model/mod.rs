@@ -721,8 +721,8 @@ impl Entity {
 
         match (has_dynamic, has_builtin) {
             (true, true) => Some(parse_quote! {
-                fn filter(cmd: mikrotik_api::prelude::CommandBuilder) -> mikrotik_api::prelude::CommandBuilder {
-                    cmd.query_equal(b"dynamic",b"false").query_equal(b"builtin",b"false").query_operations(Some(mikrotik_api::prelude::QueryOperator::And).into_iter())
+                fn entries() -> resource::EntryFilter {
+                    resource::EntryFilter::NotDynamicNorBuiltin
                 }
             }),
             // hardware (a read-only key like `default-name`) is read even when RouterOS calls
@@ -733,19 +733,19 @@ impl Entity {
                     proc_macro2::Span::call_site(),
                 );
                 Some(parse_quote! {
-                    fn filter(cmd: mikrotik_api::prelude::CommandBuilder) -> mikrotik_api::prelude::CommandBuilder {
-                        cmd.query_equal(b"dynamic",b"false").query_not_present(b"dynamic").query_is_present(#key).query_operations([mikrotik_api::prelude::QueryOperator::Or, mikrotik_api::prelude::QueryOperator::Or].into_iter())
+                    fn entries() -> resource::EntryFilter {
+                        resource::EntryFilter::NotDynamicOrHardware(#key)
                     }
                 })
             }
             (true, false) => Some(parse_quote! {
-                fn filter(cmd: mikrotik_api::prelude::CommandBuilder) -> mikrotik_api::prelude::CommandBuilder {
-                    cmd.query_equal(b"dynamic",b"false").query_not_present(b"dynamic").query_operations(Some(mikrotik_api::prelude::QueryOperator::Or).into_iter())
+                fn entries() -> resource::EntryFilter {
+                    resource::EntryFilter::NotDynamic
                 }
             }),
             (false, true) => Some(parse_quote! {
-                fn filter(cmd: mikrotik_api::prelude::CommandBuilder) -> mikrotik_api::prelude::CommandBuilder {
-                    cmd.query_equal(b"builtin",b"false")
+                fn entries() -> resource::EntryFilter {
+                    resource::EntryFilter::NotBuiltin
                 }
             }),
             (false, false) => None,

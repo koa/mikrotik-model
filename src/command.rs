@@ -3,7 +3,10 @@
 //! in a catalog beside these.
 use crate::{
     model::Resource,
-    resource::{DeserializeRosResource, KeyedResource, RosResource, SentenceResult},
+    resource::{
+        DeserializeRosResource, KeyedResource, KeyedRow, KeyedRowContext, RosResource,
+        SentenceResult, written_as,
+    },
     value::{KeyValuePair, RosValue},
 };
 use mikrotik_api::{
@@ -84,7 +87,8 @@ impl<R: DeserializeRosResource + RosResource> Command for Print<R> {
     }
 }
 
-/// `print` of the entries of `R`'s menu that have its key, or the one with `key`.
+/// `print` of the entries of `R`'s menu that have its key, or the one with `key`: the whole
+/// menu is asked and the rows are judged here ([`KeyedRow`]), never by a query on the device.
 pub struct PrintKeyed<'k, R: KeyedResource> {
     key: Option<&'k R::Key>,
 }
@@ -100,18 +104,18 @@ impl<'k, R: KeyedResource> PrintKeyed<'k, R> {
 
 impl<R: KeyedResource> Command for PrintKeyed<'_, R> {
     type Effect = Read;
-    type Reply = SentenceResult<Resource>;
+    type Reply = KeyedRow;
     fn path(&self) -> Cow<'_, [u8]> {
         menu_path(R::path(), b"print")
     }
-    fn build(&self, builder: CommandBuilder) -> CommandBuilder {
-        R::filter(match self.key {
-            None => builder.query_is_present(R::key_name()),
-            Some(key) => builder.query_equal(R::key_name(), key.encode_ros()),
-        })
-    }
     fn context(&self) -> <Self::Reply as ParsedMessage>::Context {
-        R::resource_type()
+        KeyedRowContext {
+            resource: R::resource_type(),
+            key_name: R::key_name(),
+            key: self.key.map(|key| key.encode_ros().into()),
+            written: written_as::<R::Key>,
+            entries: R::entries(),
+        }
     }
 }
 
