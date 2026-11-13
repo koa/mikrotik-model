@@ -1,6 +1,7 @@
 mod bgp;
 mod bridge;
 mod capsman;
+mod device_reads;
 mod dhcp;
 mod dhcp_v6_client;
 mod ethernet;

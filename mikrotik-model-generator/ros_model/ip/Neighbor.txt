@@ -1,0 +1,21 @@
+# discovery: what the device sees at its ports
+/ip/neighbor
+.id: ro; Id; id
+interface: ro
+interface-name: o; ro
+address: o; ro
+address4: o; ro
+address6: o; ro
+mac-address: o; ro
+identity: o; ro
+platform: o; ro
+version: o; ro
+board: o; ro
+software-id: o; ro
+uptime: o; ro; Duration
+age: o; ro; Duration
+ipv6: o; ro; bool
+unpack: o; ro
+system-caps: o; ro
+system-caps-enabled: o; ro
+discovered-by: o; ro

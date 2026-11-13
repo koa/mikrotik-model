@@ -19,6 +19,16 @@ the facade. Actions without a menu belong in a catalog beside these commands, no
 commands of the users. `inspect-device` explores menus by name (`/console/inspect`), the one
 place where a `RawCommand` is the point.
 
+Menus the provisioner reads or writes ad hoc are models too, not raw commands (CHR 7.24.5,
+`src/model/test/device_reads.rs`): `/file`, `/system/scheduler` and `/system/script` are keyed
+by `name` and written through their mutations (`Creatable::calculate_create`,
+`ResourceMutation::remove` by key, `apply_mutation`); `/log`, `/system/script/job`,
+`/system/device-mode`, `/partitions`, `/ip/neighbor`, `/user/active`, `/user/ssh-keys` and
+`/ipv6/route` are read only, every field but the ones always there optional. A `/file` entry's
+`.id` is not a number (`**1louYup4…`). `/ip/route`'s `hw-offloaded` is optional (a CHR doesn't
+report it). `collect_resource` reads dynamic entries too (routes); only `PrintKeyed` leaves them
+out.
+
 `inspect-device` (binary in this crate) connects to a live device and dumps its discovered
 config/model — useful for validating new `ros_model/*.txt` entity definitions against real
 firmware before treating them as final. When no live device is reachable, a static decode test

@@ -1,0 +1,14 @@
+# entries the provisioner adds (fallbacks, the watchdogs' safety net) and removes by name
+/system/scheduler:can-add;id=name
+.id: ro; Id
+name: id
+start-date: o
+start-time: o
+interval: o; Duration
+on-event: o
+policy: o
+disabled: o; bool
+comment: o
+owner: o; ro
+run-count: o; ro; u64
+next-run: o; ro

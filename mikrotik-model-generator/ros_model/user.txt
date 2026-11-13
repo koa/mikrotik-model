@@ -1,0 +1,17 @@
+/user/active
+.id: ro; Id; id
+name: ro
+when: o; ro
+address: o; ro
+via: o; ro
+group: o; ro
+radius: o; ro; bool
+
+/user/ssh-keys
+.id: ro; Id; id
+user: ro
+key-type: o; ro
+bits: o; ro; u32
+key-owner: o; ro
+info: o; ro
+comment: o; ro

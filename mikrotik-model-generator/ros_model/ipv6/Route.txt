@@ -1,0 +1,20 @@
+# read only (the routes check of the helpers); gateways as RouterOS writes them (`fe80::1%ether1`)
+/ipv6/route
+.id: ro; Id; id
+dst-address: ro; Ipv6Net
+gateway: o; ro
+immediate-gw: o; ro
+distance: o; ro; u8
+routing-table: o; ro
+scope: o; ro; u8
+target-scope: o; ro; u8
+active: o; ro; bool
+inactive: o; ro; bool
+connect: o; ro; bool
+static: o; ro; bool
+ospf: o; ro; bool
+bgp: o; ro; bool
+dhcp: o; ro; bool
+blackhole: o; ro; bool
+dynamic: o; ro; bool
+comment: o; ro

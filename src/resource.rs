@@ -571,6 +571,21 @@ impl Display for MissingDependenciesError<'_, '_> {
 }
 
 impl<'a> ResourceMutation<'a> {
+    /// Removes the entry of `R`'s menu with `key` (a scheduler entry by its name), without
+    /// reading it first.
+    pub fn remove<R: KeyedResource>(key: &'a R::Key) -> Self {
+        ResourceMutation {
+            resource: R::path(),
+            operation: ResourceMutationOperation::RemoveByKey(KeyValuePair {
+                key: R::key_name(),
+                value: key.encode_ros(),
+            }),
+            fields: Box::new([]),
+            depends: Box::new([]),
+            provides: Box::new([]),
+            ordering: MutationOrdering::default(),
+        }
+    }
     pub fn into_owned(self) -> ResourceMutation<'static> {
         let operation = self.operation.into_owned();
         let fields = self

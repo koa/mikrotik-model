@@ -48,7 +48,7 @@ dynamic:ro;bool
 ecmp:o;ro;bool
 gateway: IpOrInterface
 gateway-status: o;ro;IpOrInterface
-hw-offloaded:ro;bool
+hw-offloaded:o;ro;bool
 immediate-gw:o;ro;IpOrInterface
 inactive:ro;bool
 local-address:o;IpOrInterface

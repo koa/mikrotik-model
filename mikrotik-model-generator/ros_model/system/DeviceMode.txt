@@ -1,0 +1,26 @@
+# RouterOS 7.17+; changed only by `/system/device-mode/update` (catalog, session bound)
+/system/device-mode:is-single;no-default
+mode: ro
+allowed-versions: o; ro
+flagged: o; ro; bool
+flagging-enabled: o; ro; bool
+scheduler: o; ro; bool
+socks: o; ro; bool
+fetch: o; ro; bool
+pptp: o; ro; bool
+l2tp: o; ro; bool
+bandwidth-test: o; ro; bool
+traffic-gen: o; ro; bool
+sniffer: o; ro; bool
+ipsec: o; ro; bool
+romon: o; ro; bool
+proxy: o; ro; bool
+hotspot: o; ro; bool
+smb: o; ro; bool
+email: o; ro; bool
+zerotier: o; ro; bool
+container: o; ro; bool
+install-any-version: o; ro; bool
+partitions: o; ro; bool
+routerboard: o; ro; bool
+attempt-count: o; ro; u32

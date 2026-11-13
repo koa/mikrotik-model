@@ -1,0 +1,23 @@
+# the apply's script, added and removed by name
+/system/script:can-add;id=name
+.id: ro; Id
+name: id
+source: o
+policy: o
+dont-require-permissions: o; bool
+comment: o
+owner: o; ro
+run-count: o; ro; u64
+last-started: o; ro
+invalid: o; ro; bool
+
+# running scripts and API sessions; an API session is a job too, never remove those wholesale
+/system/script/job
+.id: ro; Id; id
+type: ro
+script: o; ro
+owner: o; ro
+policy: o; ro
+started: o; ro
+parent: o; ro
+trace: o; ro

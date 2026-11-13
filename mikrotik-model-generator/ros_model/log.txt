@@ -1,0 +1,6 @@
+/log
+.id: ro; Id; id
+time: ro
+topics: ro
+message: ro
+extra-info: o; ro

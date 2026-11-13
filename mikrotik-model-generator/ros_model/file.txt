@@ -1,0 +1,10 @@
+# files the provisioner adds (a certificate, by `contents`) and removes by name; RouterOS makes
+# the rest
+/file:can-add;id=name
+.id: ro
+name: id
+contents: o
+type: o; ro
+size: o; ro; u64
+creation-time: o; ro
+last-modified: o; ro

@@ -1,0 +1,10 @@
+# RouterBOARDs with flash only, not a CHR (fields from the manual and the provisioner's reads)
+/partitions
+.id: ro; Id; id
+name: ro
+fallback-to: o; ro
+version: o; ro
+size: o; ro
+running: o; ro; bool
+active: o; ro; bool
+invalid: o; ro; bool
