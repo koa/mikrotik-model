@@ -1,10 +1,10 @@
 # files the provisioner adds (a certificate, by `contents`) and removes by name; RouterOS makes
-# the rest
+# the rest. `type=directory` adds a directory (CHR 7.24.5)
 /file:can-add;id=name
 .id: ro
 name: id
 contents: o
-type: o; ro
+type: o
 size: o; ro; u64
 creation-time: o; ro
 last-modified: o; ro
