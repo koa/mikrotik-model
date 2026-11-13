@@ -6,8 +6,8 @@
 //! LSAs and health lab-np2's, the partitions lab-sxt-b's (both 7.24.6). A field the model doesn't know fails the test.
 
 use crate::model::{
-    File, FileBuilder, IpRoute, IpRouteBuilder, Ipv6RouteState, Ipv6RouteStateBuilder, OspfLsaType,
-    RoutingOspfLsaState, RoutingOspfLsaStateBuilder, SystemDeviceModeState,
+    DeviceMode, File, FileBuilder, IpRoute, IpRouteBuilder, Ipv6RouteState, Ipv6RouteStateBuilder,
+    OspfLsaType, RoutingOspfLsaState, RoutingOspfLsaStateBuilder, SystemDeviceModeState,
     SystemDeviceModeStateBuilder, SystemHealthState, SystemHealthStateBuilder, SystemPackageState,
     SystemPackageStateBuilder, SystemResourceState, SystemResourceStateBuilder, SystemScheduler,
     SystemSchedulerBuilder, SystemScript, SystemScriptBuilder, SystemScriptJobState,
@@ -134,6 +134,7 @@ fn decodes_the_device_mode() {
         (b"routerboard", b"false"),
         (b"attempt-count", b"0"),
     ]);
+    assert_eq!(mode.mode, DeviceMode::Advanced);
     assert_eq!(mode.scheduler, Some(true));
     assert_eq!(mode.partitions, Some(false));
 }

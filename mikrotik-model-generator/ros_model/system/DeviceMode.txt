@@ -1,6 +1,6 @@
 # RouterOS 7.17+; changed only by `/system/device-mode/update` (catalog, session bound)
 /system/device-mode:is-single;no-default
-mode: ro
+mode: ro; DeviceMode
 allowed-versions: o; ro
 flagged: o; ro; bool
 flagging-enabled: o; ro; bool

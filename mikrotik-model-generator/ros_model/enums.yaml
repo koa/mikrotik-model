@@ -744,3 +744,12 @@ OspfLsaType:
   - link
   - intra-area-prefix
   - (AsciiString)
+# the device mode (`/system/device-mode`, RouterOS 7.17+) as MikroTik's manual lists them; the
+# CHR's is `advanced`, berghof-hansueli's `home`; another is kept as text
+DeviceMode:
+  - advanced
+  - basic
+  - enterprise
+  - home
+  - rose
+  - (AsciiString)

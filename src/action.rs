@@ -2,6 +2,7 @@
 //! modeled menu (those are in `command`), each a type with its effect. Their replies are
 //! [`SimpleResult`] rows; a monitor whose fields a menu's model has goes through
 //! `command::MonitorOnce` instead.
+use crate::{model::DeviceMode, value::RosValue};
 use mikrotik_api::{
     command::{Observe, SessionBound, Write},
     prelude::{Command, CommandBuilder},
@@ -215,10 +216,11 @@ action!(
         .attribute(b"password", this.password.as_bytes())
 );
 
-/// `/system/device-mode/update`: turns `features` on, to be confirmed at the device within
-/// `activation_timeout`. It counts down over its connection, which cancels it when it closes,
-/// so it waits as long as the connection lasts.
+/// `/system/device-mode/update`: turns `features` on, and changes to `mode` where given, to be
+/// confirmed at the device within `activation_timeout`. It counts down over its connection,
+/// which cancels it when it closes, so it waits as long as the connection lasts.
 pub struct DeviceModeUpdate<'a> {
+    pub mode: Option<&'a DeviceMode>,
     pub features: &'a [&'a str],
     pub activation_timeout: Duration,
 }
@@ -229,6 +231,10 @@ impl Command for DeviceModeUpdate<'_> {
         Cow::Borrowed(b"/system/device-mode/update")
     }
     fn build(&self, builder: CommandBuilder) -> CommandBuilder {
+        let builder = match self.mode {
+            Some(mode) => builder.attribute(b"mode", mode.encode_ros().as_ref()),
+            None => builder,
+        };
         self.features
             .iter()
             .fold(builder, |builder, feature| {
