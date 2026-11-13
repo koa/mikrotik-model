@@ -1,7 +1,7 @@
 //! Static decode tests for the menus the provisioner only reads (`file.txt`, `log.txt`,
 //! `system/Scheduler.txt`, `system/Script.txt`, `system/DeviceMode.txt`, `user.txt`,
 //! `ipv6/Route.txt`, `ip/ip.txt`'s `/ip/route`, `system.txt`'s `/system/resource`,
-//! `system/Package.txt`), with the API output of CHR 7.24.5. A field the
+//! `system/Package.txt`), and lab-np2's OSPF neighbors (`routing/Ospf.txt`), with the API output of CHR 7.24.5. A field the
 //! model doesn't know fails the test. `/partitions`, `/ip/neighbor` and `/user/ssh-keys` had
 //! no entries on the CHR.
 
@@ -235,7 +235,7 @@ fn decodes_the_resource_and_packages() {
     ]);
     assert_eq!(
         resource.architecture_name,
-        crate::model::SystemResourceArchitectureName::X8664
+        crate::model::SystemArchitecture::X8664
     );
     let package: SystemPackageState = build::<SystemPackageStateBuilder, _>(&[
         (b".id", b"*1"),
@@ -248,4 +248,39 @@ fn decodes_the_resource_and_packages() {
         (b"disabled", b"false"),
     ]);
     assert!(!package.disabled);
+}
+
+#[test]
+fn decodes_an_ospf_neighbor() {
+    use crate::model::{
+        OspfNeighborState, RoutingOspfNeighborState, RoutingOspfNeighborStateBuilder,
+    };
+    // lab-np2, 7.24.6
+    let neighbor: RoutingOspfNeighborState = build::<RoutingOspfNeighborStateBuilder, _>(&[
+        (b".id", b"*F3FCD706"),
+        (b"instance", b"default-v2"),
+        (b"area", b"backbone-v2"),
+        (b"interface", b"e05-hex"),
+        (b"address", b"192.168.101.30"),
+        (b"priority", b"128"),
+        (b"router-id", b"192.168.100.9"),
+        (b"dr", b"192.168.101.30"),
+        (b"bdr", b"192.168.101.29"),
+        (b"state", b"Full"),
+        (b"state-changes", b"5"),
+        (b"adjacency", b"6d16h26m18s"),
+        (b"timeout", b"38s"),
+        (b"dynamic", b"true"),
+    ]);
+    assert_eq!(neighbor.state, OspfNeighborState::Full);
+    let v3: RoutingOspfNeighborState = build::<RoutingOspfNeighborStateBuilder, _>(&[
+        (b".id", b"*F3FCD79C"),
+        (b"instance", b"default-v3"),
+        (b"area", b"backbone-v3"),
+        (b"interface", b"e15"),
+        (b"address", b"fe80::4e5e:cff:fe17:ec1b"),
+        (b"router-id", b"172.16.1.1"),
+        (b"state", b"TwoWay"),
+    ]);
+    assert_eq!(v3.state, OspfNeighborState::TwoWay);
 }

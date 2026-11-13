@@ -109,25 +109,28 @@ body: ro;
 link: ro; 
 age: ro; 
 
-/routing/ospf/neighbor:
-comment: ro;
-ls-requests: ro; 
-timeout: ro; 
-about: ro; o
-bdr: ro; 
-dr: ro; 
-dynamic: ro; 
-state: ro; 
-adjacency: ro; 
-instance: ro; 
-ls-retransmits: ro; 
-priority: ro; 
-state-changes: ro; 
-virtual: ro; 
-router-id: ro; 
-db-summaries: ro; 
-area: ro; 
-address: ro; 
+# as lab-np2 answers it (7.24.6); `dr` and `bdr` are addresses in v2, router IDs in v3
+/routing/ospf/neighbor
+.id: ro; Id; id
+instance: ro
+area: ro
+interface: o; ro
+address: ro; IpAddr
+priority: o; ro; u8
+router-id: ro; Ipv4Addr
+dr: o; ro
+bdr: o; ro
+state: ro; OspfNeighborState
+state-changes: o; ro; u32
+adjacency: o; ro; Duration
+timeout: o; ro; Duration
+dynamic: o; ro; bool
+virtual: o; ro; bool
+comment: o; ro
+ls-requests: o; ro; u32
+ls-retransmits: o; ro; u32
+db-summaries: o; ro; u32
+about: o; ro
 
 /routing/ospf/static-neighbor:can-add;
 address: id; IpAddr

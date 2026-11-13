@@ -68,7 +68,17 @@ SystemArchitecture:
   - mipsbe
   - tile
   - x86
+  - x86_64
   - mmips
+OspfNeighborState:
+  - Down
+  - Attempt
+  - Init
+  - TwoWay
+  - ExStart
+  - Exchange
+  - Loading
+  - Full
 WifiChannelBand:
   - 2ghz-ax
   - 2ghz-g

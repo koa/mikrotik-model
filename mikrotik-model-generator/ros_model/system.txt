@@ -1,6 +1,6 @@
 /system/resource:is-single;no-default
 # a CHR answers `x86_64`
-architecture-name: ro;enum=arm, arm64, mipsbe, tile, x86, x86_64, mmips
+architecture-name: ro;SystemArchitecture
 board-name: o;ro
 cpu: o;ro
 # MHz, a bare number here
