@@ -76,6 +76,14 @@ action!(FetchProbe<'a>, Observe, b"/tool/fetch", |this, builder| {
         )
 });
 
+/// `/tool/fetch` of `url` into a file of its name: a package installs at the next boot.
+pub struct FetchFile<'a> {
+    pub url: &'a str,
+}
+action!(FetchFile<'a>, Write, b"/tool/fetch", |this, builder| {
+    builder.attribute(b"url", this.url.as_bytes())
+});
+
 /// `/interface/ethernet/monitor` of the ports `numbers` (names, comma separated), once;
 /// answered in their order.
 pub struct EthernetMonitorOnce<'a> {
