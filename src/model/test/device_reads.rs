@@ -1,9 +1,9 @@
 //! Static decode tests for the menus the provisioner only reads (`file.txt`, `log.txt`,
 //! `system/Scheduler.txt`, `system/Script.txt`, `system/DeviceMode.txt`, `user.txt`,
 //! `ipv6/Route.txt`, `ip/ip.txt`'s `/ip/route`, `system.txt`'s `/system/resource`,
-//! `system/Package.txt`), and lab-np2's OSPF neighbors (`routing/Ospf.txt`), with the API output of CHR 7.24.5. A field the
-//! model doesn't know fails the test. `/partitions`, `/ip/neighbor` and `/user/ssh-keys` had
-//! no entries on the CHR.
+//! `system/Package.txt`, `routing/Ospf.txt`'s neighbors, `partitions.txt`), with what a device
+//! answered over the API: CHR 7.24.5, the OSPF neighbors lab-np2's, the partitions lab-sxt-b's
+//! (both 7.24.6). A field the model doesn't know fails the test.
 
 use crate::model::{
     File, FileBuilder, IpRoute, IpRouteBuilder, Ipv6RouteState, Ipv6RouteStateBuilder, LogState,
@@ -283,4 +283,20 @@ fn decodes_an_ospf_neighbor() {
         (b"state", b"TwoWay"),
     ]);
     assert_eq!(v3.state, OspfNeighborState::TwoWay);
+}
+
+#[test]
+fn decodes_a_partition() {
+    use crate::model::{PartitionsState, PartitionsStateBuilder};
+    // lab-sxt-b, 7.24.6
+    let partition: PartitionsState = build::<PartitionsStateBuilder, _>(&[
+        (b".id", b"*2"),
+        (b"name", b"part1"),
+        (b"fallback-to", b"next"),
+        (b"version", b"RouterOS v7.24.6 2026-10-30 08:24:29"),
+        (b"size", b"64"),
+        (b"active", b"true"),
+        (b"running", b"true"),
+    ]);
+    assert_eq!(partition.size, Some(64));
 }
