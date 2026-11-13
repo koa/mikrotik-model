@@ -1,13 +1,14 @@
 //! Static decode tests for the menus the provisioner only reads (`file.txt`, `log.txt`,
 //! `system/Scheduler.txt`, `system/Script.txt`, `system/DeviceMode.txt`, `user.txt`,
 //! `ipv6/Route.txt`, `ip/ip.txt`'s `/ip/route`, `system.txt`'s `/system/resource`,
-//! `system/Package.txt`, `routing/Ospf.txt`'s neighbors, `partitions.txt`), with what a device
-//! answered over the API: CHR 7.24.5, the OSPF neighbors lab-np2's, the partitions lab-sxt-b's
-//! (both 7.24.6). A field the model doesn't know fails the test.
+//! `system/Package.txt`, `routing/Ospf.txt`'s neighbors and LSAs, `system/Health.txt`,
+//! `partitions.txt`), with what a device answered over the API: CHR 7.24.5, the OSPF neighbors,
+//! LSAs and health lab-np2's, the partitions lab-sxt-b's (both 7.24.6). A field the model doesn't know fails the test.
 
 use crate::model::{
-    File, FileBuilder, IpRoute, IpRouteBuilder, Ipv6RouteState, Ipv6RouteStateBuilder,
-    SystemDeviceModeState, SystemDeviceModeStateBuilder, SystemPackageState,
+    File, FileBuilder, IpRoute, IpRouteBuilder, Ipv6RouteState, Ipv6RouteStateBuilder, OspfLsaType,
+    RoutingOspfLsaState, RoutingOspfLsaStateBuilder, SystemDeviceModeState,
+    SystemDeviceModeStateBuilder, SystemHealthState, SystemHealthStateBuilder, SystemPackageState,
     SystemPackageStateBuilder, SystemResourceState, SystemResourceStateBuilder, SystemScheduler,
     SystemSchedulerBuilder, SystemScript, SystemScriptBuilder, SystemScriptJobState,
     SystemScriptJobStateBuilder, UserActiveState, UserActiveStateBuilder,
@@ -461,4 +462,56 @@ fn decodes_the_poe_monitor_of_a_port_off_and_one_feeding() {
         InterfaceEthernetPoePoeOutStatus::PoweredOn
     );
     assert_eq!(feeding.poe_out_power, Some(2.4));
+}
+
+#[test]
+fn decodes_the_lsas() {
+    let external: RoutingOspfLsaState = build::<RoutingOspfLsaStateBuilder, _>(&[
+        (b"instance", b"default-v2"),
+        (b"type", b"external"),
+        (b"originator", b"172.16.1.27"),
+        (b"id", b"0.0.0.0"),
+        (b"sequence", b"0x80000004"),
+        (b"age", b"106"),
+        (b"checksum", b"0x274F"),
+        (
+            b"body",
+            b"netmask=0.0.0.0\nforwarding-address=0.0.0.0\nmetric=1 type-1\nroute-tag=0\n",
+        ),
+        (b"dynamic", b"true"),
+    ]);
+    assert_eq!(external._type, OspfLsaType::External);
+    assert_eq!(external.area, None);
+    let link: RoutingOspfLsaState = build::<RoutingOspfLsaStateBuilder, _>(&[
+        (b"instance", b"default-v3"),
+        (b"area", b"backbone-v3"),
+        (b"link", b"e15"),
+        (b"type", b"link"),
+        (b"originator", b"192.168.100.3"),
+        (b"id", b"0.0.0.110"),
+        (b"sequence", b"0x80000120"),
+        (b"age", b"1388"),
+        (b"checksum", b"0x238"),
+        (
+            b"body",
+            b"options=V6|E|R\naddress=fe80::d601:c3ff:fe29:6772\npriority=128\n",
+        ),
+        (b"self-originated", b"true"),
+        (b"dynamic", b"true"),
+    ]);
+    assert_eq!(link._type, OspfLsaType::Link);
+    assert_eq!(link.self_originated, Some(true));
+}
+
+#[test]
+fn decodes_a_health_row() {
+    let row: SystemHealthState = build::<SystemHealthStateBuilder, _>(&[
+        (b"name", b"psu1-voltage"),
+        (b"value", b"24.2"),
+        (b"type", b"V"),
+    ]);
+    assert_eq!(
+        row.name.map(|name| name.to_string()),
+        Some("psu1-voltage".into())
+    );
 }

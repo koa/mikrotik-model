@@ -1,9 +1,12 @@
+# RouterOS 7 reports a row per sensor (lab-np2, 7.24.6: `name`, `value`, `type` the unit);
+# RouterOS 6 one row with a field per sensor (`voltage`, `temperature`, unchecked here), which
+# isn't read: the three are optional, so such a device reads as a row without them, as the
+# provisioner's raw read took it; `.id` isn't needed
 /system/health:
-.id: ro; Id; id
-value: ro;
+value: o; ro
 about: ro; o
-name: ro; 
-type: ro;
+name: o; ro
+type: o; ro
 
 /system/health/settings:is-single;
 cpu-overtemp-check: bool

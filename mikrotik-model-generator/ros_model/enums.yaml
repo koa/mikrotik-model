@@ -735,3 +735,12 @@ LogTopic:
   - wireless
   - write
   - (AsciiString)
+# the type of an OSPF LSA (`/routing/ospf/lsa`), those lab-np2 has (7.24.6); another is kept as
+# text
+OspfLsaType:
+  - router
+  - network
+  - external
+  - link
+  - intra-area-prefix
+  - (AsciiString)

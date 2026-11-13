@@ -91,23 +91,25 @@ vlink-transit-area: o; ref=>ospf-area
 inactive: ro; bool
 about: ro; o
 
+# as lab-np2 answers it (7.24.6): `area` only in an area's LSAs (not `external`), `link` only in
+# a v3 `link` LSA, `self-originated` only where it is; `.id` isn't read (it would be `id`)
 /routing/ospf/lsa:
-type: ro; 
-id: ro; 
-link-instance-id: ro; 
-originator: ro; 
-self-originated: ro; 
-wraparound: ro; 
-area: ro; 
-dynamic: ro; 
-sequence: ro; 
-instance: ro; 
-flushing: ro; 
-about: ro; o
-checksum: ro; 
-body: ro; 
-link: ro; 
-age: ro; 
+instance: ro
+type: ro; OspfLsaType
+originator: ro; Ipv4Addr
+id: ro; Ipv4Addr
+area: o; ro
+link: o; ro
+sequence: ro
+age: ro; u32
+checksum: ro
+body: ro
+dynamic: ro; bool
+self-originated: o; ro; bool
+link-instance-id: o; ro
+wraparound: o; ro
+flushing: o; ro
+about: o; ro
 
 # as lab-np2 answers it (7.24.6); `dr` and `bdr` are addresses in v2, router IDs in v3
 /routing/ospf/neighbor

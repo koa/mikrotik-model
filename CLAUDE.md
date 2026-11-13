@@ -33,8 +33,9 @@ Menus the provisioner reads or writes ad hoc are models too, not raw commands (C
 `src/model/test/device_reads.rs`): `/file`, `/system/scheduler` and `/system/script` are keyed
 by `name` and written through their mutations (`Creatable::calculate_create`,
 `ResourceMutation::remove` by key, `apply_mutation`); `/log`, `/system/script/job`,
-`/system/device-mode`, `/partitions`, `/ip/neighbor`, `/user/active`, `/user/ssh-keys` and
-`/ipv6/route` are read only, every field but the ones always there optional. A `/file` entry's
+`/system/device-mode`, `/partitions`, `/ip/neighbor`, `/user/active`, `/user/ssh-keys`,
+`/ipv6/route`, `/routing/ospf/lsa` and `/system/health` are read only, every field but the
+ones always there optional. A `/file` entry's
 `.id` is not a number (`**1louYup4…`). `/ip/route`'s `hw-offloaded` is optional (a CHR doesn't
 report it). `collect_resource` reads dynamic entries too (routes); only `PrintKeyed` leaves them
 out.
