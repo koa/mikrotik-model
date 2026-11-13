@@ -2,7 +2,7 @@
 arp: o; disabled; enum= enabled, local-proxy-arp, proxy-arp, reply-only;
 arp-timeout: o; auto;
 channel: o; ref=>caps-channel
-channel.band: o; enum= 2ghz-b, 2ghz-b/g, 2ghz-b/g/n, 2ghz-g/n, 2ghz-onlyg, 2ghz-onlyn, 5ghz-a, 5ghz-a/n, 5ghz-a/n/ac, 5ghz-n/ac, 5ghz-onlyac, 5ghz-onlyn;
+channel.band: o; WirelessBand;
 channel.control-channel-width: o; enum= 10mhz, 20mhz, 40mhz-turbo, 5mhz;
 channel.extension-channel: o; disabled; enum= Ce, Ceee, Ceeeeeee, XX, XXXX, XXXXXXXX, eC, eCee, eCeeeeee, eeCe, eeCeeeee, eeeC, eeeCeeee, eeeeCeee, eeeeeCee, eeeeeeCe, eeeeeeeC;
 channel.frequency: o; u32

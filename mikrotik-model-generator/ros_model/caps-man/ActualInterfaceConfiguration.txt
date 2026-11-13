@@ -1,7 +1,7 @@
 /caps-man/actual-interface-configuration:
 arp: o; enum=enabled, disabled, local-proxy-arp, proxy-arp, reply-only;
 arp-timeout: auto; 
-channel.band: o;CapsChannelBand;
+channel.band: o;WirelessBand;
 channel.control-channel-width: o;CapsChannelWidth;
 channel.extension-channel: o; disabled; CapsExtensionChannel
 channel.frequency: mu; u16

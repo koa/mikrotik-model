@@ -87,7 +87,8 @@ WifiChannelBand:
   - 5ghz-ac
   - 5ghz-ax
   - 5ghz-n
-CapsChannelBand:
+# the band of the legacy stack: `/interface/wireless` and `/caps-man`
+WirelessBand:
   - 2ghz-b
   - 2ghz-b/g
   - 2ghz-b/g/n

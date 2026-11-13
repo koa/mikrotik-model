@@ -1,5 +1,5 @@
 /caps-man/channel:can-add;
-band: o;CapsChannelBand;
+band: o;WirelessBand;
 comment: o
 control-channel-width: o;CapsChannelWidth;
 extension-channel: o; disabled; CapsExtensionChannel

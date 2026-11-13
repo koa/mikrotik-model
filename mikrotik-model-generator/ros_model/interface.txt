@@ -9,7 +9,7 @@ antenna-mode: o; enum=ant-a, ant-b, rxa-txb,txa-rxb
 area: o
 arp: o; enum=enabled, disabled, local-proxy-arp, proxy-arp, reply-only
 arp-timeout: o; auto; Duration
-band: o; enum=2ghz-b,2ghz-b/g,2ghz-b/g/n,2ghz-g/n,2ghz-onlyg,2ghz-onlyn,5ghz-a,5ghz-a/n,5ghz-a/n/ac,5ghz-n/ac,5ghz-onlyac,5ghz-onlyn
+band: o; WirelessBand
 basic-rates-a/g: o; mu; enum=6Mbps,9Mbps,12Mbps,18Mbps,24Mbps,36Mbps,48Mbps,54Mbps
 basic-rates-b: o; mu; enum=1Mbps,2Mbps,5.5Mbps,11Mbps
 bridge-mode: o; EnabledDisabled
