@@ -431,3 +431,34 @@ fn reads_the_short_log_times_of_routeros_6() {
         ParseRosValueResult::Invalid
     ));
 }
+
+#[test]
+fn decodes_the_poe_monitor_of_a_port_off_and_one_feeding() {
+    use crate::model::{InterfaceEthernetPoeMonitorBuilder, InterfaceEthernetPoePoeOutStatus};
+    // lab-np2 (CRS318, 7.23.8); `power-cycle-host-alive` isn't modeled
+    let off = build::<InterfaceEthernetPoeMonitorBuilder, _>(&[
+        (b"name", b"e01"),
+        (b"poe-out", b"off"),
+        (b"poe-voltage", b"auto"),
+        (b"poe-out-status", b"disabled"),
+    ]);
+    assert_eq!(
+        off.poe_out_status,
+        InterfaceEthernetPoePoeOutStatus::Disabled
+    );
+    let feeding = build::<InterfaceEthernetPoeMonitorBuilder, _>(&[
+        (b"name", b"e03-lab-wap"),
+        (b"poe-out", b"auto-on"),
+        (b"poe-voltage", b"auto"),
+        (b"poe-out-status", b"powered-on"),
+        (b"poe-out-voltage", b"47.7"),
+        (b"poe-out-current", b"52"),
+        (b"poe-out-power", b"2.4"),
+        (b"poe-out-power-pair", b"b"),
+    ]);
+    assert_eq!(
+        feeding.poe_out_status,
+        InterfaceEthernetPoePoeOutStatus::PoweredOn
+    );
+    assert_eq!(feeding.poe_out_power, Some(2.4));
+}

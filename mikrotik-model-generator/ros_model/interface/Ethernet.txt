@@ -185,4 +185,5 @@ poe-out-voltage: o; ro; f64; monitor-only
 poe-out-current: o; ro; f64;monitor-only
 poe-out-power: o; ro; f64; monitor-only
 poe-out-power-pair: ro; o; enum=a,b,bt;monitor-only
-poe-out-status: ro;enum=waiting-for-load, short-circuit, powered-on, overload, voltage-too-low, voltage-too-high,current-too-low, voltage_on_poe_in,off,power_reset,controller_init,controller_upgrade,controller_error; monitor-only
+# `disabled` on a port with `poe-out=off` (lab-np2, CRS318, 7.23.8)
+poe-out-status: ro;enum=disabled, waiting-for-load, short-circuit, powered-on, overload, voltage-too-low, voltage-too-high,current-too-low, voltage_on_poe_in,off,power_reset,controller_init,controller_upgrade,controller_error; monitor-only
