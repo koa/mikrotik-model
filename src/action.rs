@@ -56,24 +56,39 @@ action!(Ping, Observe, b"/ping", |this, builder| builder
         format!("{}", this.interval.as_secs_f32()).as_bytes()
     ));
 
-/// `/tool/fetch` of `url` from `src_address` for `duration`, the result not kept: whether a
-/// TCP connection gets through. A dropped one answers only `status=connecting` rows; one that
-/// gets an answer goes on to another status or ends in a trap (refused, or a port speaking no
-/// HTTP; CHR 7.24.5).
+/// `/tool/fetch` of `url`, the result not kept: whether a connection gets through, from
+/// `src_address` where given, for at most `duration` where given, and with the server's
+/// certificate checked against the device's trusted ones where `check_certificate`. A dropped
+/// connection answers only `status=connecting` rows; one that gets an answer goes on to another
+/// status (`finished`) or ends in a trap (refused, or a port speaking no HTTP; CHR 7.24.5).
 pub struct FetchProbe<'a> {
     pub url: &'a str,
-    pub src_address: IpAddr,
-    pub duration: Duration,
+    pub src_address: Option<IpAddr>,
+    pub duration: Option<Duration>,
+    pub check_certificate: bool,
 }
 action!(FetchProbe<'a>, Observe, b"/tool/fetch", |this, builder| {
-    builder
+    let builder = builder
         .attribute(b"url", this.url.as_bytes())
-        .attribute(b"src-address", this.src_address.to_string().as_bytes())
-        .attribute(b"keep-result", b"no")
+        .attribute(b"output", b"none")
         .attribute(
-            b"duration",
-            format!("{}s", this.duration.as_secs()).as_bytes(),
-        )
+            b"check-certificate",
+            if this.check_certificate {
+                b"yes".as_slice()
+            } else {
+                b"no".as_slice()
+            },
+        );
+    let builder = match this.src_address {
+        Some(address) => builder.attribute(b"src-address", address.to_string().as_bytes()),
+        None => builder,
+    };
+    match this.duration {
+        Some(duration) => {
+            builder.attribute(b"duration", format!("{}s", duration.as_secs()).as_bytes())
+        }
+        None => builder,
+    }
 });
 
 /// `/tool/fetch` of `url` into a file of its name: a package installs at the next boot.
