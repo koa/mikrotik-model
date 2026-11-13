@@ -52,6 +52,10 @@ firmware before treating them as final. When no live device is reachable, a stat
 mismatches (e.g. an address field that needs to accept a RouterOS `%zone`-suffixed value) without
 needing network access.
 
+A menu nobody reads or writes and no test checks is left out, not kept as a guess: the IPv6
+firewall's `connection`, `mangle`, `nat` and `raw` were such raw drafts (every field required,
+text match fields as enums) and went; one needed again is modeled then, against a device.
+
 Adding a new RouterOS config path is normally just a new `.txt` file in `ros_model/`, following
 the existing DSL (`id`/`ref=X`, `ref=>X`, `o`, `ro`, `mu`, `ordered`, `k`, `unset`, `empty`, `unique`, `blocks-removal`,
 `enum=...`, scalar types) — no
@@ -157,8 +161,7 @@ Y, without `destination` at the end (CHR 7.24.5).
 
 `default=<value>` gives a required field the value RouterOS leaves out: a firewall rule added
 without `disabled` doesn't report it (`default=false`), nor one added without `action`
-(`default=accept` in `/ip/firewall/filter`, `nat` and `/ipv6/firewall/filter`; the other IPv6
-tables are unrefined and unused), nor does an entry of the wifi menus
+(`default=accept` in `/ip/firewall/filter`, `nat` and `/ipv6/firewall/filter`), nor does an entry of the wifi menus
 (`aaa`, `channel`, `configuration`, `datapath`, `interworking`, `provisioning`, `security`,
 `steering`; 7.24.5, `multi-passphrase` does), nor does the OSPF instance an update from
 RouterOS 6 brings report `vrf` (`default=main`). A dhcp-client with
