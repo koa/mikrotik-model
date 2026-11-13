@@ -183,6 +183,30 @@ pub async fn monitor_once_resource<R: DeserializeRosResource + RosResource>(
     }
 }
 
+/// [`monitor_once_resource`], every answer read: the first error fails it.
+pub async fn collect_monitor_once<R: DeserializeRosResource + RosResource>(
+    entries: impl Iterator<Item = Id>,
+    device: &impl Reads,
+) -> Result<Box<[R]>, Error> {
+    let mut answers = std::pin::pin!(monitor_once_resource::<R>(entries, device).await);
+    let mut rows = Vec::new();
+    let mut error = None;
+    // read up to `!done` even after an error, as `collect_resource`
+    while let Some(entry) = answers.next().await {
+        match value_or_error(entry) {
+            Ok(row) if error.is_none() => rows.push(row),
+            Ok(_) => {}
+            Err(e) => {
+                error.get_or_insert(e);
+            }
+        }
+    }
+    match error {
+        Some(error) => Err(error),
+        None => Ok(rows.into()),
+    }
+}
+
 pub async fn collect_resource<R: DeserializeRosResource + RosResource>(
     device: &impl Reads,
 ) -> Result<Box<[R]>, Error> {
