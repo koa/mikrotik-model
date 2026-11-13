@@ -1,7 +1,7 @@
 use crate::value::Id;
 use crate::{
-    MikrotikDevice,
     ascii::AsciiString,
+    command::{Device, FindByKey, MenuWrite, MonitorOnce, Print, PrintKeyed},
     hwconfig::DeviceType,
     model::{ReferenceType, Resource, ResourceRef, ResourceType},
     value::{KeyValuePair, RosValue},
@@ -152,17 +152,17 @@ impl Display for TrapResponse {
 }
 
 pub async fn stream_resource<R: DeserializeRosResource + RosResource>(
-    device: &MikrotikDevice,
+    device: &impl Device,
 ) -> impl Stream<Item = SentenceResult<R>> {
-    //println!("Fetch: {}", decode_latin1(R::path()));
     device
-        .send_simple_command(&[b"/", R::path(), b"/print"], R::resource_type())
+        .connection()
+        .run(&Print::<R>::default())
         .await
         .map(|entry| entry.map(|r| R::unwrap_resource(r).expect("Unexpected result type")))
 }
 pub async fn monitor_once_resource<R: DeserializeRosResource + RosResource>(
     entries: impl Iterator<Item = Id>,
-    device: &MikrotikDevice,
+    device: &impl Device,
 ) -> impl Stream<Item = SentenceResult<R>> {
     let mut id_list = Vec::<u8>::new();
     for id in entries {
@@ -177,14 +177,8 @@ pub async fn monitor_once_resource<R: DeserializeRosResource + RosResource>(
     } else {
         Either::Right(
             device
-                .send_command(
-                    &[b"/", R::path(), b"/monitor"],
-                    |cb| {
-                        cb.attribute(b".id", id_list.as_slice())
-                            .attribute(b"once", b"true")
-                    },
-                    R::resource_type(),
-                )
+                .connection()
+                .run(&MonitorOnce::<R>::new(id_list.into()))
                 .await
                 .map(|entry| entry.map(|r| R::unwrap_resource(r).expect("Unexpected result type"))),
         )
@@ -192,7 +186,7 @@ pub async fn monitor_once_resource<R: DeserializeRosResource + RosResource>(
 }
 
 pub async fn collect_resource<R: DeserializeRosResource + RosResource>(
-    device: &MikrotikDevice,
+    device: &impl Device,
 ) -> Result<Box<[R]>, Error> {
     // read up to `!done` even after an error: a `!trap` comes with more sentences, and a stream
     // dropped before them makes the connection log that it can't deliver them
@@ -237,7 +231,7 @@ pub trait RosResource: Sized {
 
 pub trait SingleResource: DeserializeRosResource + RosResource {
     fn fetch(
-        device: &MikrotikDevice,
+        device: &impl Device,
     ) -> impl std::future::Future<Output = Result<Option<Self>, Error>> + Send {
         async {
             match stream_resource::<Self>(device).await.next().await {
@@ -291,7 +285,7 @@ pub trait KeyedResource: DeserializeRosResource + RosResource {
         cmd
     }
     fn fetch_all<T: FromStream<Self> + Send>(
-        device: &MikrotikDevice,
+        device: &impl Device,
     ) -> impl std::future::Future<Output = Result<T, Error>>
     where
         <Self as KeyedResource>::Key: Sync,
@@ -299,11 +293,8 @@ pub trait KeyedResource: DeserializeRosResource + RosResource {
     {
         async {
             device
-                .send_command(
-                    &[b"/", Self::path(), b"/print"],
-                    |cmd| Self::filter(cmd.query_is_present(Self::key_name())),
-                    Self::resource_type(),
-                )
+                .connection()
+                .run(&PrintKeyed::<Self>::all())
                 .await
                 .map(|entry| {
                     entry.map(|r| Self::unwrap_resource(r).expect("Unexpected result type"))
@@ -315,7 +306,7 @@ pub trait KeyedResource: DeserializeRosResource + RosResource {
     }
 
     fn fetch(
-        device: &MikrotikDevice,
+        device: &impl Device,
         key: &Self::Key,
     ) -> impl std::future::Future<Output = Result<Option<Self>, Error>> + Send
     where
@@ -324,11 +315,8 @@ pub trait KeyedResource: DeserializeRosResource + RosResource {
         async {
             Ok(
                 match device
-                    .send_command(
-                        &[b"/", Self::path(), b"/print"],
-                        |cmd| Self::filter(cmd.query_equal(Self::key_name(), key.encode_ros())),
-                        Self::resource_type(),
-                    )
+                    .connection()
+                    .run(&PrintKeyed::<Self>::with(key))
                     .await
                     .map(|entry| {
                         entry.map(|r| Self::unwrap_resource(r).expect("Unexpected result type"))
@@ -769,55 +757,51 @@ impl<'a> ResourceMutationOperation<'a> {
 /// =.id="). `RemoveByKey`/`UpdateByKey` therefore need a `/print` round trip
 /// first to resolve the key into a `.id` before the actual write.
 pub async fn apply_mutation(
-    device: &mikrotik_api::prelude::MikrotikDevice<SimpleResult>,
+    device: &impl Device,
     mutation: &ResourceMutation<'_>,
 ) -> Result<(), Error> {
+    let resource = mutation.resource;
     match &mutation.operation {
         ResourceMutationOperation::Add => {
-            write_command(device, mutation.resource, b"add", |cmd| {
-                with_fields(cmd, &mutation.fields)
-            })
-            .await
+            write_command(device, resource, b"add", &mutation.fields).await
         }
         ResourceMutationOperation::UpdateSingle => {
-            write_command(device, mutation.resource, b"set", |cmd| {
-                with_fields(cmd, &mutation.fields)
-            })
-            .await
+            write_command(device, resource, b"set", &mutation.fields).await
         }
         ResourceMutationOperation::RemoveByKey(key) => {
-            let id = find_id_by_key(device, mutation.resource, key).await?;
-            write_command(device, mutation.resource, b"remove", |cmd| {
-                cmd.attribute(b".id".as_slice(), id.as_bytes())
-            })
-            .await
+            let id = find_id_by_key(device, resource, key).await?;
+            write_command(device, resource, b"remove", &[id_attribute(b".id", &id)]).await
         }
         ResourceMutationOperation::UpdateByKey(key) => {
-            let id = find_id_by_key(device, mutation.resource, key).await?;
-            write_command(device, mutation.resource, b"set", |cmd| {
-                with_fields(
-                    cmd.attribute(b".id".as_slice(), id.as_bytes()),
-                    &mutation.fields,
-                )
-            })
-            .await
+            let id = find_id_by_key(device, resource, key).await?;
+            let attributes: Box<[KeyValuePair]> = std::iter::once(id_attribute(b".id", &id))
+                .chain(mutation.fields.iter().cloned())
+                .collect();
+            write_command(device, resource, b"set", &attributes).await
         }
         ResourceMutationOperation::Move {
             entries, before, ..
         } => {
             for entry in entries {
-                let id = find_id_by_key(device, mutation.resource, entry).await?;
-                write_command(device, mutation.resource, b"move", |cmd| {
-                    let cmd = cmd.attribute(b"numbers".as_slice(), id.as_bytes());
-                    match before {
-                        Some(before) => cmd.attribute(b"destination".as_slice(), before.as_ref()),
-                        None => cmd,
-                    }
-                })
-                .await?;
+                let id = find_id_by_key(device, resource, entry).await?;
+                let attributes: Box<[KeyValuePair]> =
+                    std::iter::once(id_attribute(b"numbers", &id))
+                        .chain(before.iter().map(|before| KeyValuePair {
+                            key: b"destination",
+                            value: Cow::Borrowed(before.as_ref()),
+                        }))
+                        .collect();
+                write_command(device, resource, b"move", &attributes).await?;
             }
             Ok(())
         }
+    }
+}
+
+fn id_attribute<'a>(key: &'static [u8], id: &'a str) -> KeyValuePair<'a> {
+    KeyValuePair {
+        key,
+        value: Cow::Borrowed(id.as_bytes()),
     }
 }
 
@@ -848,7 +832,7 @@ pub async fn apply_mutation(
 /// since this function returns before knowing whether the script actually
 /// finished successfully.
 pub async fn apply_mutations_via_script(
-    device: &mikrotik_api::prelude::MikrotikDevice<SimpleResult>,
+    device: &impl Device,
     mutations: &[ResourceMutation<'_>],
     script_name: &str,
 ) -> Result<(), Error> {
@@ -860,62 +844,58 @@ pub async fn apply_mutations_via_script(
             .expect("writing to a String cannot fail");
     }
 
-    let _ = write_command(device, b"system/script", b"remove", |cmd| {
-        cmd.attribute(b"numbers".as_slice(), script_name.as_bytes())
-    })
-    .await;
+    let name = |key| KeyValuePair {
+        key,
+        value: Cow::Borrowed(script_name.as_bytes()),
+    };
+    let _ = write_command(device, b"system/script", b"remove", &[name(b"numbers")]).await;
 
-    write_command(device, b"system/script", b"add", |cmd| {
-        cmd.attribute(b"name".as_slice(), script_name.as_bytes())
-            .attribute(b"source".as_slice(), source.as_bytes())
-    })
-    .await?;
+    let script = [
+        name(b"name"),
+        KeyValuePair {
+            key: b"source",
+            value: Cow::Borrowed(source.as_bytes()),
+        },
+    ];
+    write_command(device, b"system/script", b"add", &script).await?;
 
     // answers only once the whole script is through
-    let path = b"/system/script/run".as_slice();
-    let mut stream = device
-        .send_command_with_reply_timeout(
-            path,
-            |cmd| cmd.attribute(b"number".as_slice(), script_name.as_bytes()),
-            (),
-            Some(SCRIPT_RUN_TIMEOUT),
-        )
-        .await;
-    while let Some(result) = stream.next().await {
-        match result {
-            SimpleResult::Sentence(_) => {}
-            SimpleResult::Error(e) => return Err(Error::Device(e)),
-            SimpleResult::Trap { category, message } => {
-                return Err(Error::Trap(TrapResponse {
-                    category,
-                    message: message.into_boxed_bytes(),
-                }));
-            }
-        }
-    }
-    Ok(())
+    run_write(
+        device,
+        &MenuWrite {
+            resource: b"system/script",
+            verb: b"run",
+            attributes: &[name(b"number")],
+            reply_timeout: Some(SCRIPT_RUN_TIMEOUT),
+        },
+    )
+    .await
 }
 
 /// How long the script of [`apply_mutations_via_script`] may run: `/system/script/run` replies
 /// only at its end, so the API's usual limit without a reply would be too short.
 pub const SCRIPT_RUN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10 * 60);
 
-fn with_fields<'a>(cmd: CommandBuilder, fields: &[KeyValuePair<'a>]) -> CommandBuilder {
-    fields
-        .iter()
-        .fold(cmd, |cmd, kv| cmd.attribute(kv.key, kv.value.as_ref()))
-}
-
-async fn write_command<F: FnOnce(CommandBuilder) -> CommandBuilder>(
-    device: &mikrotik_api::prelude::MikrotikDevice<SimpleResult>,
+async fn write_command(
+    device: &impl Device,
     resource: &'static [u8],
     verb: &'static [u8],
-    command_builder: F,
+    attributes: &[KeyValuePair<'_>],
 ) -> Result<(), Error> {
-    let path = [b"/".as_slice(), resource, b"/".as_slice(), verb].concat();
-    let mut stream = device
-        .send_command(path.as_slice(), command_builder, ())
-        .await;
+    run_write(
+        device,
+        &MenuWrite {
+            resource,
+            verb,
+            attributes,
+            reply_timeout: Some(mikrotik_api::prelude::REPLY_TIMEOUT),
+        },
+    )
+    .await
+}
+
+async fn run_write(device: &impl Device, write: &MenuWrite<'_>) -> Result<(), Error> {
+    let mut stream = device.connection().run(write).await;
     while let Some(result) = stream.next().await {
         match result {
             SimpleResult::Sentence(_) => {}
@@ -932,35 +912,11 @@ async fn write_command<F: FnOnce(CommandBuilder) -> CommandBuilder>(
 }
 
 async fn find_id_by_key(
-    device: &mikrotik_api::prelude::MikrotikDevice<SimpleResult>,
+    device: &impl Device,
     resource: &'static [u8],
     key: &KeyValuePair<'_>,
 ) -> Result<Box<str>, Error> {
-    let path = [b"/".as_slice(), resource, b"/print".as_slice()].concat();
-    let mut stream = device
-        .send_command(
-            path.as_slice(),
-            |cmd| {
-                let cmd = cmd.query_equal(key.key, key.value.as_ref());
-                // as the script's `[find ... dynamic!=yes]` (`generator::static_only`): an entry
-                // of a menu without the property (`/routing/ospf/area`) counts as static
-                if crate::model::finds_static_only(resource) {
-                    cmd.query_equal(b"dynamic", b"false")
-                        .query_not_present(b"dynamic")
-                        .query_operations(
-                            [
-                                mikrotik_api::prelude::QueryOperator::Or,
-                                mikrotik_api::prelude::QueryOperator::And,
-                            ]
-                            .into_iter(),
-                        )
-                } else {
-                    cmd
-                }
-            },
-            (),
-        )
-        .await;
+    let mut stream = device.connection().run(&FindByKey { resource, key }).await;
     while let Some(result) = stream.next().await {
         match result {
             SimpleResult::Sentence(mut row) => {

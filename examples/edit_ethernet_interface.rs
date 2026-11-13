@@ -1,7 +1,8 @@
 use config::{Config, Environment, File};
 use env_logger::{Env, TimestampPrecision};
+use mikrotik_model::mikrotik_api::{Connection, Generation};
 use mikrotik_model::{
-    Credentials, MikrotikDevice,
+    Credentials,
     generator::Generator,
     hwconfig::DeviceType,
     model::Data,
@@ -36,10 +37,11 @@ async fn main() -> anyhow::Result<()> {
     let router = IpAddr::V4(Ipv4Addr::new(172, 16, 1, 1));
     //let router = IpAddr::V4(Ipv4Addr::new(10, 192, 69, 2));
     println!("{router}");
-    let device = MikrotikDevice::connect(
+    let device = Connection::connect(
         (router, 8728),
         credentials.user.as_bytes(),
         Some(credentials.password.as_bytes()),
+        Generation::default(),
     )
     .await?;
 

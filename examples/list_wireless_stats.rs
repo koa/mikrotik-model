@@ -2,12 +2,13 @@ use config::{Config, Environment, File};
 use encoding_rs::mem::decode_latin1;
 use env_logger::{Env, TimestampPrecision};
 use log::{error, info, warn};
+use mikrotik_model::Credentials;
 use mikrotik_model::ascii::AsciiString;
+use mikrotik_model::mikrotik_api::{Connection, Generation};
 use mikrotik_model::model::{
     CapsManInterfaceById, CapsManInterfaceState, CapsManRadioState, CapsManRegistrationTableState,
 };
 use mikrotik_model::resource::{SentenceResult, stream_resource};
-use mikrotik_model::{Credentials, MikrotikDevice};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr};
@@ -32,10 +33,11 @@ async fn main() -> anyhow::Result<()> {
     //let router = IpAddr::V4(Ipv4Addr::new(10, 192, 5, 7));
     //let router = IpAddr::V4(Ipv4Addr::new(172, 16, 1, 51));
     let router = IpAddr::V4(Ipv4Addr::new(172, 16, 1, 1));
-    let device: MikrotikDevice = MikrotikDevice::connect(
+    let device = Connection::connect(
         (router, 8728),
         credentials.user.as_bytes(),
         Some(credentials.password.as_bytes()),
+        Generation::default(),
     )
     .await?;
 

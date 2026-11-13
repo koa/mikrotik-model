@@ -9,6 +9,16 @@ that path and its `Cargo.lock` are never committed: mikrotik-api is committed an
 then the git reference restored and `cargo update -p mikrotik-api` committed here. Provides, per modeled RouterOS path, both a `{Name}Current` fetcher and a
 `{Name}Target` diff/mutation generator.
 
+Everything reaches the device as a typed command of mikrotik-api's `Connection::run`
+(`src/command.rs`): `Print`, `PrintKeyed` (`Read`) and `MonitorOnce` (`Observe`) read as the
+menu's model, `MenuWrite` (`Write`) and `FindByKey` are the writes of `apply_mutation` and
+`apply_mutations_via_script`. The functions take a `command::Device`, which is a `Connection` or,
+while its users move (netbox-provisioner `docs/concepts/device-access.md`), the deprecated
+`mikrotik_api::MikrotikDevice` and this crate's deprecated alias `MikrotikDevice`; both go with
+the facade. Actions without a menu belong in a catalog beside these commands, not in raw
+commands of the users. `inspect-device` explores menus by name (`/console/inspect`), the one
+place where a `RawCommand` is the point.
+
 `inspect-device` (binary in this crate) connects to a live device and dumps its discovered
 config/model — useful for validating new `ros_model/*.txt` entity definitions against real
 firmware before treating them as final. When no live device is reachable, a static decode test

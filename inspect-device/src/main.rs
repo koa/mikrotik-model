@@ -4,7 +4,8 @@ use encoding_rs::mem::encode_latin1_lossy;
 use env_logger::{Env, TimestampPrecision};
 use lazy_static::lazy_static;
 use log::error;
-use mikrotik_api::prelude::MikrotikDevice;
+use mikrotik_api::command::Read;
+use mikrotik_api::prelude::{Connection, Generation, RawCommand};
 use mikrotik_api::simple::SimpleResult;
 use mikrotik_model_generator::known_entities;
 use mikrotik_model_generator::model::{Entity, Field, Reference};
@@ -33,10 +34,11 @@ async fn main() -> anyhow::Result<()> {
         .format_timestamp(Some(TimestampPrecision::Millis))
         .init();
     let args = Args::parse();
-    let device: MikrotikDevice<SimpleResult> = MikrotikDevice::connect(
+    let device = Connection::connect(
         (args.device, 8728),
         b"admin",
         args.password.as_deref().map(|v| encode_latin1_lossy(v)),
+        Generation::default(),
     )
     .await?;
 
@@ -135,21 +137,18 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn walk_dir(
-    device: &MikrotikDevice<SimpleResult>,
+    device: &Connection,
     path: &[Box<str>],
     existing_entities: &mut HashMap<Box<[Box<str>]>, &Entity>,
     gathered_entities: &mut Vec<Entity>,
 ) {
     let mut stream = device
-        .send_command(
-            b"/console/inspect",
-            |cmd| {
-                let path = path.join(",");
-                cmd.attribute(b"request", b"child")
-                    .attribute(b"path", path.as_bytes())
-            },
-            (),
-        )
+        .run(&{
+            let path = path.join(",");
+            RawCommand::<Read>::new(b"/console/inspect".as_slice())
+                .attribute(b"request".as_slice(), b"child".as_slice())
+                .attribute(b"path".as_slice(), path.as_bytes())
+        })
         .await
         .filter_map(sentence_of);
     let mut children = Vec::new();
@@ -217,7 +216,7 @@ async fn walk_dir(
 }
 
 async fn process_entry(
-    device: &MikrotikDevice<SimpleResult>,
+    device: &Connection,
     path: &[Box<str>],
     can_add: bool,
     _can_edit: bool,
@@ -247,16 +246,13 @@ async fn process_entry(
         .map(|f| (f.name.as_ref(), f))
         .collect::<HashMap<_, _>>();
     let mut stream = device
-        .send_command(
-            b"/console/inspect",
-            |cmd| {
-                let mut path = path.join(",");
-                path.push_str(",get,value-name");
-                cmd.attribute(b"request", b"completion")
-                    .attribute(b"path", path.as_bytes())
-            },
-            (),
-        )
+        .run(&{
+            let mut path = path.join(",");
+            path.push_str(",get,value-name");
+            RawCommand::<Read>::new(b"/console/inspect".as_slice())
+                .attribute(b"request".as_slice(), b"completion".as_slice())
+                .attribute(b"path".as_slice(), path.as_bytes())
+        })
         .await
         .filter_map(sentence_of);
     let mut ro_fields = HashSet::new();
@@ -275,16 +271,13 @@ async fn process_entry(
         }
     }
     let mut stream = device
-        .send_command(
-            b"/console/inspect",
-            |cmd| {
-                let mut path = path.join(",");
-                path.push_str(",set");
-                cmd.attribute(b"request", b"child")
-                    .attribute(b"path", path.as_bytes())
-            },
-            (),
-        )
+        .run(&{
+            let mut path = path.join(",");
+            path.push_str(",set");
+            RawCommand::<Read>::new(b"/console/inspect".as_slice())
+                .attribute(b"request".as_slice(), b"child".as_slice())
+                .attribute(b"path".as_slice(), path.as_bytes())
+        })
         .await
         .filter_map(sentence_of);
     let mut rw_fields = Vec::new();
@@ -331,23 +324,20 @@ lazy_static! {
 }
 
 async fn guess_field(
-    device: &MikrotikDevice<SimpleResult>,
+    device: &Connection,
     path: &[Box<str>],
     field_name: &str,
     existing_fields: &mut HashMap<&str, &Field>,
 ) -> Field {
     let mut stream = device
-        .send_command(
-            b"/console/inspect",
-            |cmd| {
-                let mut path = path.join(",");
-                path.push_str(",set,");
-                path.push_str(field_name);
-                cmd.attribute(b"request", b"syntax,completion")
-                    .attribute(b"path", path.as_bytes())
-            },
-            (),
-        )
+        .run(&{
+            let mut path = path.join(",");
+            path.push_str(",set,");
+            path.push_str(field_name);
+            RawCommand::<Read>::new(b"/console/inspect".as_slice())
+                .attribute(b"request".as_slice(), b"syntax,completion".as_slice())
+                .attribute(b"path".as_slice(), path.as_bytes())
+        })
         .await
         .filter_map(sentence_of);
     let mut example_values = Vec::new();

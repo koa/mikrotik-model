@@ -1,9 +1,9 @@
 use config::{Config, Environment, File};
 use env_logger::{Env, TimestampPrecision};
+use mikrotik_model::Credentials;
+use mikrotik_model::mikrotik_api::{Connection, Generation};
 use mikrotik_model::model::IpAddress;
-use mikrotik_model::model::ResourceType;
-use mikrotik_model::resource::{RosResource, SentenceResult};
-use mikrotik_model::{Credentials, MikrotikDevice};
+use mikrotik_model::resource::SentenceResult;
 use std::net::{IpAddr, Ipv4Addr};
 use tokio_stream::StreamExt;
 
@@ -27,17 +27,15 @@ async fn main() -> anyhow::Result<()> {
     //let router = IpAddr::V4(Ipv4Addr::new(172, 16, 1, 51));
     let router = IpAddr::V4(Ipv4Addr::new(172, 16, 1, 1));
     println!("{router}");
-    let device: MikrotikDevice = MikrotikDevice::connect(
+    let device = Connection::connect(
         (router, 8728),
         credentials.user.as_bytes(),
         Some(credentials.password.as_bytes()),
+        Generation::default(),
     )
     .await?;
     let mut stream = device
-        .send_simple_command(
-            &[b"/", IpAddress::path(), b"/print"],
-            ResourceType::IpAddress,
-        )
+        .run(&mikrotik_model::command::Print::<IpAddress>::default())
         .await;
     while let Some(result) = stream.next().await {
         match result {

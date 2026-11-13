@@ -321,7 +321,7 @@ pub fn generator() -> syn::File {
     items.push(parse_quote!(
 
         impl Data {
-            pub async fn fetch_from_device(device: &crate::MikrotikDevice)->Result<Self,resource::Error>{
+            pub async fn fetch_from_device(device: &impl crate::command::Device)->Result<Self,resource::Error>{
                 Ok(Self{
                     #data_loader_fields
                 })

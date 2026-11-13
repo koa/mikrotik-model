@@ -2,6 +2,7 @@ use crate::{model::Resource, resource::SentenceResult};
 use serde::Deserialize;
 
 pub mod ascii;
+pub mod command;
 pub mod error;
 pub mod generator;
 pub mod hwconfig;
@@ -21,4 +22,5 @@ pub struct Credentials {
     pub password: Box<str>,
 }
 
+#[deprecated(note = "use `mikrotik_api::Connection` with `command::Device`")]
 pub type MikrotikDevice = mikrotik_api::MikrotikDevice<SentenceResult<Resource>>;

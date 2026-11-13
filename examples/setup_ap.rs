@@ -3,10 +3,11 @@ use const_str::ip_addr;
 use encoding_rs::mem::decode_latin1;
 use env_logger::{Env, TimestampPrecision};
 use log::{error, info};
+use mikrotik_model::mikrotik_api::{Connection, Generation};
 use mikrotik_model::model::SystemRouterboardState;
 use mikrotik_model::resource::MissingDependenciesError;
 use mikrotik_model::{
-    Credentials, MikrotikDevice,
+    Credentials,
     ascii::AsciiString,
     generator::Generator,
     hwconfig::DeviceType,
@@ -60,7 +61,7 @@ struct DeviceDataTarget {
 }
 
 impl DeviceDataTarget {
-    async fn detect_device(device: &MikrotikDevice) -> Result<Self, resource::Error> {
+    async fn detect_device(device: &Connection) -> Result<Self, resource::Error> {
         let routerboard = SystemRouterboardState::fetch(device)
             .await?
             .expect("System routerboard not found");
@@ -220,7 +221,7 @@ impl DeviceDataTarget {
 }
 
 impl DeviceDataCurrent {
-    async fn fetch(device: &MikrotikDevice) -> Result<Self, resource::Error> {
+    async fn fetch(device: &Connection) -> Result<Self, resource::Error> {
         Ok(Self {
             identity: SystemIdentityCfg::fetch(device)
                 .await?
@@ -274,10 +275,11 @@ async fn main() -> anyhow::Result<()> {
     //let router = IpAddr::V4(Ipv4Addr::new(172, 16, 1, 1));
     //let router = IpAddr::V4(Ipv4Addr::new(10, 192, 69, 2));
     println!("{router}");
-    let device = MikrotikDevice::connect(
+    let device = Connection::connect(
         (router, 8728),
         credentials.user.as_bytes(),
         Some(credentials.password.as_bytes()),
+        Generation::default(),
     )
     .await?;
     let current_data = DeviceDataCurrent::fetch(&device).await?;
