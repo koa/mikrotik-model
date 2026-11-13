@@ -2,19 +2,19 @@
 //! `system/Scheduler.txt`, `system/Script.txt`, `system/DeviceMode.txt`, `user.txt`,
 //! `ipv6/Route.txt`, `ip/ip.txt`'s `/ip/route`, `system.txt`'s `/system/resource`,
 //! `system/Package.txt`, `routing/Ospf.txt`'s neighbors, interfaces and LSAs,
-//! `system/Health.txt`, `partitions.txt`), with what a device answered over the API: CHR
+//! `system/Health.txt`, `partitions.txt`, `ip/Firewall.txt`'s IPv4 address list), with what a device answered over the API: CHR
 //! 7.24.5, the OSPF neighbors, interfaces, LSAs and health lab-np2's, the partitions
 //! lab-sxt-b's (both 7.24.6). A field the model doesn't know fails the test.
 
 use crate::model::{
-    DeviceMode, File, FileBuilder, IpRoute, IpRouteBuilder, Ipv6RouteState, Ipv6RouteStateBuilder,
-    OspfInterfaceState, OspfInterfaceType, OspfLsaType, RoutingOspfInterfaceState,
-    RoutingOspfInterfaceStateBuilder, RoutingOspfLsaState, RoutingOspfLsaStateBuilder,
-    SystemDeviceModeState, SystemDeviceModeStateBuilder, SystemHealthState,
-    SystemHealthStateBuilder, SystemPackageState, SystemPackageStateBuilder, SystemResourceState,
-    SystemResourceStateBuilder, SystemScheduler, SystemSchedulerBuilder, SystemScript,
-    SystemScriptBuilder, SystemScriptJobState, SystemScriptJobStateBuilder, UserActiveState,
-    UserActiveStateBuilder,
+    DeviceMode, File, FileBuilder, IpFirewallAddressList, IpFirewallAddressListBuilder, IpRoute,
+    IpRouteBuilder, Ipv6RouteState, Ipv6RouteStateBuilder, OspfInterfaceState, OspfInterfaceType,
+    OspfLsaType, RoutingOspfInterfaceState, RoutingOspfInterfaceStateBuilder, RoutingOspfLsaState,
+    RoutingOspfLsaStateBuilder, SystemDeviceModeState, SystemDeviceModeStateBuilder,
+    SystemHealthState, SystemHealthStateBuilder, SystemPackageState, SystemPackageStateBuilder,
+    SystemResourceState, SystemResourceStateBuilder, SystemScheduler, SystemSchedulerBuilder,
+    SystemScript, SystemScriptBuilder, SystemScriptJobState, SystemScriptJobStateBuilder,
+    UserActiveState, UserActiveStateBuilder,
 };
 use crate::resource::{DeserializeRosBuilder, DeserializeRosResource};
 
@@ -582,4 +582,31 @@ fn decodes_the_ospf_interfaces() {
         .concat(),
     );
     assert_eq!(other.state, OspfInterfaceState::DrOther);
+}
+
+#[test]
+fn decodes_the_ipv4_address_list() {
+    // a dynamic entry with the time it has left, and a network
+    let added: IpFirewallAddressList = build::<IpFirewallAddressListBuilder, _>(&[
+        (b".id", b"*1"),
+        (b"list", b"probe"),
+        (b"address", b"192.168.77.9"),
+        (b"creation-time", b"2026-11-13 08:41:20"),
+        (b"timeout", b"59s"),
+        (b"dynamic", b"true"),
+        (b"disabled", b"false"),
+    ]);
+    assert_eq!(added.cfg.address.to_string(), "192.168.77.9");
+    assert_eq!(added.cfg.timeout, Some(std::time::Duration::from_secs(59)));
+    assert!(added.status.dynamic);
+    let network: IpFirewallAddressList = build::<IpFirewallAddressListBuilder, _>(&[
+        (b".id", b"*2"),
+        (b"list", b"probe"),
+        (b"address", b"192.168.77.0/29"),
+        (b"creation-time", b"2026-11-13 08:41:20"),
+        (b"dynamic", b"false"),
+        (b"disabled", b"false"),
+    ]);
+    assert_eq!(network.cfg.list.to_string(), "probe");
+    assert_eq!(network.cfg.timeout, None);
 }

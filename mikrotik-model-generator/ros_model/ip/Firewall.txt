@@ -1,3 +1,16 @@
+# read by the CHR harness (which lists an address is on); `address` is an address, a range, a
+# network or a DNS name, so text. A dynamic entry (one a rule added) has a `timeout` (CHR 7.24.5)
+/ip/firewall/address-list:can-add;
+.id: ro;id;Id
+address:
+comment: o
+disabled: bool; default=false
+dynamic: ro; bool
+list: ref=ipv4-addresslist
+timeout: o; Duration
+creation-time: ro; o
+about: ro; o
+
 /ip/firewall/filter:can-add;
 .id: ro;id;Id
 action: enum= accept, add-dst-to-address-list, add-src-to-address-list, drop, fasttrack-connection, jump, log, passthrough, reject, return, tarpit; default=accept
