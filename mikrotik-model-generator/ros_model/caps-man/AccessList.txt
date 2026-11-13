@@ -1,5 +1,5 @@
 /caps-man/access-list:can-add;
-action: o; enum= accept, query-radius, reject;
+action: o; AccessListAction;
 allow-signal-out-of-range: o
 ap-tx-limit: o; u32
 client-to-client-forwarding: o; bool
@@ -15,7 +15,7 @@ signal-range: i; range-dot; i8
 ssid-regexp:  o
 time: o
 vlan-id: o;none; u16
-vlan-mode: o; enum= no-tag, use-service-tag, use-tag;
+vlan-mode: o; WirelessVlanMode;
 about: ro; o
 .id: ro; id
 

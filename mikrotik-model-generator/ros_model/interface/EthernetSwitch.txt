@@ -323,12 +323,12 @@ dynamic: bool; ro
 .nextid: o; ro
 comment: o
 customer-pcp: o
-customer-vlan-format: enum=any, priority-tagged-or-tagged, tagged, untagged-or-tagged
+customer-vlan-format: SwitchVlanFormat
 new-customer-vid: o; u16
 ports: mu; ref=>interface
 sa-learning: bool
 service-pcp: o
-service-vlan-format: enum=any, priority-tagged-or-tagged, tagged, untagged-or-tagged
+service-vlan-format: SwitchVlanFormat
 customer-dei: o
 customer-vid: o; u16
 disabled: bool

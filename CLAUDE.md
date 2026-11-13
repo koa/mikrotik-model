@@ -13,6 +13,11 @@ An enum used by several fields or menus is named in `enums.yaml`, not an inline 
 field. A value `(Type)` there is the variant `Value(Type)` for anything else: `(u32)` a number
 beside the names, `(AsciiString)` the text of a value the list lacks, so a read-only set from a
 long list (the log's `topics`, `LogTopic`) doesn't fail on one; such an enum isn't `Copy`.
+A value a field takes beside its set is its wrapper, not a variant (`none;` `HasNone`,
+`disabled;` `HasDisabled`, `auto;` `Auto`), so one set serves menus that do and don't take it
+(`WirelessHwProtectionMode`, `WirelessMulticastHelper`, `PoeVoltage`). Which values a field
+takes, `/console/inspect request=completion input="/menu/set field="` lists on the device;
+the shared sets were checked that way (`src/model/test/shared_enums.rs`).
 
 Everything reaches the device as a typed command of mikrotik-api's `Connection::run`
 (`src/command.rs`): `Print`, `PrintKeyed` (`Read`) and `MonitorOnce` (`Observe`) read as the

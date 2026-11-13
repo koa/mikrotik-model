@@ -1,5 +1,5 @@
 /caps-man/actual-interface-configuration:
-arp: o; enum=enabled, disabled, local-proxy-arp, proxy-arp, reply-only;
+arp: o; Arp;
 arp-timeout: auto; 
 channel.band: o;WirelessBand;
 channel.control-channel-width: o;CapsChannelWidth;
@@ -15,16 +15,16 @@ configuration.country: o; WifiCountryLower
 configuration.disconnect-timeout: o
 configuration.distance: hex; i64; o
 configuration.frame-lifetime: o
-configuration.guard-interval: enum= any, long;o
+configuration.guard-interval: WirelessGuardInterval;o
 configuration.hide-ssid: bool; o
-configuration.hw-protection-mode: none; enum= cts-to-self, rts-cts; o
+configuration.hw-protection-mode: none; WirelessHwProtectionMode; o
 configuration.hw-retries: u8; o
-configuration.installation: enum= any, indoor, outdoor; o
+configuration.installation: WirelessInstallation; o
 configuration.keepalive-frames: disabled; enum= enabled;  o
 configuration.load-balancing-group: o
 configuration.max-sta-count: u16; o
 configuration.mode: enum= ap; o
-configuration.multicast-helper: disabled; enum= default, dhcp, full;o
+configuration.multicast-helper: disabled; WirelessMulticastHelper;o
 configuration.rx-chains: o
 configuration.ssid: o
 configuration.tx-chains: o
@@ -36,7 +36,7 @@ datapath.interface-list: none; ref=>interface-list; o
 datapath.local-forwarding: bool; o
 datapath.openflow-switch: o
 datapath.vlan-id: u16; o
-datapath.vlan-mode: enum= no-tag, use-service-tag, use-tag; o
+datapath.vlan-mode: WirelessVlanMode; o
 disable-running-check: bool; o
 disabled: o; bool
 l2mtu: o; u16
@@ -54,7 +54,7 @@ security.group-encryption: enum= aes-ccm, tkip; o
 security.group-key-update: o
 security.passphrase: o
 security.tls-certificate: none; o
-security.tls-mode: enum= dont-verify-certificate, no-certificates, verify-certificate, verify-certificate-with-crl; o
+security.tls-mode: WifiSecurityEapCertificateMode; o
 inactive: ro; bool
 about: ro; o
 master: ro; bool

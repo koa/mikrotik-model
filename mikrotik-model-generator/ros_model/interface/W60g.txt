@@ -13,7 +13,7 @@ isolate-stations: o; bool
 tx-sector: o; auto; u8
 default-scan-list: ro; o
 scan-list: o
-arp: o; enum=enabled, disabled, local-proxy-arp, proxy-arp, reply-only
+arp: o; Arp
 arp-timeout: o; auto; Duration
 mtu: o; u16
 l2mtu: o; k; u16

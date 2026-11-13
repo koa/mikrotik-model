@@ -7,11 +7,11 @@ amsdu-threshold: o; u16
 antenna-gain: o; u32
 antenna-mode: o; enum=ant-a, ant-b, rxa-txb,txa-rxb
 area: o
-arp: o; enum=enabled, disabled, local-proxy-arp, proxy-arp, reply-only
+arp: o; Arp
 arp-timeout: o; auto; Duration
 band: o; WirelessBand
 basic-rates-a/g: o; mu; enum=6Mbps,9Mbps,12Mbps,18Mbps,24Mbps,36Mbps,48Mbps,54Mbps
-basic-rates-b: o; mu; enum=1Mbps,2Mbps,5.5Mbps,11Mbps
+basic-rates-b: o; mu; WirelessRateB
 bridge-mode: o; EnabledDisabled
 burst-time: o; u32
 channel-width: o; enum=20mhz,20/40/80/160mhz-Ceeeeeee,20/40/80/160mhz-XXXXXXXX,20/40/80/160mhz-eCeeeeee,20/40/80/160mhz-eeCeeeee,20/40/80/160mhz-eeeCeeee,20/40/80/160mhz-eeeeCeee,20/40/80/160mhz-eeeeeCee,20/40/80/160mhz-eeeeeeCe,20/40/80/160mhz-eeeeeeeC,20/40/80mhz-Ceee,20/40/80mhz-eCee,20/40/80mhz-eeCe,20/40/80mhz-eeeC,20/40/80mhz-XXXX,20/40mhz-Ce,20/40mhz-eC,20/40mhz-XX,40mhz-turbo,10mhz,5mhz
@@ -30,15 +30,15 @@ frame-lifetime: o; u32
 frequency: auto; o; u32
 frequency-mode: o; enum=manual-txpower,regulatory-domain,superchannel
 frequency-offset: o; i32
-guard-interval: o; enum=any,long
+guard-interval: o; WirelessGuardInterval
 hide-ssid: o; bool
 ht-basic-mcs: o; mu
 ht-supported-mcs: o; mu
 hw-fragmentation-threshold: o
-hw-protection-mode: o; enum=none, cts-to-self, rts-cts
+hw-protection-mode: o; none; WirelessHwProtectionMode
 hw-protection-threshold: o; u16
 hw-retries: o; u8
-installation: o; enum=any, indoor, outdoor
+installation: o; WirelessInstallation
 interworking-profile: o; EnabledDisabled
 keepalive-frames: o; EnabledDisabled
 l2mtu: o; k; u16
@@ -48,7 +48,7 @@ max-station-count: o; u16
 mode: o; enum=station,station-wds,ap-bridge,bridge,alignment-only,nstreme-dual-slave,wds-slave,station-pseudobridge,station-pseudobridge-clone,station-bridge
 mtu: o; u16
 multicast-buffering: o; EnabledDisabled
-multicast-helper: o; enum=default, disabled, full
+multicast-helper: o; disabled; WirelessMulticastHelper
 name:ref=interface
 noise-floor-threshold: o
 nv2-cell-radius: o; u8
@@ -75,7 +75,7 @@ ssid: o
 station-bridge-clone-mac: o; MacAddress
 station-roaming: o; EnabledDisabled
 supported-rates-a/g: o; mu; enum=6Mbps,9Mbps,12Mbps,18Mbps,24Mbps,36Mbps,48Mbps,54Mbps
-supported-rates-b: o; mu; enum=1Mbps,2Mbps,5.5Mbps,11Mbps
+supported-rates-b: o; mu; WirelessRateB
 tdma-period-size: o; auto; u8
 tx-chains: o; mu; u8
 tx-power: o; i8
@@ -84,7 +84,7 @@ update-stats-interval: o
 vht-basic-mcs: o
 vht-supported-mcs: o
 vlan-id: o; u16
-vlan-mode: o; enum=no-tag, use-service-tag, use-tag
+vlan-mode: o; WirelessVlanMode
 wds-cost-range: o; range; u32
 wds-default-bridge: o
 wds-default-cost: o

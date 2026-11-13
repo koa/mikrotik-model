@@ -8,7 +8,7 @@ aaa.mac-caching: unset; o;disabled; Duration
 aaa.nas-identifier: unset; o;
 aaa.password-format: unset; o;
 aaa.username-format: unset; o;
-arp: o;disabled; enum= enabled, local-proxy-arp, proxy-arp, reply-only;
+arp: o;disabled; Arp;
 arp-timeout: o;auto;
 channel: unset; o;ref=wifi-channel
 channel.band: unset; o;WifiChannelBand;
@@ -136,7 +136,7 @@ username-format: o
 about: ro; o
 
 /interface/wifi/access-list:can-add
-action: o; enum= accept, query-radius, reject;
+action: o; AccessListAction;
 allow-signal-out-of-range: o
 client-isolation: o; bool
 comment: 

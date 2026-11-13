@@ -11,6 +11,7 @@ mod logging;
 mod ospf;
 mod reference;
 mod service;
+mod shared_enums;
 mod socks;
 mod switch;
 mod watchdog;

@@ -1,11 +1,10 @@
 use crate::{
     ascii::AsciiString,
     model::{
-        Data, EthernetSpeed, InterfaceEthernetArp, InterfaceEthernetByDefaultName,
-        InterfaceEthernetCfg, InterfaceEthernetComboMode, InterfaceEthernetFecMode,
-        InterfaceEthernetLoopProtect, InterfaceEthernetPoeOut, InterfaceEthernetSfpRateSelect,
+        Arp, Data, EthernetSpeed, InterfaceEthernetByDefaultName, InterfaceEthernetCfg,
+        InterfaceEthernetComboMode, InterfaceEthernetFecMode, InterfaceEthernetSfpRateSelect,
         InterfaceWifiByDefaultName, InterfaceWifiCfg, InterfaceWirelessByDefaultName,
-        InterfaceWirelessCfg, OnOff,
+        InterfaceWirelessCfg, LoopProtect, OnOff, PoeOut,
     },
     value::{Auto, HasUnlimited, RxTxPair},
 };
@@ -304,7 +303,7 @@ pub fn generate_ethernet(
         default_name: name.default_name(idx),
         data: InterfaceEthernetCfg {
             advertise: speeds.iter().cloned().collect(),
-            arp: InterfaceEthernetArp::Enabled,
+            arp: Arp::Enabled,
             arp_timeout: Some(Auto::Auto),
             auto_negotiation: true,
             bandwidth: Some(RxTxPair {
@@ -326,7 +325,7 @@ pub fn generate_ethernet(
             name: name.short_name(idx),
             passthrough_interface: None,
             poe_out: if has_poe_out {
-                Some(InterfaceEthernetPoeOut::AutoOn)
+                Some(PoeOut::AutoOn)
             } else {
                 None
             },
@@ -343,7 +342,7 @@ pub fn generate_ethernet(
             disabled: false,
             loop_protect_disable_time: Duration::from_secs(5 * 60),
             loop_protect_send_interval: Duration::from_secs(5),
-            loop_protect: InterfaceEthernetLoopProtect::Default,
+            loop_protect: LoopProtect::Default,
         },
     }
 }

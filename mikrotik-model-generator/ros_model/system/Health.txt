@@ -19,8 +19,8 @@ fan-mode: auto; enum= manual;
 fan-on-threshold: u32
 fan-switch: auto; enum= off, on; 
 fan-target-temp: u8
-use-fan: enum= auxiliary, main; 
-use-fan2: enum= auxiliary, main; 
+use-fan: HealthFan; 
+use-fan2: HealthFan; 
 active-fan: ro; 
 active-fan2: ro; 
 

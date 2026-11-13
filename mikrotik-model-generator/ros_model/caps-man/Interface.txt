@@ -1,10 +1,10 @@
 /caps-man/interface:can-add;
-arp: o; disabled; enum= enabled, local-proxy-arp, proxy-arp, reply-only;
+arp: o; disabled; Arp;
 arp-timeout: o; auto;
 channel: o; ref=>caps-channel
 channel.band: o; WirelessBand;
-channel.control-channel-width: o; enum= 10mhz, 20mhz, 40mhz-turbo, 5mhz;
-channel.extension-channel: o; disabled; enum= Ce, Ceee, Ceeeeeee, XX, XXXX, XXXXXXXX, eC, eCee, eCeeeeee, eeCe, eeCeeeee, eeeC, eeeCeeee, eeeeCeee, eeeeeCee, eeeeeeCe, eeeeeeeC;
+channel.control-channel-width: o; CapsChannelWidth;
+channel.extension-channel: o; disabled; CapsExtensionChannel;
 channel.frequency: o; u32
 channel.reselect-interval: o;Duration
 channel.save-selected: o; bool
@@ -17,16 +17,16 @@ configuration.country: o; WifiCountryLower
 configuration.disconnect-timeout: o
 configuration.distance: o; hex; i64
 configuration.frame-lifetime: o
-configuration.guard-interval: enum= any, long; o
+configuration.guard-interval: WirelessGuardInterval; o
 configuration.hide-ssid: o; bool
-configuration.hw-protection-mode: o; none; enum= cts-to-self, rts-cts;
+configuration.hw-protection-mode: o; none; WirelessHwProtectionMode;
 configuration.hw-retries: o; u8
-configuration.installation: o; enum= any, indoor, outdoor;
+configuration.installation: o; WirelessInstallation;
 configuration.keepalive-frames: o; disabled; enum= enabled;
 configuration.load-balancing-group: o
 configuration.max-sta-count: o; u16
 configuration.mode: o; enum= ap;
-configuration.multicast-helper: o; disabled; enum= default, dhcp, full;
+configuration.multicast-helper: o; disabled; WirelessMulticastHelper;
 configuration.rx-chains: o
 configuration.ssid: o
 configuration.tx-chains:o
@@ -39,7 +39,7 @@ datapath.interface-list: o; none; ref=>interface-list
 datapath.local-forwarding: o; bool
 datapath.openflow-switch: o;
 datapath.vlan-id: o; u16
-datapath.vlan-mode: o; enum= no-tag, use-service-tag, use-tag;
+datapath.vlan-mode: o; WirelessVlanMode;
 disable-running-check: o; bool
 disabled: o; bool
 l2mtu: o; u16
@@ -66,7 +66,7 @@ security.group-encryption:  o; CapsEncryption;
 security.group-key-update: o; Duration
 security.passphrase: o
 security.tls-certificate: o; none;
-security.tls-mode: o; enum= dont-verify-certificate, no-certificates, verify-certificate, verify-certificate-with-crl;
+security.tls-mode: o; WifiSecurityEapCertificateMode;
 current-rate-set: ro; o
 .id: ro; Id; id
 current-state: ro; o

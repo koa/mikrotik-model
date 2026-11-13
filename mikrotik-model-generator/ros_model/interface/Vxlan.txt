@@ -1,6 +1,6 @@
 /interface/vxlan:can-add;
 allow-fast-path: bool
-arp: enum=disabled, enabled, local-proxy-arp, proxy-arp, reply-only;
+arp: Arp;
 arp-timeout: o; auto; Duration
 comment: o
 disabled: bool
@@ -8,7 +8,7 @@ dont-fragment: enum= disabled, enabled, inherit;
 group: unset; o; IpAddr
 interface: unset; o; ref=>interface;
 local-address: o; IpAddr
-loop-protect: enum= default, off, on; 
+loop-protect: LoopProtect; 
 loop-protect-disable-time: Duration
 loop-protect-send-interval: Duration
 mac-address: o;k;MacAddress

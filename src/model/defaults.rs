@@ -150,7 +150,7 @@ impl Default for InterfaceVxlanCfg {
     fn default() -> Self {
         InterfaceVxlanCfg {
             allow_fast_path: true,
-            arp: InterfaceVxlanArp::Enabled,
+            arp: Arp::Enabled,
             arp_timeout: Some(value::Auto::Auto),
             comment: Default::default(),
             disabled: false,
@@ -158,7 +158,7 @@ impl Default for InterfaceVxlanCfg {
             group: Default::default(),
             interface: Default::default(),
             local_address: Default::default(),
-            loop_protect: InterfaceVxlanLoopProtect::Default,
+            loop_protect: LoopProtect::Default,
             loop_protect_disable_time: Duration::from_secs(5 * 60),
             loop_protect_send_interval: Duration::from_secs(5),
             mac_address: None,
@@ -179,7 +179,7 @@ impl Default for InterfaceBridgeCfg {
             add_dhcp_option_82: None,
             admin_mac: None,
             ageing_time: Duration::from_secs(5 * 60),
-            arp: InterfaceBridgeArp::Enabled,
+            arp: Arp::Enabled,
             arp_timeout: value::Auto::Auto,
             auto_mac: true,
             comment: None,
@@ -329,14 +329,12 @@ impl Default for InterfaceEthernetSwitchIngressVlanTranslationCfg {
         Self {
             comment: None,
             customer_pcp: None,
-            customer_vlan_format:
-                InterfaceEthernetSwitchIngressVlanTranslationCustomerVlanFormat::Any,
+            customer_vlan_format: SwitchVlanFormat::Any,
             new_customer_vid: None,
             ports: Default::default(),
             sa_learning: false,
             service_pcp: None,
-            service_vlan_format:
-                InterfaceEthernetSwitchIngressVlanTranslationServiceVlanFormat::Any,
+            service_vlan_format: SwitchVlanFormat::Any,
             customer_dei: None,
             customer_vid: None,
             disabled: false,
@@ -352,12 +350,12 @@ impl Default for InterfaceEthernetSwitchIngressVlanTranslationCfg {
 impl Default for InterfaceVlanCfg {
     fn default() -> Self {
         InterfaceVlanCfg {
-            arp: InterfaceVlanArp::Enabled,
+            arp: Arp::Enabled,
             arp_timeout: value::Auto::Auto,
             comment: None,
             disabled: false,
             interface: Default::default(),
-            loop_protect: InterfaceVlanLoopProtect::Default,
+            loop_protect: LoopProtect::Default,
             loop_protect_disable_time: Duration::from_secs(5 * 60),
             loop_protect_send_interval: Duration::from_secs(5),
             mac_address: None,
@@ -948,8 +946,8 @@ impl Default for SystemHealthSettingsCfg {
             fan_on_threshold: 0,
             fan_switch: Auto::Auto,
             fan_target_temp: 0,
-            use_fan: SystemHealthSettingsUseFan::Auxiliary,
-            use_fan_2: SystemHealthSettingsUseFan2::Auxiliary,
+            use_fan: HealthFan::Auxiliary,
+            use_fan_2: HealthFan::Auxiliary,
         }
     }
 }

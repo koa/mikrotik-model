@@ -774,3 +774,62 @@ OspfInterfaceState:
   - bdr
   - dr-other
   - (AsciiString)
+# the arp mode of every interface menu (all take disabled, lab-sxt-a and CHR 7.24.5)
+Arp:
+  - disabled
+  - enabled
+  - local-proxy-arp
+  - proxy-arp
+  - reply-only
+LoopProtect:
+  - default
+  - off
+  - on
+# /interface/ethernet takes forced-on-a and forced-on-bt where the port can (lab-np2, 7.24.6)
+PoeOut:
+  - auto-on
+  - forced-on
+  - forced-on-a
+  - forced-on-bt
+  - off
+# with auto beside them (`auto;`)
+PoeVoltage:
+  - high
+  - low
+SwitchVlanFormat:
+  - any
+  - priority-tagged-or-tagged
+  - tagged
+  - untagged-or-tagged
+HealthFan:
+  - auxiliary
+  - main
+AccessListAction:
+  - accept
+  - query-radius
+  - reject
+WirelessVlanMode:
+  - no-tag
+  - use-service-tag
+  - use-tag
+WirelessGuardInterval:
+  - any
+  - long
+WirelessInstallation:
+  - any
+  - indoor
+  - outdoor
+# with none beside them (`none;`)
+WirelessHwProtectionMode:
+  - cts-to-self
+  - rts-cts
+# with disabled beside them (`disabled;`); the legacy wireless takes dhcp too (lab-sxt-a, 7.24.6)
+WirelessMulticastHelper:
+  - default
+  - dhcp
+  - full
+WirelessRateB:
+  - 1Mbps
+  - 2Mbps
+  - 5.5Mbps
+  - 11Mbps

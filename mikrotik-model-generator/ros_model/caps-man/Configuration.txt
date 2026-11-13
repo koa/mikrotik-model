@@ -1,8 +1,8 @@
 /caps-man/configuration:can-add;
 channel: o; unset; ref=>caps-channel
 channel.band: WirelessBand; o
-channel.control-channel-width: unset; enum= 10mhz, 20mhz, 40mhz-turbo, 5mhz; o
-channel.extension-channel: disabled; enum= Ce, Ceee, Ceeeeeee, XX, XXXX, XXXXXXXX, eC, eCee, eCeeeeee, eeCe, eeCeeeee, eeeC, eeeCeeee, eeeeCeee, eeeeeCee, eeeeeeCe, eeeeeeeC; o
+channel.control-channel-width: unset; CapsChannelWidth; o
+channel.extension-channel: disabled; CapsExtensionChannel; o
 channel.frequency: u32; o
 channel.reselect-interval: unset; o; Duration
 channel.save-selected: unset; bool; o
@@ -12,7 +12,7 @@ channel.tx-power: unset; u8; o
 comment: o
 country: unset; o; WifiCountryLower
 datapath: o; unset; ref=>caps-datapath
-datapath.arp: o; disabled; enum= enabled, local-proxy-arp, proxy-arp, reply-only;
+datapath.arp: o; disabled; Arp;
 datapath.bridge: o; unset; ref=>interface
 datapath.bridge-cost: unset; o; u32
 datapath.bridge-horizon: unset; o; none;
@@ -23,20 +23,20 @@ datapath.local-forwarding: unset; o; bool
 datapath.mtu: o; u16
 datapath.openflow-switch: o
 datapath.vlan-id: unset; o; none; u16
-datapath.vlan-mode: unset; o; enum= no-tag, use-service-tag, use-tag;
+datapath.vlan-mode: unset; o; WirelessVlanMode;
 disconnect-timeout: unset; Duration; o
 distance: unset; o
 frame-lifetime: unset; o
-guard-interval: unset; o;enum= any, long;
+guard-interval: unset; o;WirelessGuardInterval;
 hide-ssid: unset; o; bool
-hw-protection-mode: unset; o; none; enum= cts-to-self, rts-cts;
+hw-protection-mode: unset; o; none; WirelessHwProtectionMode;
 hw-retries: unset; o; u8
-installation: unset; o; enum= any, indoor, outdoor;
+installation: unset; o; WirelessInstallation;
 keepalive-frames: unset; o; disabled; enum= enabled;
 load-balancing-group: o
 max-sta-count: unset; o; u16
 mode: o; enum= ap;
-multicast-helper: unset; o; disabled; enum= default, dhcp, full;
+multicast-helper: unset; o; disabled; WirelessMulticastHelper;
 name: id; ref=caps-configuration
 rates: o; unset; ref=>caps-rate
 rates.basic: mu;CapsRates
@@ -56,7 +56,7 @@ security.group-encryption: unset; o; CapsEncryption;
 security.group-key-update: o; Duration
 security.passphrase: unset; o
 security.tls-certificate: none; o
-security.tls-mode: enum= dont-verify-certificate, no-certificates, verify-certificate, verify-certificate-with-crl; o
+security.tls-mode: WifiSecurityEapCertificateMode; o
 ssid: o
 tx-chains: mu; u8
 about: ro; o

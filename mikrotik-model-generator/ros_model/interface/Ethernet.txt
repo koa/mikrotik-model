@@ -2,7 +2,7 @@
 .id:ro; Id;
 default-name: ro;id
 advertise: mu;EthernetSpeed
-arp: enum=enabled, disabled, local-proxy-arp, proxy-arp, reply-only; default=enabled
+arp: Arp; default=enabled
 arp-timeout: o;auto;Duration;default=30s
 auto-negotiation: bool;default=true
 bandwidth: o;unlimited;rxtxpair;u32
@@ -21,9 +21,9 @@ mtu:u16
 name: ref=interface
 orig-mac-address: ro;MacAddress
 passthrough-interface: o
-poe-out: o;enum=off, auto-on, forced-on
+poe-out: o;PoeOut
 poe-priority: o;u8
-poe-voltage: o; auto; enum= high, low;
+poe-voltage: o; auto; PoeVoltage;
 power-cycle-interval: none; Duration; o
 power-cycle-ping-address: unset; o; IpAddr
 power-cycle-ping-enabled: bool; o
@@ -44,7 +44,7 @@ loop-protect-status:ro;OnOff
 loop-protect-disable-time:Duration
 loop-protect-send-interval:Duration
 #sfp-ignore-rx-los:o;bool
-loop-protect: enum=default, on, off
+loop-protect: LoopProtect
 
 
 driver-rx-byte: o;ro;u64
@@ -173,9 +173,9 @@ not-learned:o;ro;u64
 /interface/ethernet/poe:
 .id:ro;Id;id
 name: id; monitor
-poe-out: enum= auto-on, forced-on, off;monitor
+poe-out: PoeOut;monitor
 poe-priority: u8
-poe-voltage: o; auto; enum= high, low; monitor
+poe-voltage: o; auto; PoeVoltage; monitor
 power-cycle-interval: o; none;
 power-cycle-ping-address: o;
 power-cycle-ping-enabled: o; bool
