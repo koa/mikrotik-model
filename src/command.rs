@@ -8,16 +8,14 @@ use crate::{
 };
 use mikrotik_api::{
     command::{Observe, Read, Write},
-    prelude::{
-        Command, CommandBuilder, Connection, MikrotikDevice, ParsedMessage, QueryOperator, Replies,
-    },
+    prelude::{Command, CommandBuilder, Connection, ParsedMessage, QueryOperator, Replies},
     simple::SimpleResult,
 };
 use std::{borrow::Cow, future::Future, marker::PhantomData, time::Duration};
 
 /// What may read from a device: commands that change nothing ([`Read`], [`Observe`]). A
 /// [`Connection`] may, as may a facade of the user that may do no more (the provisioner's
-/// `Reader`), and the deprecated facade of mikrotik-api while its users move.
+/// `Reader`).
 pub trait Reads: Sync {
     fn read<C: Command<Effect = Read> + Sync>(
         &self,
@@ -59,32 +57,6 @@ impl Writes for Connection {
         command: &C,
     ) -> impl Future<Output = Replies<C::Reply>> + Send {
         self.run(command)
-    }
-}
-
-#[allow(deprecated)]
-impl<D: ParsedMessage> Reads for MikrotikDevice<D> {
-    fn read<C: Command<Effect = Read> + Sync>(
-        &self,
-        command: &C,
-    ) -> impl Future<Output = Replies<C::Reply>> + Send {
-        self.connection().run(command)
-    }
-    fn observe<C: Command<Effect = Observe> + Sync>(
-        &self,
-        command: &C,
-    ) -> impl Future<Output = Replies<C::Reply>> + Send {
-        self.connection().run(command)
-    }
-}
-
-#[allow(deprecated)]
-impl<D: ParsedMessage> Writes for MikrotikDevice<D> {
-    fn write<C: Command<Effect = Write> + Sync>(
-        &self,
-        command: &C,
-    ) -> impl Future<Output = Replies<C::Reply>> + Send {
-        self.connection().run(command)
     }
 }
 

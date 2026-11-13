@@ -1,4 +1,3 @@
-use crate::{model::Resource, resource::SentenceResult};
 use serde::Deserialize;
 
 pub mod action;
@@ -22,6 +21,3 @@ pub struct Credentials {
     pub user: Box<str>,
     pub password: Box<str>,
 }
-
-#[deprecated(note = "use `mikrotik_api::Connection` with `command::Device`")]
-pub type MikrotikDevice = mikrotik_api::MikrotikDevice<SentenceResult<Resource>>;

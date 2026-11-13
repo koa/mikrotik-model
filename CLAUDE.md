@@ -20,12 +20,10 @@ menu's model, `MenuWrite` (`Write`) and `FindByKey` are the writes of `apply_mut
 `apply_mutations_via_script`. Who may send what is a trait: `command::Reads` (only `Read` and
 `Observe` commands; the reading functions take it) and `command::Writes` (also `Write`; the
 mutations take it). A `Connection` does both; a user's facade with fewer rights implements
-only `Reads` (the provisioner's `Reader`). The deprecated `mikrotik_api::MikrotikDevice` and
-this crate's deprecated alias `MikrotikDevice` do both while their users move
-(netbox-provisioner `docs/concepts/device-access.md`) and go with the facade. The actions that
-are no `print`/`add`/`set`/`remove`/`move` of a menu are the catalog `src/action.rs` (reboot,
-ping, monitors without modeled fields, power cycle, partitions, device mode, packages,
-certificate import, a password), each a type with its effect; a user writes no raw command for
+only `Reads` (the provisioner's `Reader`). The actions that are no
+`print`/`add`/`set`/`remove`/`move` of a menu are the catalog `src/action.rs` (reboot, ping,
+monitors without modeled fields, power cycle, partitions, device mode, packages, certificate
+import, fetch, a password), each a type with its effect; a user writes no raw command for
 them. `inspect-device` explores menus by name (`/console/inspect`), the one place where a
 `RawCommand` is the point.
 
