@@ -29,7 +29,8 @@ primary-dns: o;ro;IpAddr
 expires-after: o;ro;Duration
 dynamic: ro;bool
 dhcp-server: o;ro;IpAddr
-invalid: ro;bool
+# a disabled client reports no `invalid` (CHR 7.24.5)
+invalid: o;ro;bool
 
 */ip/route
 .id: ro;id

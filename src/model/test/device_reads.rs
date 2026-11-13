@@ -2,19 +2,20 @@
 //! `system/Scheduler.txt`, `system/Script.txt`, `system/DeviceMode.txt`, `user.txt`,
 //! `ipv6/Route.txt`, `ip/ip.txt`'s `/ip/route`, `system.txt`'s `/system/resource`,
 //! `system/Package.txt`, `routing/Ospf.txt`'s neighbors, interfaces and LSAs,
-//! `system/Health.txt`, `partitions.txt`, `ip/Firewall.txt`'s IPv4 address list), with what a device answered over the API: CHR
+//! `system/Health.txt`, `partitions.txt`, `ip/Firewall.txt`'s IPv4 address list, `ip/ip.txt`'s DHCP client), with what a device answered over the API: CHR
 //! 7.24.5, the OSPF neighbors, interfaces, LSAs and health lab-np2's, the partitions
 //! lab-sxt-b's (both 7.24.6). A field the model doesn't know fails the test.
 
 use crate::model::{
-    DeviceMode, File, FileBuilder, IpFirewallAddressList, IpFirewallAddressListBuilder, IpRoute,
-    IpRouteBuilder, Ipv6Route, Ipv6RouteBuilder, OspfInterfaceState, OspfInterfaceType,
-    OspfLsaType, RoutingOspfInterfaceState, RoutingOspfInterfaceStateBuilder, RoutingOspfLsaState,
-    RoutingOspfLsaStateBuilder, SystemDeviceModeState, SystemDeviceModeStateBuilder,
-    SystemHealthState, SystemHealthStateBuilder, SystemPackageState, SystemPackageStateBuilder,
-    SystemResourceState, SystemResourceStateBuilder, SystemScheduler, SystemSchedulerBuilder,
-    SystemScript, SystemScriptBuilder, SystemScriptJobState, SystemScriptJobStateBuilder,
-    UserActiveState, UserActiveStateBuilder,
+    DeviceMode, File, FileBuilder, IpDhcpClient, IpDhcpClientBuilder, IpFirewallAddressList,
+    IpFirewallAddressListBuilder, IpRoute, IpRouteBuilder, Ipv6Route, Ipv6RouteBuilder,
+    OspfInterfaceState, OspfInterfaceType, OspfLsaType, RoutingOspfInterfaceState,
+    RoutingOspfInterfaceStateBuilder, RoutingOspfLsaState, RoutingOspfLsaStateBuilder,
+    SystemDeviceModeState, SystemDeviceModeStateBuilder, SystemHealthState,
+    SystemHealthStateBuilder, SystemPackageState, SystemPackageStateBuilder, SystemResourceState,
+    SystemResourceStateBuilder, SystemScheduler, SystemSchedulerBuilder, SystemScript,
+    SystemScriptBuilder, SystemScriptJobState, SystemScriptJobStateBuilder, UserActiveState,
+    UserActiveStateBuilder,
 };
 use crate::resource::{DeserializeRosBuilder, DeserializeRosResource};
 
@@ -609,4 +610,23 @@ fn decodes_the_ipv4_address_list() {
     ]);
     assert_eq!(network.cfg.list.to_string(), "probe");
     assert_eq!(network.cfg.timeout, None);
+}
+
+#[test]
+fn decodes_a_disabled_dhcp_client() {
+    // without `invalid`, as CHR 7.24.5 reports a disabled client
+    let client: IpDhcpClient = build::<IpDhcpClientBuilder, _>(&[
+        (b".id", b"*2"),
+        (b"interface", b"probe-br"),
+        (b"add-default-route", b"yes"),
+        (b"default-route-distance", b"1"),
+        (b"use-peer-dns", b"true"),
+        (b"use-peer-ntp", b"true"),
+        (b"dhcp-options", b"hostname,clientid"),
+        (b"status", b"stopped"),
+        (b"dynamic", b"false"),
+        (b"disabled", b"true"),
+    ]);
+    assert!(client.status.disabled);
+    assert_eq!(client.status.invalid, None);
 }
