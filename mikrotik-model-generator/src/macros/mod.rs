@@ -289,7 +289,7 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
 
     let current_impl: ItemImpl = parse_quote! {
         impl #current_struct_name {
-            async fn fetch(device: &impl mikrotik_model::command::Device) -> Result<Self, mikrotik_model::resource::Error> {
+            async fn fetch(device: &impl mikrotik_model::command::Reads) -> Result<Self, mikrotik_model::resource::Error> {
                 Ok(#current_fetch_init)
             }
         }
@@ -311,7 +311,7 @@ pub fn mikrotik_model(item: TokenStream) -> Result<TokenStream, Error> {
     if let Some(detect_method) = params.detect {
         let target_impl: ItemImpl = parse_quote! {
             impl #target_struct_name {
-                 pub async fn detect_device(device: &impl mikrotik_model::command::Device) -> Result<Self, mikrotik_model::resource::Error> {
+                 pub async fn detect_device(device: &impl mikrotik_model::command::Reads) -> Result<Self, mikrotik_model::resource::Error> {
                     let routerboard = <mikrotik_model::model::SystemRouterboardState as mikrotik_model::resource::SingleResource>::fetch(device)
                         .await?
                         .expect("System routerboard not found");

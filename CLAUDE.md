@@ -12,12 +12,17 @@ then the git reference restored and `cargo update -p mikrotik-api` committed her
 Everything reaches the device as a typed command of mikrotik-api's `Connection::run`
 (`src/command.rs`): `Print`, `PrintKeyed` (`Read`) and `MonitorOnce` (`Observe`) read as the
 menu's model, `MenuWrite` (`Write`) and `FindByKey` are the writes of `apply_mutation` and
-`apply_mutations_via_script`. The functions take a `command::Device`, which is a `Connection` or,
-while its users move (netbox-provisioner `docs/concepts/device-access.md`), the deprecated
-`mikrotik_api::MikrotikDevice` and this crate's deprecated alias `MikrotikDevice`; both go with
-the facade. Actions without a menu belong in a catalog beside these commands, not in raw
-commands of the users. `inspect-device` explores menus by name (`/console/inspect`), the one
-place where a `RawCommand` is the point.
+`apply_mutations_via_script`. Who may send what is a trait: `command::Reads` (only `Read` and
+`Observe` commands; the reading functions take it) and `command::Writes` (also `Write`; the
+mutations take it). A `Connection` does both; a user's facade with fewer rights implements
+only `Reads` (the provisioner's `Reader`). The deprecated `mikrotik_api::MikrotikDevice` and
+this crate's deprecated alias `MikrotikDevice` do both while their users move
+(netbox-provisioner `docs/concepts/device-access.md`) and go with the facade. The actions that
+are no `print`/`add`/`set`/`remove`/`move` of a menu are the catalog `src/action.rs` (reboot,
+ping, monitors without modeled fields, power cycle, partitions, device mode, packages,
+certificate import, a password), each a type with its effect; a user writes no raw command for
+them. `inspect-device` explores menus by name (`/console/inspect`), the one place where a
+`RawCommand` is the point.
 
 Menus the provisioner reads or writes ad hoc are models too, not raw commands (CHR 7.24.5,
 `src/model/test/device_reads.rs`): `/file`, `/system/scheduler` and `/system/script` are keyed

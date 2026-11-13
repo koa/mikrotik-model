@@ -8,27 +8,83 @@ use crate::{
 };
 use mikrotik_api::{
     command::{Observe, Read, Write},
-    prelude::{Command, CommandBuilder, Connection, MikrotikDevice, ParsedMessage, QueryOperator},
+    prelude::{
+        Command, CommandBuilder, Connection, MikrotikDevice, ParsedMessage, QueryOperator, Replies,
+    },
     simple::SimpleResult,
 };
-use std::{borrow::Cow, marker::PhantomData, time::Duration};
+use std::{borrow::Cow, future::Future, marker::PhantomData, time::Duration};
 
-/// What reaches a device: a [`Connection`], or the deprecated facade of mikrotik-api while
-/// its users move to the connection.
-pub trait Device: Sync {
-    fn connection(&self) -> &Connection;
+/// What may read from a device: commands that change nothing ([`Read`], [`Observe`]). A
+/// [`Connection`] may, as may a facade of the user that may do no more (the provisioner's
+/// `Reader`), and the deprecated facade of mikrotik-api while its users move.
+pub trait Reads: Sync {
+    fn read<C: Command<Effect = Read> + Sync>(
+        &self,
+        command: &C,
+    ) -> impl Future<Output = Replies<C::Reply>> + Send;
+    fn observe<C: Command<Effect = Observe> + Sync>(
+        &self,
+        command: &C,
+    ) -> impl Future<Output = Replies<C::Reply>> + Send;
 }
 
-impl Device for Connection {
-    fn connection(&self) -> &Connection {
-        self
+/// What may also change a device ([`Write`]): the writes of an apply, the actions of the
+/// catalog.
+pub trait Writes: Reads {
+    fn write<C: Command<Effect = Write> + Sync>(
+        &self,
+        command: &C,
+    ) -> impl Future<Output = Replies<C::Reply>> + Send;
+}
+
+impl Reads for Connection {
+    fn read<C: Command<Effect = Read> + Sync>(
+        &self,
+        command: &C,
+    ) -> impl Future<Output = Replies<C::Reply>> + Send {
+        self.run(command)
+    }
+    fn observe<C: Command<Effect = Observe> + Sync>(
+        &self,
+        command: &C,
+    ) -> impl Future<Output = Replies<C::Reply>> + Send {
+        self.run(command)
+    }
+}
+
+impl Writes for Connection {
+    fn write<C: Command<Effect = Write> + Sync>(
+        &self,
+        command: &C,
+    ) -> impl Future<Output = Replies<C::Reply>> + Send {
+        self.run(command)
     }
 }
 
 #[allow(deprecated)]
-impl<D: ParsedMessage> Device for MikrotikDevice<D> {
-    fn connection(&self) -> &Connection {
-        MikrotikDevice::connection(self)
+impl<D: ParsedMessage> Reads for MikrotikDevice<D> {
+    fn read<C: Command<Effect = Read> + Sync>(
+        &self,
+        command: &C,
+    ) -> impl Future<Output = Replies<C::Reply>> + Send {
+        self.connection().run(command)
+    }
+    fn observe<C: Command<Effect = Observe> + Sync>(
+        &self,
+        command: &C,
+    ) -> impl Future<Output = Replies<C::Reply>> + Send {
+        self.connection().run(command)
+    }
+}
+
+#[allow(deprecated)]
+impl<D: ParsedMessage> Writes for MikrotikDevice<D> {
+    fn write<C: Command<Effect = Write> + Sync>(
+        &self,
+        command: &C,
+    ) -> impl Future<Output = Replies<C::Reply>> + Send {
+        self.connection().run(command)
     }
 }
 

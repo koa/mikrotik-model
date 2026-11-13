@@ -1,7 +1,7 @@
 use crate::value::Id;
 use crate::{
     ascii::AsciiString,
-    command::{Device, FindByKey, MenuWrite, MonitorOnce, Print, PrintKeyed},
+    command::{FindByKey, MenuWrite, MonitorOnce, Print, PrintKeyed, Reads, Writes},
     hwconfig::DeviceType,
     model::{ReferenceType, Resource, ResourceRef, ResourceType},
     value::{KeyValuePair, RosValue},
@@ -152,17 +152,16 @@ impl Display for TrapResponse {
 }
 
 pub async fn stream_resource<R: DeserializeRosResource + RosResource>(
-    device: &impl Device,
+    device: &impl Reads,
 ) -> impl Stream<Item = SentenceResult<R>> {
     device
-        .connection()
-        .run(&Print::<R>::default())
+        .read(&Print::<R>::default())
         .await
         .map(|entry| entry.map(|r| R::unwrap_resource(r).expect("Unexpected result type")))
 }
 pub async fn monitor_once_resource<R: DeserializeRosResource + RosResource>(
     entries: impl Iterator<Item = Id>,
-    device: &impl Device,
+    device: &impl Reads,
 ) -> impl Stream<Item = SentenceResult<R>> {
     let mut id_list = Vec::<u8>::new();
     for id in entries {
@@ -177,8 +176,7 @@ pub async fn monitor_once_resource<R: DeserializeRosResource + RosResource>(
     } else {
         Either::Right(
             device
-                .connection()
-                .run(&MonitorOnce::<R>::new(id_list.into()))
+                .observe(&MonitorOnce::<R>::new(id_list.into()))
                 .await
                 .map(|entry| entry.map(|r| R::unwrap_resource(r).expect("Unexpected result type"))),
         )
@@ -186,7 +184,7 @@ pub async fn monitor_once_resource<R: DeserializeRosResource + RosResource>(
 }
 
 pub async fn collect_resource<R: DeserializeRosResource + RosResource>(
-    device: &impl Device,
+    device: &impl Reads,
 ) -> Result<Box<[R]>, Error> {
     // read up to `!done` even after an error: a `!trap` comes with more sentences, and a stream
     // dropped before them makes the connection log that it can't deliver them
@@ -231,7 +229,7 @@ pub trait RosResource: Sized {
 
 pub trait SingleResource: DeserializeRosResource + RosResource {
     fn fetch(
-        device: &impl Device,
+        device: &impl Reads,
     ) -> impl std::future::Future<Output = Result<Option<Self>, Error>> + Send {
         async {
             match stream_resource::<Self>(device).await.next().await {
@@ -285,7 +283,7 @@ pub trait KeyedResource: DeserializeRosResource + RosResource {
         cmd
     }
     fn fetch_all<T: FromStream<Self> + Send>(
-        device: &impl Device,
+        device: &impl Reads,
     ) -> impl std::future::Future<Output = Result<T, Error>>
     where
         <Self as KeyedResource>::Key: Sync,
@@ -293,8 +291,7 @@ pub trait KeyedResource: DeserializeRosResource + RosResource {
     {
         async {
             device
-                .connection()
-                .run(&PrintKeyed::<Self>::all())
+                .read(&PrintKeyed::<Self>::all())
                 .await
                 .map(|entry| {
                     entry.map(|r| Self::unwrap_resource(r).expect("Unexpected result type"))
@@ -306,7 +303,7 @@ pub trait KeyedResource: DeserializeRosResource + RosResource {
     }
 
     fn fetch(
-        device: &impl Device,
+        device: &impl Reads,
         key: &Self::Key,
     ) -> impl std::future::Future<Output = Result<Option<Self>, Error>> + Send
     where
@@ -315,8 +312,7 @@ pub trait KeyedResource: DeserializeRosResource + RosResource {
         async {
             Ok(
                 match device
-                    .connection()
-                    .run(&PrintKeyed::<Self>::with(key))
+                    .read(&PrintKeyed::<Self>::with(key))
                     .await
                     .map(|entry| {
                         entry.map(|r| Self::unwrap_resource(r).expect("Unexpected result type"))
@@ -772,7 +768,7 @@ impl<'a> ResourceMutationOperation<'a> {
 /// =.id="). `RemoveByKey`/`UpdateByKey` therefore need a `/print` round trip
 /// first to resolve the key into a `.id` before the actual write.
 pub async fn apply_mutation(
-    device: &impl Device,
+    device: &impl Writes,
     mutation: &ResourceMutation<'_>,
 ) -> Result<(), Error> {
     let resource = mutation.resource;
@@ -847,7 +843,7 @@ fn id_attribute<'a>(key: &'static [u8], id: &'a str) -> KeyValuePair<'a> {
 /// since this function returns before knowing whether the script actually
 /// finished successfully.
 pub async fn apply_mutations_via_script(
-    device: &impl Device,
+    device: &impl Writes,
     mutations: &[ResourceMutation<'_>],
     script_name: &str,
 ) -> Result<(), Error> {
@@ -892,7 +888,7 @@ pub async fn apply_mutations_via_script(
 pub const SCRIPT_RUN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10 * 60);
 
 async fn write_command(
-    device: &impl Device,
+    device: &impl Writes,
     resource: &'static [u8],
     verb: &'static [u8],
     attributes: &[KeyValuePair<'_>],
@@ -909,8 +905,8 @@ async fn write_command(
     .await
 }
 
-async fn run_write(device: &impl Device, write: &MenuWrite<'_>) -> Result<(), Error> {
-    let mut stream = device.connection().run(write).await;
+async fn run_write(device: &impl Writes, write: &MenuWrite<'_>) -> Result<(), Error> {
+    let mut stream = device.write(write).await;
     while let Some(result) = stream.next().await {
         match result {
             SimpleResult::Sentence(_) => {}
@@ -927,11 +923,11 @@ async fn run_write(device: &impl Device, write: &MenuWrite<'_>) -> Result<(), Er
 }
 
 async fn find_id_by_key(
-    device: &impl Device,
+    device: &impl Reads,
     resource: &'static [u8],
     key: &KeyValuePair<'_>,
 ) -> Result<Box<str>, Error> {
-    let mut stream = device.connection().run(&FindByKey { resource, key }).await;
+    let mut stream = device.read(&FindByKey { resource, key }).await;
     while let Some(result) = stream.next().await {
         match result {
             SimpleResult::Sentence(mut row) => {
