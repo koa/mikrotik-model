@@ -1,12 +1,14 @@
 //! Static decode tests for the menus the provisioner only reads (`file.txt`, `log.txt`,
 //! `system/Scheduler.txt`, `system/Script.txt`, `system/DeviceMode.txt`, `user.txt`,
-//! `ipv6/Route.txt`, `ip/ip.txt`'s `/ip/route`), with the API output of CHR 7.24.5. A field the
+//! `ipv6/Route.txt`, `ip/ip.txt`'s `/ip/route`, `system.txt`'s `/system/resource`,
+//! `system/Package.txt`), with the API output of CHR 7.24.5. A field the
 //! model doesn't know fails the test. `/partitions`, `/ip/neighbor` and `/user/ssh-keys` had
 //! no entries on the CHR.
 
 use crate::model::{
     File, FileBuilder, IpRoute, IpRouteBuilder, Ipv6RouteState, Ipv6RouteStateBuilder, LogState,
-    LogStateBuilder, SystemDeviceModeState, SystemDeviceModeStateBuilder, SystemScheduler,
+    LogStateBuilder, SystemDeviceModeState, SystemDeviceModeStateBuilder, SystemPackageState,
+    SystemPackageStateBuilder, SystemResourceState, SystemResourceStateBuilder, SystemScheduler,
     SystemSchedulerBuilder, SystemScript, SystemScriptBuilder, SystemScriptJobState,
     SystemScriptJobStateBuilder, UserActiveState, UserActiveStateBuilder,
 };
@@ -208,4 +210,42 @@ fn decodes_the_routes() {
         (b"active", b"true"),
         (b"connect", b"true"),
     ]);
+}
+
+#[test]
+fn decodes_the_resource_and_packages() {
+    let resource: SystemResourceState = build::<SystemResourceStateBuilder, _>(&[
+        (b"uptime", b"42m44s"),
+        (b"version", b"7.24.5 (stable)"),
+        (b"build-time", b"2026-09-29 14:21:27"),
+        (b"minimum-version", b"7.1"),
+        (b"free-memory", b"320348160"),
+        (b"total-memory", b"536870912"),
+        (b"cpu", b"QEMU"),
+        (b"cpu-count", b"2"),
+        (b"cpu-frequency", b"4291"),
+        (b"cpu-load", b"0"),
+        (b"free-hdd-space", b"72429568"),
+        (b"total-hdd-space", b"93564928"),
+        (b"write-sect-since-reboot", b"1336"),
+        (b"write-sect-total", b"1336"),
+        (b"architecture-name", b"x86_64"),
+        (b"board-name", b"CHR QEMU Standard PC (i440FX + PIIX, 1996)"),
+        (b"platform", b"MikroTik"),
+    ]);
+    assert_eq!(
+        resource.architecture_name,
+        crate::model::SystemResourceArchitectureName::X8664
+    );
+    let package: SystemPackageState = build::<SystemPackageStateBuilder, _>(&[
+        (b".id", b"*1"),
+        (b"name", b"routeros"),
+        (b"version", b"7.24.5"),
+        (b"build-time", b"2026-09-29 14:21:27"),
+        (b"scheduled", b""),
+        (b"size", b"20841356"),
+        (b"available", b"false"),
+        (b"disabled", b"false"),
+    ]);
+    assert!(!package.disabled);
 }

@@ -1,23 +1,25 @@
 /system/resource:is-single;no-default
-
-architecture-name: ro;enum=arm, arm64, mipsbe, tile,x86,mmips
+# a CHR answers `x86_64`
+architecture-name: ro;enum=arm, arm64, mipsbe, tile, x86, x86_64, mmips
 board-name: o;ro
-cpu:ro
-cpu-frequency: ro;ClockFrequency
-factory-software:ro
-free-memory:ro;u64
-total-hdd-space: ro;u64
+cpu: o;ro
+# MHz, a bare number here
+cpu-frequency: o;ro;u32
+factory-software: o;ro
+free-memory: o;ro;u64
+total-hdd-space: o;ro;u64
 uptime: ro;Duration
-write-sect-since-reboot: ro;u64
+write-sect-since-reboot: o;ro;u64
 bad-blocks: ro;o;f64
-build-time:ro
-cpu-count: ro;u16
-cpu-load: ro;u8
-free-hdd-space: ro;u64
-platform:ro
-total-memory: ro;u64
-version:ro
-write-sect-total: ro;u64
+build-time: o;ro
+cpu-count: o;ro;u16
+cpu-load: o;ro;u8
+free-hdd-space: o;ro;u64
+platform: o;ro
+total-memory: o;ro;u64
+version: ro
+write-sect-total: o;ro;u64
+minimum-version: o;ro
 
 /system/identity:is-single;no-default
 name

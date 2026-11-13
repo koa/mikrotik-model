@@ -1,4 +1,5 @@
 /system/package:
+.id: ro; Id
 version: ro; 
 about: ro;o
 bundle: ro;o
