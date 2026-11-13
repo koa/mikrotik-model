@@ -344,6 +344,8 @@ fn decodes_the_service_entry_of_an_open_connection() {
     );
 }
 
+/// `calculate_create` leaves out the fields without a value: RouterOS keeps its defaults there
+/// (a script added with `policy=""` would have no rights, a flag refuses the empty value).
 #[test]
 fn an_entry_built_in_code_is_added_with_its_given_fields_only() {
     use crate::{
@@ -352,7 +354,7 @@ fn an_entry_built_in_code_is_added_with_its_given_fields_only() {
     };
     let mut script = SystemScriptCfg::new("apply".into());
     script.source = Some(":put done".into());
-    let add = script.calculate_create().given_fields_only();
+    let add = script.calculate_create();
     assert!(matches!(add.operation, ResourceMutationOperation::Add));
     let keys = add.fields.iter().map(|field| field.key).collect::<Vec<_>>();
     assert_eq!(keys, [&b"name"[..], b"source"]);
