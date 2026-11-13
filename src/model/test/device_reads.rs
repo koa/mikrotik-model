@@ -8,14 +8,14 @@
 
 use crate::model::{
     DeviceMode, File, FileBuilder, IpDhcpClient, IpDhcpClientBuilder, IpFirewallAddressList,
-    IpFirewallAddressListBuilder, IpRoute, IpRouteBuilder, Ipv6Route, Ipv6RouteBuilder,
-    OspfInterfaceState, OspfInterfaceType, OspfLsaType, RoutingOspfInterfaceState,
-    RoutingOspfInterfaceStateBuilder, RoutingOspfLsaState, RoutingOspfLsaStateBuilder,
-    SystemDeviceModeState, SystemDeviceModeStateBuilder, SystemHealthState,
-    SystemHealthStateBuilder, SystemPackageState, SystemPackageStateBuilder, SystemResourceState,
-    SystemResourceStateBuilder, SystemScheduler, SystemSchedulerBuilder, SystemScript,
-    SystemScriptBuilder, SystemScriptJobState, SystemScriptJobStateBuilder, UserActiveState,
-    UserActiveStateBuilder,
+    IpFirewallAddressListBuilder, IpRoute, IpRouteBuilder, Ipv6Address, Ipv6AddressBuilder,
+    Ipv6Route, Ipv6RouteBuilder, OspfInterfaceState, OspfInterfaceType, OspfLsaType,
+    RoutingOspfInterfaceState, RoutingOspfInterfaceStateBuilder, RoutingOspfLsaState,
+    RoutingOspfLsaStateBuilder, SystemDeviceModeState, SystemDeviceModeStateBuilder,
+    SystemHealthState, SystemHealthStateBuilder, SystemPackageState, SystemPackageStateBuilder,
+    SystemResourceState, SystemResourceStateBuilder, SystemScheduler, SystemSchedulerBuilder,
+    SystemScript, SystemScriptBuilder, SystemScriptJobState, SystemScriptJobStateBuilder,
+    UserActiveState, UserActiveStateBuilder,
 };
 use crate::resource::{DeserializeRosBuilder, DeserializeRosResource};
 
@@ -629,4 +629,29 @@ fn decodes_a_disabled_dhcp_client() {
     ]);
     assert!(client.status.disabled);
     assert_eq!(client.status.invalid, None);
+}
+
+#[test]
+fn decodes_an_ipv6_link_local_address() {
+    // as lab-np2 reports it on 7.24.6: no `valid`, `preferred`, `global` (without `.id` and
+    // `vrf`, which the model hasn't)
+    let address: Ipv6Address = build::<Ipv6AddressBuilder, _>(&[
+        (b"address", b"fe80::d601:c3ff:fe29:6766/64"),
+        (b"from-pool", b""),
+        (b"interface", b"e03-lab-wap"),
+        (b"actual-interface", b"e03-lab-wap"),
+        (b"eui-64", b"false"),
+        (b"advertise", b"false"),
+        (b"no-dad", b"false"),
+        (b"auto-link-local", b"true"),
+        (b"invalid", b"false"),
+        (b"dynamic", b"true"),
+        (b"link-local", b"true"),
+        (b"slave", b"false"),
+        (b"deprecated", b"false"),
+        (b"disabled", b"false"),
+    ]);
+    assert!(address.status.dynamic);
+    assert_eq!(address.status.valid, None);
+    assert_eq!(address.status.global, None);
 }

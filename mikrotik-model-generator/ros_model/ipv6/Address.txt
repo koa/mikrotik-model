@@ -8,14 +8,16 @@ eui-64: bool
 from-pool: o; ref=>ipv6-pool
 interface: ref=>interface; 
 no-dad: bool
-valid: ro; bool
+# RouterOS 7.24.6 reports neither `valid` nor `preferred` (lab-np2, lab-hex), and `global` only
+# for a global address
+valid: ro; o; bool
 invalid: ro; bool
 slave: ro; bool
 about: ro; o
 actual-interface: ro; 
 dynamic: ro; bool
 deprecated: ro; bool
-global: ro; 
-preferred: ro; 
+global: ro; o
+preferred: ro; o
 link-local: ro; o; bool
 
