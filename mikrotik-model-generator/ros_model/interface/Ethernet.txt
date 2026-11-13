@@ -30,9 +30,10 @@ power-cycle-ping-enabled: bool; o
 power-cycle-ping-timeout: unset; Duration; o
 sfp-shutdown-temperature:o;u8
 sfp-rate-select: o;enum=high,low
-# kept where NetBox gives none: the port negotiates then and ignores it, and RouterOS refuses
-# it empty ("ambiguous value of speed", klr-sw-1); a fixed speed is always set
-speed: o;k;EthernetSpeed
+# a negotiating port doesn't report it (7.24.6); RouterOS refuses it empty ("ambiguous value
+# of speed", klr-sw-1, CHR 7.24.5), and `!speed` is a syntax error in a script (lab-hex,
+# 7.24.6), so a user going back to negotiation leaves it out of the `set`
+speed: o;EthernetSpeed
 sfp-ignore-rx-los: o;bool
 
 disabled: bool

@@ -1,5 +1,7 @@
 //! `/interface/ethernet` (`ros_model/interface/Ethernet.txt`).
-use crate::model::{InterfaceEthernetByDefaultName, InterfaceEthernetByDefaultNameBuilder};
+use crate::model::{
+    EthernetSpeed, InterfaceEthernetByDefaultName, InterfaceEthernetByDefaultNameBuilder,
+};
 use crate::resource::{CfgResource, DeserializeRosBuilder};
 
 /// klr-sw-1 `qsfpplus1-1` as RouterOS 7 reports it with a fixed speed (no `advertise`).
@@ -23,19 +25,12 @@ fn fixed() -> InterfaceEthernetByDefaultName {
     builder.build().unwrap()
 }
 
-/// Negotiating again: RouterOS refuses `speed=""` ("ambiguous value of speed"), and a port
-/// that negotiates doesn't use it, so a target without one keeps it.
 #[test]
-fn negotiating_again_keeps_the_speed() {
-    let current = fixed();
-    let mut target = current.data.clone();
-    target.auto_negotiation = true;
-    target.speed = None;
-    let fields = target
-        .changed_values(&current.data)
-        .map(|field| String::from_utf8_lossy(field.key).into_owned())
-        .collect::<Vec<_>>();
-    assert_eq!(fields, ["auto-negotiation"]);
+fn a_fixed_port_reports_its_speed() {
+    let port = fixed();
+    assert!(!port.data.auto_negotiation);
+    assert_eq!(port.data.speed, Some(EthernetSpeed::_10GBaseCr));
+    assert!(port.data.advertise.is_empty());
 }
 
 /// A PoE port no longer watching its device (lab-np2, CRS318, 7.23.8): RouterOS refuses
