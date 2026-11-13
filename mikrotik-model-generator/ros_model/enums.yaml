@@ -753,3 +753,24 @@ DeviceMode:
   - home
   - rose
   - (AsciiString)
+# the network type of an OSPF interface, set in `/routing/ospf/interface-template` and reported
+# in `/routing/ospf/interface`
+OspfInterfaceType:
+  - broadcast
+  - nbma
+  - ptmp
+  - ptmp-broadcast
+  - ptp
+  - ptp-unnumbered
+  - virtual-link
+# the state of an OSPF interface (`/routing/ospf/interface`), as RFC 2328 names them and lab-np2
+# reports `dr`/`bdr` (7.24.6), the harness's CHRs `dr-other`; another is kept as text
+OspfInterfaceState:
+  - down
+  - loopback
+  - waiting
+  - ptp
+  - dr
+  - bdr
+  - dr-other
+  - (AsciiString)

@@ -44,26 +44,32 @@ in-filter: o; ref=>routing-filter;
 about: ro; o
 inactive: ro; bool
 
+# what RouterOS makes of the templates, as lab-np2 reports it (7.24.6): v2 with the `address`
+# (`<ip>%<interface>`), v3 without; `dr`/`bdr` only where elected, v2 the address, v3 the
+# router ID
 /routing/ospf/interface:
-instance-id: ro; 
-dr: ro; 
-vlink-neighbor-id: ro; 
-transmit-delay: ro; 
-bdr: ro; 
-hello-interval: ro; 
-area: ro; 
-state: ro; 
-retransmit-interval: ro; 
-dead-interval: ro; 
-vlink-remote-address: ro; 
-vlink-transit-area: ro; 
-about: ro; o
+.id: ro
+interface: ro
+address: o; ro
+area: ro
+instance-id: ro; u8
+state: ro; OspfInterfaceState
+type: ro; OspfInterfaceType
+dr: o; ro; Ipv4Addr
+bdr: o; ro; Ipv4Addr
+cost: ro; u16
+priority: ro; u8
 use-bfd: ro; bool
-address: ro; 
-cost: ro; 
+retransmit-interval: ro; Duration
+transmit-delay: ro; Duration
+hello-interval: ro; Duration
+dead-interval: ro; Duration
 dynamic: ro; bool
-network-type: ro; 
-priority: ro; 
+disabled: ro; bool
+vlink-neighbor-id: o; ro
+vlink-remote-address: o; ro
+vlink-transit-area: o; ro
+about: o; ro
 
 /routing/ospf/interface-template:can-add;
 .id: ro; id
@@ -84,7 +90,7 @@ prefix-list: mu
 priority: u8
 retransmit-interval: Duration; default=5s
 transmit-delay: Duration; default=1s
-type: enum= broadcast, nbma, ptmp, ptmp-broadcast, ptp, ptp-unnumbered, virtual-link; default=broadcast
+type: OspfInterfaceType; default=broadcast
 use-bfd: o; unset; bool
 vlink-neighbor-id: o; Ipv4Addr
 vlink-transit-area: o; ref=>ospf-area

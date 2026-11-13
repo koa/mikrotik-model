@@ -1,9 +1,8 @@
 //! Static decode tests for `/routing/ospf/interface-template` (`ros_model/routing/Ospf.txt`).
 
 use crate::model::{
-    RoutingOspfInterfaceTemplateById, RoutingOspfInterfaceTemplateByIdBuilder,
+    OspfInterfaceType, RoutingOspfInterfaceTemplateById, RoutingOspfInterfaceTemplateByIdBuilder,
     RoutingOspfInterfaceTemplateState, RoutingOspfInterfaceTemplateStateBuilder,
-    RoutingOspfInterfaceTemplateType,
 };
 use crate::resource::{AppendFieldResult, CfgResource, DeserializeRosBuilder};
 use std::time::Duration;
@@ -42,10 +41,7 @@ fn decodes_an_inactive_template_reporting_few_fields() {
     assert_eq!(template.data.instance_id, 0);
     assert_eq!(template.data.retransmit_interval, Duration::from_secs(5));
     assert_eq!(template.data.transmit_delay, Duration::from_secs(1));
-    assert_eq!(
-        template.data._type,
-        RoutingOspfInterfaceTemplateType::Broadcast
-    );
+    assert_eq!(template.data._type, OspfInterfaceType::Broadcast);
     assert_eq!(template.data.priority, 1);
     assert!(!template.data.disabled);
 }

@@ -528,7 +528,7 @@ impl Default for RoutingOspfInterfaceTemplateCfg {
             priority: 128,
             retransmit_interval: Duration::from_secs(5),
             transmit_delay: Duration::from_secs(1),
-            _type: RoutingOspfInterfaceTemplateType::Broadcast,
+            _type: OspfInterfaceType::Broadcast,
             use_bfd: None,
             vlink_neighbor_id: None,
             vlink_transit_area: None,

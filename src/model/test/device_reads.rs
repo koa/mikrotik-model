@@ -1,17 +1,20 @@
 //! Static decode tests for the menus the provisioner only reads (`file.txt`, `log.txt`,
 //! `system/Scheduler.txt`, `system/Script.txt`, `system/DeviceMode.txt`, `user.txt`,
 //! `ipv6/Route.txt`, `ip/ip.txt`'s `/ip/route`, `system.txt`'s `/system/resource`,
-//! `system/Package.txt`, `routing/Ospf.txt`'s neighbors and LSAs, `system/Health.txt`,
-//! `partitions.txt`), with what a device answered over the API: CHR 7.24.5, the OSPF neighbors,
-//! LSAs and health lab-np2's, the partitions lab-sxt-b's (both 7.24.6). A field the model doesn't know fails the test.
+//! `system/Package.txt`, `routing/Ospf.txt`'s neighbors, interfaces and LSAs,
+//! `system/Health.txt`, `partitions.txt`), with what a device answered over the API: CHR
+//! 7.24.5, the OSPF neighbors, interfaces, LSAs and health lab-np2's, the partitions
+//! lab-sxt-b's (both 7.24.6). A field the model doesn't know fails the test.
 
 use crate::model::{
     DeviceMode, File, FileBuilder, IpRoute, IpRouteBuilder, Ipv6RouteState, Ipv6RouteStateBuilder,
-    OspfLsaType, RoutingOspfLsaState, RoutingOspfLsaStateBuilder, SystemDeviceModeState,
-    SystemDeviceModeStateBuilder, SystemHealthState, SystemHealthStateBuilder, SystemPackageState,
-    SystemPackageStateBuilder, SystemResourceState, SystemResourceStateBuilder, SystemScheduler,
-    SystemSchedulerBuilder, SystemScript, SystemScriptBuilder, SystemScriptJobState,
-    SystemScriptJobStateBuilder, UserActiveState, UserActiveStateBuilder,
+    OspfInterfaceState, OspfInterfaceType, OspfLsaType, RoutingOspfInterfaceState,
+    RoutingOspfInterfaceStateBuilder, RoutingOspfLsaState, RoutingOspfLsaStateBuilder,
+    SystemDeviceModeState, SystemDeviceModeStateBuilder, SystemHealthState,
+    SystemHealthStateBuilder, SystemPackageState, SystemPackageStateBuilder, SystemResourceState,
+    SystemResourceStateBuilder, SystemScheduler, SystemSchedulerBuilder, SystemScript,
+    SystemScriptBuilder, SystemScriptJobState, SystemScriptJobStateBuilder, UserActiveState,
+    UserActiveStateBuilder,
 };
 use crate::resource::{DeserializeRosBuilder, DeserializeRosResource};
 
@@ -517,4 +520,66 @@ fn decodes_a_health_row() {
         row.name.map(|name| name.to_string()),
         Some("psu1-voltage".into())
     );
+}
+
+#[test]
+fn decodes_the_ospf_interfaces() {
+    let common: [(&[u8], &[u8]); 13] = [
+        (b"instance-id", b"0"),
+        (b"type", b"broadcast"),
+        (b"cost", b"100"),
+        (b"priority", b"128"),
+        (b"use-bfd", b"false"),
+        (b"retransmit-interval", b"5s"),
+        (b"transmit-delay", b"1s"),
+        (b"hello-interval", b"10s"),
+        (b"dead-interval", b"40s"),
+        (b"dynamic", b"true"),
+        (b"disabled", b"false"),
+        (b"interface", b"e05-hex"),
+        (b"state", b"bdr"),
+    ];
+    let v2: RoutingOspfInterfaceState = build::<RoutingOspfInterfaceStateBuilder, _>(
+        &[
+            &common[..],
+            &[
+                (b".id", b"*80000044"),
+                (b"address", b"192.168.101.29%e05-hex"),
+                (b"area", b"backbone-v2"),
+                (b"dr", b"192.168.101.30"),
+            ],
+        ]
+        .concat(),
+    );
+    assert_eq!(v2.interface.to_string(), "e05-hex");
+    assert_eq!(v2.state, OspfInterfaceState::Bdr);
+    assert_eq!(v2._type, OspfInterfaceType::Broadcast);
+    assert_eq!(v2.dr, Some("192.168.101.30".parse().unwrap()));
+    assert_eq!(v2.bdr, None);
+    assert_eq!(v2.dead_interval, std::time::Duration::from_secs(40));
+    // v3 without an address
+    let v3: RoutingOspfInterfaceState = build::<RoutingOspfInterfaceStateBuilder, _>(
+        &[
+            &common[..],
+            &[
+                (b".id", b"*80000045"),
+                (b"area", b"backbone-v3"),
+                (b"dr", b"192.168.100.9"),
+            ],
+        ]
+        .concat(),
+    );
+    assert_eq!(v3.address, None);
+    let other: RoutingOspfInterfaceState = build::<RoutingOspfInterfaceStateBuilder, _>(
+        &[
+            &common[..12],
+            &[
+                (b".id", b"*1"),
+                (b"area", b"backbone-v2"),
+                (b"state", b"dr-other"),
+            ],
+        ]
+        .concat(),
+    );
+    assert_eq!(other.state, OspfInterfaceState::DrOther);
 }
