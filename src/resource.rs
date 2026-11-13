@@ -582,6 +582,18 @@ impl<'a> ResourceMutation<'a> {
             ordering: MutationOrdering::default(),
         }
     }
+    /// The mutation with only the fields that have a value: an `add` of an entry built in code
+    /// (a scheduler entry, a script) leaves the rest at RouterOS' defaults instead of clearing
+    /// them, as `field=""` does (a script added with `policy=""` has no rights, a flag refuses
+    /// it).
+    pub fn given_fields_only(mut self) -> Self {
+        self.fields = self
+            .fields
+            .into_iter()
+            .filter(|field| !field.value.is_empty())
+            .collect();
+        self
+    }
     pub fn into_owned(self) -> ResourceMutation<'static> {
         let operation = self.operation.into_owned();
         let fields = self

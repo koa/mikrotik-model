@@ -356,3 +356,17 @@ fn decodes_the_service_entry_of_an_open_connection() {
         Some("10.0.2.2:34720")
     );
 }
+
+#[test]
+fn an_entry_built_in_code_is_added_with_its_given_fields_only() {
+    use crate::{
+        model::SystemScriptCfg,
+        resource::{Creatable, ResourceMutationOperation},
+    };
+    let mut script = SystemScriptCfg::new("apply".into());
+    script.source = Some(":put done".into());
+    let add = script.calculate_create().given_fields_only();
+    assert!(matches!(add.operation, ResourceMutationOperation::Add));
+    let keys = add.fields.iter().map(|field| field.key).collect::<Vec<_>>();
+    assert_eq!(keys, [&b"name"[..], b"source"]);
+}
