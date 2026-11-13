@@ -1,6 +1,7 @@
 /log
 .id: ro; Id; id
-time: ro
-topics: ro
+# local time, RouterOS 7 with the whole date (`LogTime`)
+time: ro; LogTime
+topics: ro; mu; LogTopic
 message: ro
 extra-info: o; ro

@@ -6,8 +6,8 @@
 //! (both 7.24.6). A field the model doesn't know fails the test.
 
 use crate::model::{
-    File, FileBuilder, IpRoute, IpRouteBuilder, Ipv6RouteState, Ipv6RouteStateBuilder, LogState,
-    LogStateBuilder, SystemDeviceModeState, SystemDeviceModeStateBuilder, SystemPackageState,
+    File, FileBuilder, IpRoute, IpRouteBuilder, Ipv6RouteState, Ipv6RouteStateBuilder,
+    SystemDeviceModeState, SystemDeviceModeStateBuilder, SystemPackageState,
     SystemPackageStateBuilder, SystemResourceState, SystemResourceStateBuilder, SystemScheduler,
     SystemSchedulerBuilder, SystemScript, SystemScriptBuilder, SystemScriptJobState,
     SystemScriptJobStateBuilder, UserActiveState, UserActiveStateBuilder,
@@ -147,20 +147,6 @@ fn decodes_an_api_session() {
         (b"via", b"api"),
         (b"group", b"full"),
         (b"radius", b"false"),
-    ]);
-}
-
-#[test]
-fn decodes_a_log_entry() {
-    let _: LogState = build::<LogStateBuilder, _>(&[
-        (b".id", b"*3"),
-        (b"time", b"2026-11-13 04:32:35"),
-        (b"topics", b"system,info,account"),
-        (b"message", b"user admin logged in from 10.0.2.2 via api"),
-        (
-            b"extra-info",
-            b"app=api duser=admin outcome=success src=10.0.2.2 ",
-        ),
     ]);
 }
 
@@ -388,4 +374,60 @@ fn decodes_a_renamed_port() {
             .as_deref(),
         Some("ether1")
     );
+}
+
+#[test]
+fn decodes_a_log_entry() {
+    use crate::{
+        model::{LogStateBuilder, LogTopic},
+        value::{LogTime, TimeOfDay},
+    };
+    let entry = build::<LogStateBuilder, _>(&[
+        (b".id", b"*26"),
+        (b"time", b"2026-11-13 05:02:34"),
+        (b"topics", b"system,info,account,container"),
+        (b"message", b"user admin logged in from 10.0.2.2 via api"),
+        (
+            b"extra-info",
+            b"app=api duser=admin outcome=success src=10.0.2.2 ",
+        ),
+    ]);
+    assert_eq!(
+        entry.time,
+        LogTime::At {
+            year: 2026,
+            month: 11,
+            day: 13,
+            time: TimeOfDay {
+                hour: 5,
+                minute: 2,
+                second: 34
+            }
+        }
+    );
+    assert!(entry.topics.contains(&LogTopic::Account));
+    assert!(entry.topics.contains(&LogTopic::Value("container".into())));
+    assert_eq!(entry.time.to_string(), "2026-11-13 05:02:34");
+}
+
+#[test]
+fn reads_the_short_log_times_of_routeros_6() {
+    use crate::value::{LogTime, ParseRosValueResult, RosValue};
+    for text in ["nov/13 04:32:21", "nov/13/2025 04:32:21", "04:32:21"] {
+        let ParseRosValueResult::Value(time) = LogTime::parse_ros(text.as_bytes()) else {
+            panic!("{text} not read");
+        };
+        let written = time.to_string();
+        assert_eq!(
+            written,
+            match text {
+                "nov/13/2025 04:32:21" => "2025-11-13 04:32:21",
+                text => text,
+            }
+        );
+    }
+    assert!(matches!(
+        LogTime::parse_ros(b"yesterday"),
+        ParseRosValueResult::Invalid
+    ));
 }

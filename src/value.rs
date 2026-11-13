@@ -6,7 +6,7 @@ use mac_address::MacAddress;
 use std::{
     borrow::Cow,
     collections::{BTreeSet, HashSet},
-    fmt::{Debug, Formatter, Write},
+    fmt::{Debug, Display, Formatter, Write},
     hash::Hash,
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
     ops::Range,
@@ -255,6 +255,126 @@ impl RosValue for ClockFrequency {
 
     fn encode_ros(&self) -> Cow<'_, [u8]> {
         Cow::Owned(Vec::from(format!("{}MHz", self.0).as_bytes()))
+    }
+}
+
+/// A time of day, to the second.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub struct TimeOfDay {
+    pub hour: u8,
+    pub minute: u8,
+    pub second: u8,
+}
+
+/// When a log entry was written (`/log`), in the device's local time: RouterOS 7 gives the
+/// whole date (`2026-11-13 04:32:21`, CHR 7.24.5, lab-np2 7.23.8). The shorter forms are
+/// RouterOS 6's (from its manual, not seen on a device here): month and day (`nov/13
+/// 04:32:21`), the year too for another year (`nov/13/2025 04:32:21`), the time alone today.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub enum LogTime {
+    /// the whole date: year, month (1 to 12), day
+    At {
+        year: u16,
+        month: u8,
+        day: u8,
+        time: TimeOfDay,
+    },
+    /// a day of this year
+    ThisYear { month: u8, day: u8, time: TimeOfDay },
+    /// today
+    Today(TimeOfDay),
+}
+
+const MONTHS: [&[u8]; 12] = [
+    b"jan", b"feb", b"mar", b"apr", b"may", b"jun", b"jul", b"aug", b"sep", b"oct", b"nov", b"dec",
+];
+
+fn number<N: FromStr>(text: &[u8]) -> Option<N> {
+    std::str::from_utf8(text).ok()?.parse().ok()
+}
+
+fn time_of_day(text: &[u8]) -> Option<TimeOfDay> {
+    let mut parts = text.split(|&b| b == b':');
+    let time = TimeOfDay {
+        hour: number(parts.next()?)?,
+        minute: number(parts.next()?)?,
+        second: number(parts.next()?)?,
+    };
+    (parts.next().is_none() && time.hour < 24 && time.minute < 60 && time.second < 61)
+        .then_some(time)
+}
+
+fn log_time(value: &[u8]) -> Option<LogTime> {
+    let Some(space) = value.iter().position(|&b| b == b' ') else {
+        return time_of_day(value).map(LogTime::Today);
+    };
+    let (date, time) = (&value[..space], time_of_day(&value[space + 1..])?);
+    if let [year, month, day] = date.split(|&b| b == b'-').collect::<Vec<_>>()[..] {
+        return Some(LogTime::At {
+            year: number(year)?,
+            month: number(month)?,
+            day: number(day)?,
+            time,
+        });
+    }
+    let parts = date.split(|&b| b == b'/').collect::<Vec<_>>();
+    let name = parts.first()?.to_ascii_lowercase();
+    let month = MONTHS.iter().position(|month| **month == *name)? as u8 + 1;
+    match parts[1..] {
+        [day] => Some(LogTime::ThisYear {
+            month,
+            day: number(day)?,
+            time,
+        }),
+        [day, year] => Some(LogTime::At {
+            year: number(year)?,
+            month,
+            day: number(day)?,
+            time,
+        }),
+        _ => None,
+    }
+}
+
+impl RosValue for LogTime {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
+        match log_time(value) {
+            Some(time) => ParseRosValueResult::Value(time),
+            None => ParseRosValueResult::Invalid,
+        }
+    }
+
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
+        Cow::Owned(self.to_string().into_bytes())
+    }
+}
+
+impl Display for TimeOfDay {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:02}:{:02}:{:02}", self.hour, self.minute, self.second)
+    }
+}
+
+/// As RouterOS writes it.
+impl Display for LogTime {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let month = |month: u8| {
+            String::from_utf8_lossy(MONTHS[usize::from(month.clamp(1, 12)) - 1]).into_owned()
+        };
+        match self {
+            LogTime::At {
+                year,
+                month,
+                day,
+                time,
+            } => write!(f, "{year:04}-{month:02}-{day:02} {time}"),
+            LogTime::ThisYear {
+                month: m,
+                day,
+                time,
+            } => write!(f, "{}/{day:02} {time}", month(*m)),
+            LogTime::Today(time) => write!(f, "{time}"),
+        }
     }
 }
 

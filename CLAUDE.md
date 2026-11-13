@@ -9,6 +9,11 @@ that path and its `Cargo.lock` are never committed: mikrotik-api is committed an
 then the git reference restored and `cargo update -p mikrotik-api` committed here. Provides, per modeled RouterOS path, both a `{Name}Current` fetcher and a
 `{Name}Target` diff/mutation generator.
 
+An enum used by several fields or menus is named in `enums.yaml`, not an inline `enum=` per
+field. A value `(Type)` there is the variant `Value(Type)` for anything else: `(u32)` a number
+beside the names, `(AsciiString)` the text of a value the list lacks, so a read-only set from a
+long list (the log's `topics`, `LogTopic`) doesn't fail on one; such an enum isn't `Copy`.
+
 Everything reaches the device as a typed command of mikrotik-api's `Connection::run`
 (`src/command.rs`): `Print`, `PrintKeyed` (`Read`) and `MonitorOnce` (`Observe`) read as the
 menu's model, `MenuWrite` (`Write`) and `FindByKey` are the writes of `apply_mutation` and

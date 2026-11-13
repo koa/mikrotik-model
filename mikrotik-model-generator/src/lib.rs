@@ -10,8 +10,8 @@ use std::{
     vec,
 };
 use syn::{
-    __private::ToTokens, parse_quote, punctuated::Punctuated, token::Comma, ExprMatch, FieldValue,
-    FieldsNamed, Item, Variant,
+    __private::ToTokens, parse_quote, punctuated::Punctuated, token::Comma, Attribute, ExprMatch,
+    FieldValue, FieldsNamed, Item, Variant,
 };
 
 pub mod macros;
@@ -65,8 +65,8 @@ pub fn generator() -> syn::File {
         parse_quote!(
             use crate::{
                 resource,
-                value::{self, IpOrInterface, ClockFrequency, Id},
-                ascii,
+                value::{self, IpOrInterface, ClockFrequency, Id, LogTime},
+                ascii::{self, AsciiString},
             };
         ),
         parse_quote!(
@@ -388,11 +388,14 @@ fn generate_enums<'a, T: Iterator<Item = (Ident, Box<[Box<str>]>)>>(
         let mut encode_match: ExprMatch = parse_quote!(match self {});
         let mut default_arm =
             parse_quote!(&_ => crate::value::ParseRosValueResult::Invalid,);
+        // `Copy` unless a value of its own (`(AsciiString)`) isn't
+        let mut copy = true;
         for value in values {
             if let Some(found_type_alias) =
                 value.strip_prefix('(').and_then(|v| v.strip_suffix(')'))
             {
                 let value_type = Ident::new(found_type_alias, Span::call_site());
+                copy &= found_type_alias != "AsciiString";
                 enum_variants.push(parse_quote!(Value(#value_type)));
                 default_arm =
                     parse_quote!(value=>#value_type::parse_ros(value).map(#name::Value));
@@ -410,9 +413,14 @@ fn generate_enums<'a, T: Iterator<Item = (Ident, Box<[Box<str>]>)>>(
             }
         }
         parse_match.arms.push(default_arm);
+        let derives: Attribute = if copy {
+            parse_quote!(#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)])
+        } else {
+            parse_quote!(#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)])
+        };
         [
             parse_quote! {
-                #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
+                #derives
                 pub enum #name {
                     #enum_variants
                 }
