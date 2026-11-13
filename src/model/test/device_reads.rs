@@ -370,3 +370,22 @@ fn an_entry_built_in_code_is_added_with_its_given_fields_only() {
     let keys = add.fields.iter().map(|field| field.key).collect::<Vec<_>>();
     assert_eq!(keys, [&b"name"[..], b"source"]);
 }
+
+#[test]
+fn decodes_a_renamed_port() {
+    use crate::model::InterfaceStateBuilder;
+    let port = build::<InterfaceStateBuilder, _>(&[
+        (b".id", b"*2"),
+        (b"name", b"e01"),
+        (b"default-name", b"ether1"),
+        (b"type", b"ether"),
+        (b"running", b"true"),
+    ]);
+    assert_eq!(
+        port.default_name
+            .as_ref()
+            .map(ToString::to_string)
+            .as_deref(),
+        Some("ether1")
+    );
+}

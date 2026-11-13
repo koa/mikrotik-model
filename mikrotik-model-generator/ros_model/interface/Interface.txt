@@ -2,6 +2,8 @@
 .id: ro; Id
 name: ro; id
 type: ro;
+# a port's factory name, also once renamed; none on what was added (a bridge, a VLAN)
+default-name: ro; o
 running: ro; bool
 disabled: ro; o; bool
 rx-byte: ro; o; u64
