@@ -2094,8 +2094,8 @@ mod tests {
     #[test]
     fn own_nd_entry_is_set_instead_of_removed() {
         use crate::model::{Ipv6NdByInterface, Ipv6NdCfg};
-        let current = [Ipv6NdByInterface(Ipv6NdCfg::new(b"switch".into()))];
-        let target = [Ipv6NdByInterface(Ipv6NdCfg::new(b"all".into()))];
+        let current = [Ipv6NdByInterface(Ipv6NdCfg::new(b"switch".into(), false))];
+        let target = [Ipv6NdByInterface(Ipv6NdCfg::new(b"all".into(), false))];
         let mutations =
             generate_add_update_remove_by_key_reusing(&current, target.iter().map(Cow::Borrowed))
                 .collect::<Vec<_>>();
@@ -2123,10 +2123,10 @@ mod tests {
     fn own_nd_entry_takes_the_key_of_a_second_one() {
         use crate::model::{Ipv6NdByInterface, Ipv6NdCfg};
         let current = [
-            Ipv6NdByInterface(Ipv6NdCfg::new(b"*1B".into())),
-            Ipv6NdByInterface(Ipv6NdCfg::new(b"all".into())),
+            Ipv6NdByInterface(Ipv6NdCfg::new(b"*1B".into(), false)),
+            Ipv6NdByInterface(Ipv6NdCfg::new(b"all".into(), false)),
         ];
-        let target = [Ipv6NdByInterface(Ipv6NdCfg::new(b"all".into()))];
+        let target = [Ipv6NdByInterface(Ipv6NdCfg::new(b"all".into(), false))];
         let mutations =
             generate_add_update_remove_by_key_reusing(&current, target.iter().map(Cow::Borrowed))
                 .collect::<Vec<_>>();
@@ -2179,10 +2179,10 @@ mod tests {
     fn nd_entries_are_found_before_their_interface_goes() {
         use crate::model::{Ipv6NdByInterface, Ipv6NdCfg};
         let current = [
-            Ipv6NdByInterface(Ipv6NdCfg::new(b"vlan1-lan".into())),
-            Ipv6NdByInterface(Ipv6NdCfg::new(b"vlan6-work".into())),
+            Ipv6NdByInterface(Ipv6NdCfg::new(b"vlan1-lan".into(), false)),
+            Ipv6NdByInterface(Ipv6NdCfg::new(b"vlan6-work".into(), false)),
         ];
-        let target = [Ipv6NdByInterface(Ipv6NdCfg::new(b"all".into()))];
+        let target = [Ipv6NdByInterface(Ipv6NdCfg::new(b"all".into(), false))];
         let mut mutations =
             generate_add_update_remove_by_key_reusing(&current, target.iter().map(Cow::Borrowed))
                 .collect::<Vec<_>>();

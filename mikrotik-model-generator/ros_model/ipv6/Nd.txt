@@ -2,4 +2,7 @@
 interface: id; unique; ref=>interface
 dns: o; mu; ordered; Ipv6Addr
 advertise-dns: o; k; bool
+# RouterOS's own entry (`all`) can't be removed: a device announcing no prefix turns it off,
+# else every interface would advertise it as a router (reported always, CHR 7.24.5)
+disabled: bool
 default: ro; bool
