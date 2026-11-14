@@ -184,6 +184,8 @@ pub enum EthernetNamePattern {
     Combo,
     Sfp,
     SfpSfpPlus,
+    /// `sfpplusN`, an SFP+ cage without SFP: a CRS226-24G-2S+ has `sfp-sfpplus1` and `sfpplus2`
+    SfpPlus,
     /// `sfp28-N`, 25G SFP28 cages (e.g. CCR2004-1G-12S+2XS)
     Sfp28,
     QsfpPlus,
@@ -197,6 +199,9 @@ impl EthernetNamePattern {
                 }
                 EthernetNamePattern::SfpSfpPlus => {
                     format!("sfp-sfpplus{idx}")
+                }
+                EthernetNamePattern::SfpPlus => {
+                    format!("sfpplus{idx}")
                 }
                 EthernetNamePattern::Sfp28 => {
                     format!("sfp28-{idx}")
@@ -220,7 +225,7 @@ impl EthernetNamePattern {
                 EthernetNamePattern::Ether => {
                     format!("e{idx:02}")
                 }
-                EthernetNamePattern::SfpSfpPlus => {
+                EthernetNamePattern::SfpSfpPlus | EthernetNamePattern::SfpPlus => {
                     format!("s{idx:02}")
                 }
                 // "XS" is MikroTik's own abbreviation for SFP28 in board names
@@ -255,6 +260,7 @@ impl EthernetNamePattern {
             EthernetNamePattern::QsfpPlus if !(idx - 1).is_multiple_of(4) => None,
             EthernetNamePattern::Combo
             | EthernetNamePattern::SfpSfpPlus
+            | EthernetNamePattern::SfpPlus
             | EthernetNamePattern::Sfp28
             | EthernetNamePattern::QsfpPlus
             | EthernetNamePattern::Sfp => Some(95),
@@ -264,7 +270,7 @@ impl EthernetNamePattern {
         match self {
             EthernetNamePattern::Ether => None,
             EthernetNamePattern::Combo => Some(false),
-            EthernetNamePattern::SfpSfpPlus => Some(false),
+            EthernetNamePattern::SfpSfpPlus | EthernetNamePattern::SfpPlus => Some(false),
             EthernetNamePattern::Sfp28 => Some(false),
             EthernetNamePattern::QsfpPlus => Some(false),
             EthernetNamePattern::Sfp => Some(false),
@@ -274,7 +280,9 @@ impl EthernetNamePattern {
         match self {
             EthernetNamePattern::Ether => None,
             EthernetNamePattern::Combo => Some(InterfaceEthernetSfpRateSelect::High),
-            EthernetNamePattern::SfpSfpPlus => Some(InterfaceEthernetSfpRateSelect::High),
+            EthernetNamePattern::SfpSfpPlus | EthernetNamePattern::SfpPlus => {
+                Some(InterfaceEthernetSfpRateSelect::High)
+            }
             EthernetNamePattern::Sfp28 => Some(InterfaceEthernetSfpRateSelect::High),
             EthernetNamePattern::QsfpPlus => Some(InterfaceEthernetSfpRateSelect::High),
             EthernetNamePattern::Sfp => Some(InterfaceEthernetSfpRateSelect::High),
@@ -285,7 +293,7 @@ impl EthernetNamePattern {
             EthernetNamePattern::Ether => None,
             EthernetNamePattern::Combo => None,
 
-            EthernetNamePattern::SfpSfpPlus => None,
+            EthernetNamePattern::SfpSfpPlus | EthernetNamePattern::SfpPlus => None,
             EthernetNamePattern::Sfp28 => Some(InterfaceEthernetFecMode::Auto),
             EthernetNamePattern::QsfpPlus => Some(InterfaceEthernetFecMode::Auto),
             EthernetNamePattern::Sfp => None,
