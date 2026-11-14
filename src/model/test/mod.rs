@@ -8,6 +8,7 @@ mod ethernet;
 mod firewall;
 mod lease;
 mod logging;
+mod nd;
 mod ospf;
 mod reference;
 mod service;

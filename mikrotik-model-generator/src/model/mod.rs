@@ -522,10 +522,36 @@ impl Entity {
     }
     fn generate_creatable_id_internal(&self, id_field: &Field) -> Item {
         let id_struct_ident = self.id_struct_type(id_field);
+        if !self.fields.iter().any(|field| field.after_add) {
+            return parse_quote! {
+                impl resource::Creatable for #id_struct_ident {
+                    fn calculate_create<'a>(&'a self) -> resource::ResourceMutation<'a> {
+                        self.0.calculate_create()
+                    }
+                }
+            };
+        }
+        let field_name = id_field.attribute_name();
+        let id_field_name = id_field.generate_field_name();
+        let after_add_values = self.modifiable_field_creators(true, parse_quote!(self.0));
         parse_quote! {
             impl resource::Creatable for #id_struct_ident {
                 fn calculate_create<'a>(&'a self) -> resource::ResourceMutation<'a> {
-                    self.0.calculate_create()
+                    let mut mutation = self.0.calculate_create();
+                    let fields: Box<[value::KeyValuePair<'a>]> = #after_add_values
+                        .into_iter()
+                        .filter(|value::KeyValuePair { key: _, value }| !value.is_empty())
+                        .collect();
+                    if !fields.is_empty() {
+                        mutation.operation = resource::ResourceMutationOperation::AddThenSet {
+                            key: value::KeyValuePair {
+                                key: #field_name,
+                                value: value::RosValue::encode_ros(&self.0.#id_field_name),
+                            },
+                            fields,
+                        };
+                    }
+                    mutation
                 }
             }
         }
@@ -896,7 +922,7 @@ impl Entity {
 
     fn create_createable_impl(&self) -> Item {
         let struct_ident_cfg = self.struct_type_cfg();
-        let create_values_array = self.modifiable_field_creators();
+        let create_values_array = self.modifiable_field_creators(false, parse_quote!(self));
         let item = parse_quote! {
             impl resource::Creatable for #struct_ident_cfg{
                 fn calculate_create(&self) -> resource::ResourceMutation<'_> {
@@ -1350,20 +1376,25 @@ impl Entity {
         }
     }
 
-    fn modifiable_field_creators(&self) -> ExprArray {
+    /// The values of an `add`: the modifiable fields with `after_add` as given, the ones going
+    /// in the `set` after it or the others, of the configuration `cfg` (`self`, `self.0`).
+    fn modifiable_field_creators(&self, after_add: bool, cfg: Expr) -> ExprArray {
         let mut create_values_array = ExprArray {
             attrs: vec![],
             bracket_token: Default::default(),
             elems: Default::default(),
         };
-        for field in self.modifiable_fields_iterator() {
+        for field in self
+            .modifiable_fields_iterator()
+            .filter(|field| field.after_add == after_add)
+        {
             let field_key = Literal::byte_string(field.name.as_bytes());
             let field_name = field.generate_field_name();
             let field_type = self.struct_field_type(field);
             create_values_array.elems.push(parse_quote! {
                 value::KeyValuePair {
                     key: #field_key,
-                    value: <#field_type as value::RosValue>::encode_ros(&self.#field_name),
+                    value: <#field_type as value::RosValue>::encode_ros(&#cfg.#field_name),
                 }
             });
         }
@@ -2020,6 +2051,9 @@ pub struct Field {
     /// (a radio's `datapath`) or removes this entry with it (a vtep's `interface`); the removal
     /// runs after the mutation that drops the reference
     pub blocks_removal: bool,
+    /// RouterOS takes it in an `add` but doesn't act on it: it goes in a `set` of the new
+    /// entry right after (`ResourceMutationOperation::AddThenSet`); only in a menu with a key
+    pub after_add: bool,
     pub default: Option<Box<str>>,
     pub monitor: MonitorVariant,
 }
@@ -2080,6 +2114,7 @@ impl Field {
                         "empty" => field.empty_is_value = true,
                         "unique" => field.is_unique = true,
                         "blocks-removal" => field.blocks_removal = true,
+                        "after-add" => field.after_add = true,
                         "monitor" => field.monitor = MonitorVariant::Enabled,
                         "monitor-only" => field.monitor = MonitorVariant::Exclusive,
                         name => {
@@ -2159,6 +2194,9 @@ impl Field {
         }
         if self.blocks_removal {
             write!(writer, "blocks-removal; ")?;
+        }
+        if self.after_add {
+            write!(writer, "after-add; ")?;
         }
         if self.has_auto {
             write!(writer, "auto; ")?;

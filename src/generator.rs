@@ -41,6 +41,13 @@ impl<'a, W: Write> Generator<'a, W> {
                 self.append_fields(&mutation.fields)?;
                 writeln!(self.target)?;
             }
+            ResourceMutationOperation::AddThenSet { fields, .. } => {
+                write!(self.target, "set [add ")?;
+                self.append_fields(&mutation.fields)?;
+                write!(self.target, "] ")?;
+                self.append_fields(fields)?;
+                writeln!(self.target)?;
+            }
             ResourceMutationOperation::RemoveByKey(id_key) => {
                 self.target.write_str("remove [find ")?;
                 self.append_field(id_key)?;
@@ -127,6 +134,16 @@ pub fn generate_cfg(target: &mut impl Write, mutations: &[ResourceMutation]) -> 
             ResourceMutationOperation::Add => {
                 write!(target, "add ")?;
                 append_fields(target, mutation)?;
+                writeln!(target)?;
+            }
+            ResourceMutationOperation::AddThenSet { fields, .. } => {
+                write!(target, "set [add ")?;
+                append_fields(target, mutation)?;
+                write!(target, "] ")?;
+                for kv in fields {
+                    append_field(target, kv)?;
+                    target.write_char(' ')?
+                }
                 writeln!(target)?;
             }
             ResourceMutationOperation::RemoveByKey(id_key) => {

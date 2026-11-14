@@ -1,8 +1,13 @@
 /ipv6/nd:can-add;id=interface;reuse
 interface: id; unique; ref=>interface
 dns: o; mu; ordered; Ipv6Addr
-advertise-dns: o; k; bool
+# in the `add` RouterOS keeps it without advertising the DNS servers ("automatic dns option
+# advertising is not started, re-apply dns config", CHR 7.24.5, srv-router-berg 7.24.6): set after
+advertise-dns: o; k; after-add; bool
 # RouterOS's own entry (`all`) can't be removed: a device announcing no prefix turns it off,
 # else every interface would advertise it as a router (reported always, CHR 7.24.5)
 disabled: bool
 default: ro; bool
+# RouterOS's note on the entry, only when there is one ("automatic dns option advertising is
+# not started", CHR 7.24.5)
+about: ro; o

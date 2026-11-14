@@ -62,7 +62,7 @@ firewall's `connection`, `mangle`, `nat` and `raw` were such raw drafts (every f
 text match fields as enums) and went; one needed again is modeled then, against a device.
 
 Adding a new RouterOS config path is normally just a new `.txt` file in `ros_model/`, following
-the existing DSL (`id`/`ref=X`, `ref=>X`, `o`, `ro`, `mu`, `ordered`, `k`, `unset`, `empty`, `unique`, `blocks-removal`,
+the existing DSL (`id`/`ref=X`, `ref=>X`, `o`, `ro`, `mu`, `ordered`, `k`, `unset`, `empty`, `unique`, `blocks-removal`, `after-add`,
 `enum=...`, scalar types) — no
 generator source changes needed for a simple addition.
 
@@ -210,6 +210,13 @@ the open API connection, and RouterOS refused the `set` with "this is configured
 `dynamic` property, `dynamic=no` found none of them and `set … disabled=no` changed nothing
 without an error (sat-switch 7.23.8, CHR 7.24.5); `!dynamic` is a syntax error in
 `/ipv6/address`, `dynamic!=yes` works in every menu tried.
+
+`after-add` (only in a menu with a key) is a field RouterOS takes in an `add` but doesn't act
+on: a new entry gets it in a `set` right after (`ResourceMutationOperation::AddThenSet`, by
+the key over the API, `set [add ...]` in a script). `/ipv6/nd`'s `advertise-dns=yes` in the
+`add` left the entry noting "automatic dns option advertising is not started, re-apply dns
+config" (its `about`) and its advertisements without DNS; a `set` after it starts them, also
+of the same value (CHR 7.24.5, srv-router-berg 7.24.6). An existing entry's `set` is fine.
 
 `can-add` says the menu adds entries (`/interface/wifi` adds virtual interfaces). A
 `by_key` field on a read-only key (`default-name`) still only updates: what has that key is

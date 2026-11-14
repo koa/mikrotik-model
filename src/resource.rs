@@ -856,6 +856,15 @@ impl<'a> ResourceMutation<'a> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ResourceMutationOperation<'a> {
     Add,
+    /// An `add` of the mutation's fields, then a `set` of `fields` on the new entry (found by
+    /// `key` over the API, `set [add ...]` in a script): fields RouterOS takes in an `add` but
+    /// doesn't act on (`after-add`). `/ipv6/nd`'s `advertise-dns=yes` in the `add` left the
+    /// entry with "automatic dns option advertising is not started, re-apply dns config" and
+    /// no DNS in its advertisements; a `set` after it starts them (CHR 7.24.5).
+    AddThenSet {
+        key: KeyValuePair<'a>,
+        fields: Box<[KeyValuePair<'a>]>,
+    },
     RemoveByKey(KeyValuePair<'a>),
     UpdateSingle,
     UpdateByKey(KeyValuePair<'a>),
@@ -874,6 +883,12 @@ impl<'a> ResourceMutationOperation<'a> {
     pub fn into_owned(self) -> ResourceMutationOperation<'static> {
         match self {
             ResourceMutationOperation::Add => ResourceMutationOperation::Add,
+            ResourceMutationOperation::AddThenSet { key, fields } => {
+                ResourceMutationOperation::AddThenSet {
+                    key: key.into_owned(),
+                    fields: fields.into_iter().map(KeyValuePair::into_owned).collect(),
+                }
+            }
             ResourceMutationOperation::RemoveByKey(k) => {
                 ResourceMutationOperation::RemoveByKey(k.into_owned())
             }
@@ -914,6 +929,14 @@ pub async fn apply_mutation(
     match &mutation.operation {
         ResourceMutationOperation::Add => {
             write_command(device, resource, b"add", &mutation.fields).await
+        }
+        ResourceMutationOperation::AddThenSet { key, fields } => {
+            write_command(device, resource, b"add", &mutation.fields).await?;
+            let id = find_id_by_key(device, resource, key).await?;
+            let attributes: Box<[KeyValuePair]> = std::iter::once(id_attribute(b".id", &id))
+                .chain(fields.iter().cloned())
+                .collect();
+            write_command(device, resource, b"set", &attributes).await
         }
         ResourceMutationOperation::UpdateSingle => {
             write_command(device, resource, b"set", &mutation.fields).await
