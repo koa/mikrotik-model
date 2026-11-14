@@ -21,6 +21,8 @@ impl Default for Ipv6SettingsCfg {
     fn default() -> Self {
         Ipv6SettingsCfg {
             disable_ipv_6: false,
+            forward: None,
+            accept_router_advertisements: None,
         }
     }
 }

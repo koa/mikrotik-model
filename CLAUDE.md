@@ -114,6 +114,9 @@ one refused `hw=""` (lab-wap, 7.23.8).
 `/ipv6/dhcp-client` is keyed by `interface`: RouterOS takes one client per interface ("dhcp-client
 on that interface already exists", CHR 7.24.5). It reports `pool-prefix-length` only once set,
 and `default-route-distance` only with a default route, so both are `o`.
+`/ipv6/settings` has `forward` and `accept-router-advertisements` optional (a device using them
+sets them, the provisioner keeps the device's); an `/ipv6/address` from SLAAC reports `valid`
+and `preferred` as the time left (`4w1d23h59m30s`, CHR 7.24.6), read as text.
 The static DHCP leases (`/ip/dhcp-server/lease`, keyed by `address`) are such a menu (CHR
 7.24.5, the notes in `DhcpServer.txt`): the flags refuse `""` and are reported only when on
 (`default=false`, cleared with `no`), `lease-time` takes `0s`, not `""`, `parent-queue=""`

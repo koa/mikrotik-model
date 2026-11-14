@@ -1,2 +1,7 @@
 /ipv6/settings:is-single;no-default
 disable-ipv6: bool
+# whether the device routes and takes router advertisements (SLAAC): read for a client that
+# configures its address that way (the CHR tests'); the provisioner keeps what the device has.
+# Optional: RouterOS 7.24.6 reports both (lab), what older ones report isn't checked
+forward: o; bool
+accept-router-advertisements: o; enum= yes, no, yes-if-forwarding-disabled

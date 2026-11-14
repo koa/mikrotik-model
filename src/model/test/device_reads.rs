@@ -2,9 +2,11 @@
 //! `system/Scheduler.txt`, `system/Script.txt`, `system/DeviceMode.txt`, `user.txt`,
 //! `ipv6/Route.txt`, `ip/ip.txt`'s `/ip/route`, `system.txt`'s `/system/resource`,
 //! `system/Package.txt`, `routing/Ospf.txt`'s neighbors, interfaces and LSAs,
-//! `system/Health.txt`, `partitions.txt`, `ip/Firewall.txt`'s IPv4 address list, `ip/ip.txt`'s DHCP client), with what a device answered over the API: CHR
-//! 7.24.5, the OSPF neighbors, interfaces, LSAs and health lab-np2's, the partitions
-//! lab-sxt-b's (both 7.24.6). A field the model doesn't know fails the test.
+//! `system/Health.txt`, `partitions.txt`, `ip/Firewall.txt`'s IPv4 address list, `ip/ip.txt`'s
+//! DHCP client, and the fields of `ipv6/Settings.txt` the provisioner only keeps), with what a
+//! device answered over the API: CHR 7.24.5, the OSPF neighbors, interfaces, LSAs, health and
+//! IPv6 settings lab-np2's, the partitions lab-sxt-b's (both 7.24.6). A field the model doesn't
+//! know fails the test.
 
 use crate::model::{
     DeviceMode, File, FileBuilder, IpDhcpClient, IpDhcpClientBuilder, IpFirewallAddressList,
@@ -654,4 +656,52 @@ fn decodes_an_ipv6_link_local_address() {
     assert!(address.status.dynamic);
     assert_eq!(address.status.valid, None);
     assert_eq!(address.status.global, None);
+}
+
+#[test]
+fn decodes_an_ipv6_address_from_slaac() {
+    // as a CHR 7.24.6 reports it, taking router advertisements: `valid` and `preferred` are
+    // the time left
+    let address: Ipv6Address = build::<Ipv6AddressBuilder, _>(&[
+        (b"address", b"2001:db8:61:0:5054:ff:fe03:1/64"),
+        (b"from-pool", b""),
+        (b"interface", b"ether2"),
+        (b"actual-interface", b"ether2"),
+        (b"eui-64", b"false"),
+        (b"advertise", b"false"),
+        (b"no-dad", b"false"),
+        (b"auto-link-local", b"true"),
+        (b"valid", b"4w1d23h59m30s"),
+        (b"preferred", b"6d23h59m30s"),
+        (b"invalid", b"false"),
+        (b"dynamic", b"true"),
+        (b"global", b"true"),
+        (b"slave", b"false"),
+        (b"deprecated", b"false"),
+        (b"disabled", b"false"),
+    ]);
+    assert!(address.status.dynamic);
+    assert_eq!(address.status.valid, Some("4w1d23h59m30s".into()));
+}
+
+/// `/ipv6/settings` as lab-np2 (7.24.6) reports it, the fields the model reads: a router
+/// forwards and takes router advertisements only while it doesn't.
+#[test]
+fn decodes_the_ipv6_settings() {
+    use crate::model::{
+        Ipv6SettingsAcceptRouterAdvertisements, Ipv6SettingsCfg, Ipv6SettingsCfgBuilder,
+    };
+    let settings: Ipv6SettingsCfg = build::<Ipv6SettingsCfgBuilder, _>(&[
+        (b"disable-ipv6", b"false"),
+        (b"forward", b"true"),
+        (
+            b"accept-router-advertisements",
+            b"yes-if-forwarding-disabled",
+        ),
+    ]);
+    assert_eq!(settings.forward, Some(true));
+    assert_eq!(
+        settings.accept_router_advertisements,
+        Some(Ipv6SettingsAcceptRouterAdvertisements::YesIfForwardingDisabled)
+    );
 }
