@@ -313,6 +313,8 @@ fn decodes_a_certificate_and_a_tls_service() {
         (b"trusted", b"true"),
     ]);
     assert_eq!(certificate.status.private_key, Some(true));
+    assert_eq!(certificate.cfg.trusted, Some(true));
+    assert!(certificate.status.subject_alt_name.is_empty());
     let service: IpService = build::<IpServiceBuilder, _>(&[
         (b".id", b"*6"),
         (b"name", b"www-ssl"),
@@ -703,5 +705,30 @@ fn decodes_the_ipv6_settings() {
     assert_eq!(
         settings.accept_router_advertisements,
         Some(Ipv6SettingsAcceptRouterAdvertisements::YesIfForwardingDisabled)
+    );
+}
+
+/// `subject-alt-name` is a list (CHR 7.24.5).
+#[test]
+fn decodes_a_certificate_s_subject_alt_names() {
+    use crate::model::{Certificate, CertificateBuilder};
+    use crate::value::SubjectAltName;
+    let certificate: Certificate = build::<CertificateBuilder, _>(&[
+        (b".id", b"*2"),
+        (b"name", b"netbox-provisioner-www-1"),
+        (
+            b"subject-alt-name",
+            b"IP:127.0.0.1,IP:2001:db8::9,DNS:chr-www",
+        ),
+        (b"private-key", b"true"),
+    ]);
+    assert_eq!(
+        certificate.status.subject_alt_name,
+        [
+            SubjectAltName::Ip("127.0.0.1".parse().unwrap()),
+            SubjectAltName::Ip("2001:db8::9".parse().unwrap()),
+            SubjectAltName::Dns("chr-www".into()),
+        ]
+        .into()
     );
 }

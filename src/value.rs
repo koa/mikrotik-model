@@ -1014,6 +1014,33 @@ impl RosValue for IpOrInterface {
         }
     }
 }
+/// One entry of a certificate's `subject-alt-name` as RouterOS prints it (`IP:127.0.0.1`,
+/// `DNS:chr`).
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum SubjectAltName {
+    Ip(IpAddr),
+    Dns(AsciiString),
+}
+
+impl RosValue for SubjectAltName {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
+        if let Some(ip) = value.strip_prefix(b"IP:") {
+            IpAddr::parse_ros(ip).map(SubjectAltName::Ip)
+        } else if let Some(dns) = value.strip_prefix(b"DNS:") {
+            AsciiString::parse_ros(dns).map(SubjectAltName::Dns)
+        } else {
+            ParseRosValueResult::Invalid
+        }
+    }
+
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
+        match self {
+            SubjectAltName::Ip(ip) => [b"IP:", ip.encode_ros().as_ref()].concat().into(),
+            SubjectAltName::Dns(dns) => [b"DNS:", dns.0.as_ref()].concat().into(),
+        }
+    }
+}
+
 #[derive(Clone, PartialEq)]
 pub struct KeyValuePair<'a> {
     pub key: &'static [u8],
