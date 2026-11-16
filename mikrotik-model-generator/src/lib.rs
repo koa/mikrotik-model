@@ -297,7 +297,7 @@ pub fn generator() -> syn::File {
         .iter()
         .map(|path| syn::LitByteStr::new(path.as_bytes(), proc_macro2::Span::call_site()));
     items.push(parse_quote!(
-        /// Whether the menu at `path` is read without its dynamic entries: a `[find ...]` there
+        /// Whether the table at `path` is read without its dynamic entries: a `[find ...]` there
         /// looks only at the static ones too, or it finds an open connection as well (`/ip/service`
         /// `api`), which RouterOS refuses to change ("this is configured elsewhere").
         pub fn finds_static_only(path: &[u8]) -> bool {

@@ -12,7 +12,7 @@ use std::time::Duration;
 /// cost, the intervals, `instance-id`, `type` or `disabled`. RouterOS's own values stand in for them
 /// (`default=`, as a CHR 7.24.5 reports for a template added without them), so the entry
 /// decodes as what the diff reads (`ById`, without the read-only `.about`) and can be taken
-/// away instead of failing the whole menu.
+/// away instead of failing the whole table.
 #[test]
 fn decodes_an_inactive_template_reporting_few_fields() {
     let mut builder = RoutingOspfInterfaceTemplateByIdBuilder::init(&Default::default());

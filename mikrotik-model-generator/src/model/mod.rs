@@ -2044,7 +2044,7 @@ pub struct Field {
     /// `o; mu` only: a reported `field=""` is an empty set, not `None` (absent); RouterOS tells
     /// the two apart (an interface template's `networks=""` matches no network)
     pub empty_is_value: bool,
-    /// no two entries of the menu may hold the same value (`vni`): entries are also paired by
+    /// no two entries of the table may hold the same value (`vni`): entries are also paired by
     /// it, and a mutation claiming a value runs after the one freeing it
     pub is_unique: bool,
     /// the entry this reference names must not be removed while it is set: RouterOS refuses it
@@ -2052,7 +2052,7 @@ pub struct Field {
     /// runs after the mutation that drops the reference
     pub blocks_removal: bool,
     /// RouterOS takes it in an `add` but doesn't act on it: it goes in a `set` of the new
-    /// entry right after (`ResourceMutationOperation::AddThenSet`); only in a menu with a key
+    /// entry right after (`ResourceMutationOperation::AddThenSet`); only in a table with a key
     pub after_add: bool,
     pub default: Option<Box<str>>,
     pub monitor: MonitorVariant,

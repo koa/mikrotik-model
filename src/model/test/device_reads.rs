@@ -1,4 +1,4 @@
-//! Static decode tests for the menus the provisioner only reads (`file.txt`, `log.txt`,
+//! Static decode tests for the tables the provisioner only reads (`file.txt`, `log.txt`,
 //! `system/Scheduler.txt`, `system/Script.txt`, `system/DeviceMode.txt`, `user.txt`,
 //! `ipv6/Route.txt`, `ip/ip.txt`'s `/ip/route`, `system.txt`'s `/system/resource`,
 //! `system/Package.txt`, `routing/Ospf.txt`'s neighbors, interfaces and LSAs,

@@ -69,7 +69,7 @@ fn decodes_a_service_before_7_24() {
     assert_eq!(service.data.available_from, None);
 }
 
-/// The keyed print asks the whole menu and keeps the entries as the device's query did: its
+/// The keyed print asks the whole table and keeps the entries as the device's query did: its
 /// API sessions are dynamic `api` entries next to the service (CHR 7.24.5), left out.
 #[test]
 fn a_keyed_print_keeps_the_static_entries_asked_for() {

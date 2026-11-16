@@ -9,30 +9,30 @@ that path and its `Cargo.lock` are never committed: mikrotik-api is committed an
 then the git reference restored and `cargo update -p mikrotik-api` committed here. Provides, per modeled RouterOS path, both a `{Name}Current` fetcher and a
 `{Name}Target` diff/mutation generator.
 
-An enum used by several fields or menus is named in `enums.yaml`, not an inline `enum=` per
+An enum used by several fields or tables is named in `enums.yaml`, not an inline `enum=` per
 field. A value `(Type)` there is the variant `Value(Type)` for anything else: `(u32)` a number
 beside the names, `(AsciiString)` the text of a value the list lacks, so a read-only set from a
 long list (the log's `topics`, `LogTopic`) doesn't fail on one; such an enum isn't `Copy`.
 A value a field takes beside its set is its wrapper, not a variant (`none;` `HasNone`,
-`disabled;` `HasDisabled`, `auto;` `Auto`), so one set serves menus that do and don't take it
+`disabled;` `HasDisabled`, `auto;` `Auto`), so one set serves tables that do and don't take it
 (`WirelessHwProtectionMode`, `WirelessMulticastHelper`, `PoeVoltage`). Which values a field
-takes, `/console/inspect request=completion input="/menu/set field="` lists on the device;
+takes, `/console/inspect request=completion input="/<path>/set field="` lists on the device;
 the shared sets were checked that way (`src/model/test/shared_enums.rs`).
 
 Everything reaches the device as a typed command of mikrotik-api's `Connection::run`
 (`src/command.rs`): `Print`, `PrintKeyed` (`Read`) and `MonitorOnce` (`Observe`) read as the
-menu's model, `MenuWrite` (`Write`) and `FindByKey` are the writes of `apply_mutation` and
+table's model, `TableWrite` (`Write`) and `FindByKey` are the writes of `apply_mutation` and
 `apply_mutations_via_script`. Who may send what is a trait: `command::Reads` (only `Read` and
 `Observe` commands; the reading functions take it) and `command::Writes` (also `Write`; the
 mutations take it). A `Connection` does both; a user's facade with fewer rights implements
 only `Reads` (the provisioner's `Reader`). The actions that are no
-`print`/`add`/`set`/`remove`/`move` of a menu are the catalog `src/action.rs` (reboot, ping,
+`print`/`add`/`set`/`remove`/`move` of a table are the catalog `src/action.rs` (reboot, ping,
 monitors without modeled fields, power cycle, partitions, device mode, packages, certificate
 import, fetch, a password), each a type with its effect; a user writes no raw command for
-them. `inspect-device` explores menus by name (`/console/inspect`), the one place where a
+them. `inspect-device` explores tables by name (`/console/inspect`), the one place where a
 `RawCommand` is the point.
 
-Menus the provisioner reads or writes ad hoc are models too, not raw commands (CHR 7.24.5,
+Tables the provisioner reads or writes ad hoc are models too, not raw commands (CHR 7.24.5,
 `src/model/test/device_reads.rs`): `/file`, `/system/scheduler` and `/system/script` are keyed
 by `name` and written through their mutations (`Creatable::calculate_create`,
 `ResourceMutation::remove` by key, `apply_mutation`); `/log`, `/system/script/job`,
@@ -42,11 +42,11 @@ but the ones always there optional; `/ipv6/route` takes a static route (`dst-add
 `gateway`, `comment`), the rest is read only. A `/file` entry's
 `.id` is not a number (`**1louYup4…`). `/ip/route`'s `hw-offloaded` is optional (a CHR doesn't
 report it). `collect_resource` reads dynamic entries too (routes); only `PrintKeyed` leaves them
-out. `PrintKeyed` asks the whole menu without a query and judges each row before it is parsed
+out. `PrintKeyed` asks the whole table without a query and judges each row before it is parsed
 (`KeyedRow`, by the key and `KeyedResource::entries`, an `EntryFilter`), so a reader keeping the
-replies (the provisioner's facts) has one answer per menu for every type reading it. A field
+replies (the provisioner's facts) has one answer per table for every type reading it. A field
 missing is no `false` there, as for the device's query (`?builtin=false` keeps no row without
-`builtin`, CHR 7.24.5). No keyed menu is too big to ask whole (routes, leases, the log are read
+`builtin`, CHR 7.24.5). No keyed table is too big to ask whole (routes, leases, the log are read
 with `Print`); one that is would need the query back.
 
 `inspect-device` (binary in this crate) connects to a live device and dumps its discovered
@@ -57,7 +57,7 @@ firmware before treating them as final. When no live device is reachable, a stat
 mismatches (e.g. an address field that needs to accept a RouterOS `%zone`-suffixed value) without
 needing network access.
 
-A menu nobody reads or writes and no test checks is left out, not kept as a guess: the IPv6
+A table nobody reads or writes and no test checks is left out, not kept as a guess: the IPv6
 firewall's `connection`, `mangle`, `nat` and `raw` were such raw drafts (every field required,
 text match fields as enums) and went; one needed again is modeled then, against a device.
 
@@ -93,7 +93,7 @@ refuses `""` on all its fields but `bridge` (taken as `none`) and clears them al
 radio refuse `""` on their references with two of a kind ("ambiguous value", `security`,
 `channel`, `aaa`, `interworking`, `steering`, `datapath.interface-list`) and on every number,
 flag, duration and choice of their groups (`security.connect-priority`). A sweep of every
-optional field of the modeled menus on a CHR 7.24.5 (`set` on an empty `[find]` validates the
+optional field of the modeled tables on a CHR 7.24.5 (`set` on an empty `[find]` validates the
 value without changing anything) found more refusing `""`; where `!field` cleared the value of a
 real entry (set, then `!field`, then read back empty) they are `unset` too: the match fields of
 `/ip/firewall/filter`, `nat` and `/ipv6/firewall/filter` (a defconf rule's `in-interface-list`,
@@ -117,7 +117,7 @@ and `default-route-distance` only with a default route, so both are `o`.
 `/ipv6/settings` has `forward` and `accept-router-advertisements` optional (a device using them
 sets them, the provisioner keeps the device's); an `/ipv6/address` from SLAAC reports `valid`
 and `preferred` as the time left (`4w1d23h59m30s`, CHR 7.24.6), read as text.
-The static DHCP leases (`/ip/dhcp-server/lease`, keyed by `address`) are such a menu (CHR
+The static DHCP leases (`/ip/dhcp-server/lease`, keyed by `address`) are such a table (CHR
 7.24.5, the notes in `DhcpServer.txt`): the flags refuse `""` and are reported only when on
 (`default=false`, cleared with `no`), `lease-time` takes `0s`, not `""`, `parent-queue=""`
 reads back as `none` (`none; default=none`), `queue-type` and `insert-queue-before` take only
@@ -141,7 +141,7 @@ advertisement after the apply). The own entry's `all` is RouterOS', a seed of th
 sending no advertisements turns it off (`disabled`, reported always, CHR 7.24.5 and the lab's
 7.24.6). Mutations waiting on each other (two VXLANs swapping their
 VNIs) are a `MissingDependenciesError` without missing dependencies, not a script that fails.
-- `unique`: no two entries of the menu hold the value; `vni` of `/interface/vxlan` (7.24.5
+- `unique`: no two entries of the table hold the value; `vni` of `/interface/vxlan` (7.24.5
   refuses a second VXLAN with a VNI, regardless of the port). A VXLAN renamed while keeping its
   VNI is removed before the new one is added; a new VNI under the same name is set in place.
 - `blocks-removal`: the referenced entry must not be removed while the reference is set, as
@@ -155,7 +155,7 @@ VNIs) are a `MissingDependenciesError` without missing dependencies, not a scrip
   reference names (a vtep to another VXLAN) but replaced, as the move would wait for the new
   VXLAN, which may wait for the old one to go.
 
-`by_id(..., owned = "<prefix>")` is for a menu shared with entries of others (the firewall):
+`by_id(..., owned = "<prefix>")` is for a table shared with entries of others (the firewall):
 only the entries whose `comment` starts with the prefix are the target's
 (`generate_owned_by_id`); the others are neither changed nor removed, except that one without a
 comment equal to a target but for the comment is taken over by setting it. With `ordered` the
@@ -165,13 +165,13 @@ puts them there where the device's order isn't that already, or anything was add
 goes to the end). An own entry whose comment goes on after the prefix with `last `
 (`OWNED_LAST`) comes after all others instead, by a second move to the end: the drop that ends a
 firewall chain, after the rules of others (set up by hand) had their say. The comments must be
-unique in the menu, as the move finds by them; a move waits for every other mutation of its menu
+unique in the table, as the move finds by them; a move waits for every other mutation of its table
 (`waits_for`), the one to the end (`Move { last: true }`) for the other move too. `move X destination=Y` puts X before
 Y, without `destination` at the end (CHR 7.24.5).
 
 `default=<value>` gives a required field the value RouterOS leaves out: a firewall rule added
 without `disabled` doesn't report it (`default=false`), nor one added without `action`
-(`default=accept` in `/ip/firewall/filter`, `nat` and `/ipv6/firewall/filter`), nor does an entry of the wifi menus
+(`default=accept` in `/ip/firewall/filter`, `nat` and `/ipv6/firewall/filter`), nor does an entry of the wifi tables
 (`aaa`, `channel`, `configuration`, `datapath`, `interworking`, `provisioning`, `security`,
 `steering`; 7.24.5, `multi-passphrase` does), nor does the OSPF instance an update from
 RouterOS 6 brings report `vrf` (`default=main`). A dhcp-client with
@@ -209,19 +209,19 @@ the open API connection, and RouterOS refused the `set` with "this is configured
 (/ip/service/set *0 = telnet)" (lab-wap 7.23.8, CHR 7.24.5). Not `dynamic=no`: an OSPF area has no
 `dynamic` property, `dynamic=no` found none of them and `set … disabled=no` changed nothing
 without an error (sat-switch 7.23.8, CHR 7.24.5); `!dynamic` is a syntax error in
-`/ipv6/address`, `dynamic!=yes` works in every menu tried.
+`/ipv6/address`, `dynamic!=yes` works in every table tried.
 
-`after-add` (only in a menu with a key) is a field RouterOS takes in an `add` but doesn't act
+`after-add` (only in a table with a key) is a field RouterOS takes in an `add` but doesn't act
 on: a new entry gets it in a `set` right after (`ResourceMutationOperation::AddThenSet`, by
 the key over the API, `set [add ...]` in a script). `/ipv6/nd`'s `advertise-dns=yes` in the
 `add` left the entry noting "automatic dns option advertising is not started, re-apply dns
 config" (its `about`) and its advertisements without DNS; a `set` after it starts them, also
 of the same value (CHR 7.24.5, srv-router-berg 7.24.6). An existing entry's `set` is fine.
 
-`can-add` says the menu adds entries (`/interface/wifi` adds virtual interfaces). A
+`can-add` says the table adds entries (`/interface/wifi` adds virtual interfaces). A
 `by_key` field on a read-only key (`default-name`) still only updates: what has that key is
 hardware, it can't be added or removed, so the macro doesn't ask for `Creatable` there.
-`reuse` marks a menu with an entry of RouterOS's own that it refuses to remove but whose key
+`reuse` marks a table with an entry of RouterOS's own that it refuses to remove but whose key
 may be changed (`/ipv6/nd`'s first, `default=yes`, `can not remove default rule`): an entry the
 target no longer has takes one it adds, in the device's order, by a `set` of the key
 (`generate_add_update_remove_by_key_reusing`).
@@ -253,7 +253,7 @@ or adding a `ros_model/*.txt` file does not invalidate cargo's build cache (`inc
 register per-file dependencies on stable Rust), so `cargo check`/`build` can silently keep using
 stale generated code that doesn't reflect the change at all. Don't remove that build script.
 
-Tests of the generated model go in `src/model/test/`, one file per menu or topic, declared in
+Tests of the generated model go in `src/model/test/`, one file per table or topic, declared in
 its `mod.rs`; not as `*_tests.rs` next to the model.
 
 ## Commits

@@ -1,4 +1,4 @@
-//! Scope: Static decode tests of the CRS1xx/2xx switch menus
+//! Scope: Static decode tests of the CRS1xx/2xx switch tables
 //! (`/interface/ethernet/switch` and its `vlan`, `egress-vlan-tag`, `ingress-vlan-translation`);
 //! nothing
 //! else.

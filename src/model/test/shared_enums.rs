@@ -1,4 +1,4 @@
-//! The value sets several menus share (`enums.yaml`), with the values the menus' own `enum=`
+//! The value sets several tables share (`enums.yaml`), with the values the tables' own `enum=`
 //! lacked: `/console/inspect` completions of lab-sxt-a, lab-np2 (7.24.6) and a CHR 7.24.5.
 
 use crate::model::{Arp, PoeOut, PoeVoltage, WirelessHwProtectionMode, WirelessMulticastHelper};
@@ -13,7 +13,7 @@ fn parsed<V: RosValue>(value: &[u8]) -> V {
 
 #[test]
 fn every_interface_takes_arp_disabled() {
-    // the wifi and CAPsMAN menus had no `disabled`
+    // the wifi and CAPsMAN tables had no `disabled`
     assert_eq!(parsed::<Arp>(b"disabled"), Arp::Disabled);
     assert_eq!(Arp::Disabled.encode_ros().as_ref(), b"disabled");
 }

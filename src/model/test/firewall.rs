@@ -364,7 +364,7 @@ mod owned {
     }
 
     #[test]
-    fn the_move_waits_for_its_menu() {
+    fn the_move_waits_for_its_table() {
         let current = [entry(3, Some("by hand"), "80")];
         let mut target = [rule(Some("own: a"), "22")];
         target[0].in_interface = Some(b"vlan-new".into());

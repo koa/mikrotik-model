@@ -1,6 +1,6 @@
 //! The catalog of actions: commands that are no `print`, `add`, `set`, `remove` or `move` of a
-//! modeled menu (those are in `command`), each a type with its effect. Their replies are
-//! [`SimpleResult`] rows; a monitor whose fields a menu's model has goes through
+//! modeled table (those are in `command`), each a type with its effect. Their replies are
+//! [`SimpleResult`] rows; a monitor whose fields a table's model has goes through
 //! `command::MonitorOnce` instead.
 use crate::{model::DeviceMode, value::RosValue};
 use mikrotik_api::{
@@ -157,27 +157,27 @@ action!(
         )
 );
 
-/// The radio menu whose CAPs' radios [`RadioProvision`] provisions again.
+/// The radio table whose CAPs' radios [`RadioProvision`] provisions again.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum RadioMenu {
+pub enum RadioTable {
     /// `/interface/wifi/radio`
     Wifi,
     /// `/caps-man/radio`
     CapsMan,
 }
 
-/// `provision` of the radios `numbers` (ids, comma separated) of `menu`.
+/// `provision` of the radios `numbers` (ids, comma separated) of `table`.
 pub struct RadioProvision<'a> {
-    pub menu: RadioMenu,
+    pub table: RadioTable,
     pub numbers: &'a str,
 }
 impl Command for RadioProvision<'_> {
     type Effect = Write;
     type Reply = SimpleResult;
     fn path(&self) -> Cow<'_, [u8]> {
-        Cow::Borrowed(match self.menu {
-            RadioMenu::Wifi => b"/interface/wifi/radio/provision",
-            RadioMenu::CapsMan => b"/caps-man/radio/provision",
+        Cow::Borrowed(match self.table {
+            RadioTable::Wifi => b"/interface/wifi/radio/provision",
+            RadioTable::CapsMan => b"/caps-man/radio/provision",
         })
     }
     fn build(&self, builder: CommandBuilder) -> CommandBuilder {

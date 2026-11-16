@@ -1,7 +1,7 @@
 use crate::value::Id;
 use crate::{
     ascii::AsciiString,
-    command::{FindByKey, MenuWrite, MonitorOnce, Print, PrintKeyed, Reads, Writes},
+    command::{FindByKey, MonitorOnce, Print, PrintKeyed, Reads, TableWrite, Writes},
     hwconfig::DeviceType,
     model::{ReferenceType, Resource, ResourceRef, ResourceType},
     value::{KeyValuePair, RosValue},
@@ -234,7 +234,7 @@ pub trait RosResource: Sized {
     fn path() -> &'static [u8];
     fn provides_reference(&'_ self) -> impl Iterator<Item = (ReferenceType, Cow<'_, [u8]>)>;
     fn consumes_reference(&'_ self) -> impl Iterator<Item = (ReferenceType, Cow<'_, [u8]>)>;
-    /// The values of its `unique` fields (field name, value): no two entries of the menu may
+    /// The values of its `unique` fields (field name, value): no two entries of the table may
     /// hold the same one (`vni` of `/interface/vxlan`).
     fn unique_values(&'_ self) -> impl Iterator<Item = (&'static [u8], Cow<'_, [u8]>)> {
         std::iter::empty()
@@ -303,7 +303,7 @@ pub trait KeyedResource: DeserializeRosResource + RosResource {
     }
     fn key_value(&self) -> &Self::Key;
     fn value(&self) -> &Self::Value;
-    /// Which of the menu's entries are its own (not RouterOS's).
+    /// Which of the table's entries are its own (not RouterOS's).
     fn entries() -> EntryFilter {
         EntryFilter::All
     }
@@ -354,7 +354,7 @@ pub trait KeyedResource: DeserializeRosResource + RosResource {
         }
     }
 }
-/// Which entries of a keyed menu are read, by the menu's read-only `dynamic` and `builtin`:
+/// Which entries of a keyed table are read, by the table's read-only `dynamic` and `builtin`:
 /// RouterOS's own are left out. Judged on the row as the device sent it, before it is parsed
 /// (an entry of RouterOS's may lack what the model requires), the way the device judges a
 /// query: a field missing is no `false` (CHR 7.24.5).
@@ -395,9 +395,9 @@ fn field_of<'v>(row: &[(&[u8], Option<&'v [u8]>)], name: &[u8]) -> Option<Option
         .map(|(_, value)| *value)
 }
 
-/// A row of a keyed menu's print ([`PrintKeyed`]): an entry asked for, or none for one left out by the
-/// key or [`KeyedResource::entries`]. The whole menu is asked, so that a reader keeping the
-/// replies (the provisioner's facts) has one answer for every reader of the menu.
+/// A row of a keyed table's print ([`PrintKeyed`]): an entry asked for, or none for one left out by the
+/// key or [`KeyedResource::entries`]. The whole table is asked, so that a reader keeping the
+/// replies (the provisioner's facts) has one answer for every reader of the table.
 #[derive(Debug)]
 pub struct KeyedRow(pub Option<SentenceResult<Resource>>);
 
@@ -479,7 +479,7 @@ pub trait SetResource<Base: RosResource>: FieldUpdateHandler {
 
 type Reference<'a> = (ReferenceType, Cow<'a, [u8]>);
 
-/// A value of a `unique` field: the menu (`path`), the field and the value.
+/// A value of a `unique` field: the table (`path`), the field and the value.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct UniqueValue<'a> {
     pub resource: &'static [u8],
@@ -706,7 +706,7 @@ impl Display for MissingDependenciesError<'_, '_> {
 }
 
 impl<'a> ResourceMutation<'a> {
-    /// Removes the entry of `R`'s menu with `key` (a scheduler entry by its name), without
+    /// Removes the entry of `R`'s table with `key` (a scheduler entry by its name), without
     /// reading it first.
     pub fn remove<R: KeyedResource>(key: &'a R::Key) -> Self {
         ResourceMutation {
@@ -831,7 +831,7 @@ impl<'a> ResourceMutation<'a> {
     pub(crate) fn waits_for(&self, other: &ResourceMutation<'_>) -> bool {
         let ordering = &self.ordering;
         let other_ordering = &other.ordering;
-        // a move orders what the other mutations of its menu leave, the move to the end
+        // a move orders what the other mutations of its table leave, the move to the end
         // what the other move leaves
         if let ResourceMutationOperation::Move { last, .. } = self.operation
             && other.resource == self.resource
@@ -869,8 +869,8 @@ pub enum ResourceMutationOperation<'a> {
     UpdateSingle,
     UpdateByKey(KeyValuePair<'a>),
     /// Puts the entries found by each key, in this order, before the entry `.id` `before`, or at
-    /// the end without one: the order of a menu where it matters (firewall rules). Runs after
-    /// every other mutation of its menu, which may add, change or remove what it finds; one
+    /// the end without one: the order of a table where it matters (firewall rules). Runs after
+    /// every other mutation of its table, which may add, change or remove what it finds; one
     /// `last` (the entries that go after all others) after the other move too.
     Move {
         entries: Box<[KeyValuePair<'a>]>,
@@ -1035,7 +1035,7 @@ pub async fn apply_mutations_via_script(
     // answers only once the whole script is through
     run_write(
         device,
-        &MenuWrite {
+        &TableWrite {
             resource: b"system/script",
             verb: b"run",
             attributes: &[name(b"number")],
@@ -1057,7 +1057,7 @@ async fn write_command(
 ) -> Result<(), Error> {
     run_write(
         device,
-        &MenuWrite {
+        &TableWrite {
             resource,
             verb,
             attributes,
@@ -1067,7 +1067,7 @@ async fn write_command(
     .await
 }
 
-async fn run_write(device: &impl Writes, write: &MenuWrite<'_>) -> Result<(), Error> {
+async fn run_write(device: &impl Writes, write: &TableWrite<'_>) -> Result<(), Error> {
     let mut stream = device.write(write).await;
     while let Some(result) = stream.next().await {
         match result {
@@ -1528,9 +1528,9 @@ fn is_owned_last(comment: Option<&[u8]>, prefix: &[u8]) -> bool {
         .is_some_and(|rest| rest.starts_with(OWNED_LAST))
 }
 
-/// [`generate_add_update_remove_by_id`] for a menu shared with entries of others (firewall
+/// [`generate_add_update_remove_by_id`] for a table shared with entries of others (firewall
 /// rules): only the entries whose `comment` starts with `prefix` are the target's, every other one
-/// stays as it is. The targets carry such a comment, unique in the menu. An entry of another
+/// stays as it is. The targets carry such a comment, unique in the table. An entry of another
 /// without a comment that is a target but for the comment is taken over (by setting the comment),
 /// so a rule written before the prefix existed isn't doubled.
 ///
@@ -1787,7 +1787,7 @@ where
 {
     UpdatePairing::match_updates_by_key(current, target).generate_remove_update_add()
 }
-/// [`generate_add_update_remove_by_key`] for a menu where RouterOS refuses to remove an
+/// [`generate_add_update_remove_by_key`] for a table where RouterOS refuses to remove an
 /// entry of its own (the first of `/ipv6/nd`, `default=yes`) but lets its key be changed: the
 /// entries the target no longer has take the ones it adds, in the device's order (its own
 /// entry first), by a `set` of the key. Where the target adds none and the device's own entry

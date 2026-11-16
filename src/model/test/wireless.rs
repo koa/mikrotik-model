@@ -5,7 +5,7 @@
 //! (`bachmann-hegglin-2`/`hegglin-bachmann`, RBDynaDishG-5HacDr3, 5 GHz, and
 //! `schopf-hegglin`/`hegglin-schopf`, RBwAPG-60ad-A, 60 GHz), one AP and one station
 //! side each, with booleans in the API's `true`/`false` form. CHR has neither the
-//! wireless nor the w60g menu, so this is the only check of these entities short of a
+//! wireless nor the w60g table, so this is the only check of these entities short of a
 //! real device. Keys are placeholders.
 
 use crate::ascii::AsciiString;

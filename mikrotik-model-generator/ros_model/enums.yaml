@@ -774,7 +774,7 @@ OspfInterfaceState:
   - bdr
   - dr-other
   - (AsciiString)
-# the arp mode of every interface menu (all take disabled, lab-sxt-a and CHR 7.24.5)
+# the arp mode of every interface table (all take disabled, lab-sxt-a and CHR 7.24.5)
 Arp:
   - disabled
   - enabled

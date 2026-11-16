@@ -1,5 +1,5 @@
-//! The commands of the modeled menus, for `Connection::run`: `print` and `monitor once` read as
-//! the menu's model, and the writes of an apply. Actions without a menu of their own belong
+//! The commands of the modeled tables, for `Connection::run`: `print` and `monitor once` read as
+//! the table's model, and the writes of an apply. Actions without a table of their own belong
 //! in a catalog beside these.
 use crate::{
     model::Resource,
@@ -63,11 +63,11 @@ impl Writes for Connection {
     }
 }
 
-fn menu_path(resource: &[u8], verb: &[u8]) -> Cow<'static, [u8]> {
+fn table_path(resource: &[u8], verb: &[u8]) -> Cow<'static, [u8]> {
     Cow::Owned([b"/", resource, b"/", verb].concat())
 }
 
-/// `print` of `R`'s menu, every entry.
+/// `print` of `R`'s table, every entry.
 pub struct Print<R>(PhantomData<fn() -> R>);
 
 impl<R> Default for Print<R> {
@@ -80,15 +80,15 @@ impl<R: DeserializeRosResource + RosResource> Command for Print<R> {
     type Effect = Read;
     type Reply = SentenceResult<Resource>;
     fn path(&self) -> Cow<'_, [u8]> {
-        menu_path(R::path(), b"print")
+        table_path(R::path(), b"print")
     }
     fn context(&self) -> <Self::Reply as ParsedMessage>::Context {
         R::resource_type()
     }
 }
 
-/// `print` of the entries of `R`'s menu that have its key, or the one with `key`: the whole
-/// menu is asked and the rows are judged here ([`KeyedRow`]), never by a query on the device.
+/// `print` of the entries of `R`'s table that have its key, or the one with `key`: the whole
+/// table is asked and the rows are judged here ([`KeyedRow`]), never by a query on the device.
 pub struct PrintKeyed<'k, R: KeyedResource> {
     key: Option<&'k R::Key>,
 }
@@ -106,7 +106,7 @@ impl<R: KeyedResource> Command for PrintKeyed<'_, R> {
     type Effect = Read;
     type Reply = KeyedRow;
     fn path(&self) -> Cow<'_, [u8]> {
-        menu_path(R::path(), b"print")
+        table_path(R::path(), b"print")
     }
     fn context(&self) -> <Self::Reply as ParsedMessage>::Context {
         KeyedRowContext {
@@ -119,7 +119,7 @@ impl<R: KeyedResource> Command for PrintKeyed<'_, R> {
     }
 }
 
-/// `monitor` of the entries `ids` (comma separated) of `R`'s menu, once.
+/// `monitor` of the entries `ids` (comma separated) of `R`'s table, once.
 pub struct MonitorOnce<R> {
     ids: Box<[u8]>,
     resource: PhantomData<fn() -> R>,
@@ -138,7 +138,7 @@ impl<R: DeserializeRosResource + RosResource> Command for MonitorOnce<R> {
     type Effect = Observe;
     type Reply = SentenceResult<Resource>;
     fn path(&self) -> Cow<'_, [u8]> {
-        menu_path(R::path(), b"monitor")
+        table_path(R::path(), b"monitor")
     }
     fn build(&self, builder: CommandBuilder) -> CommandBuilder {
         builder
@@ -150,19 +150,19 @@ impl<R: DeserializeRosResource + RosResource> Command for MonitorOnce<R> {
     }
 }
 
-/// A write to the menu `resource` (`add`, `set`, `remove`, `move`) with its attributes.
-pub(crate) struct MenuWrite<'a> {
+/// A write to the table `resource` (`add`, `set`, `remove`, `move`) with its attributes.
+pub(crate) struct TableWrite<'a> {
     pub resource: &'static [u8],
     pub verb: &'static [u8],
     pub attributes: &'a [KeyValuePair<'a>],
     pub reply_timeout: Option<Duration>,
 }
 
-impl Command for MenuWrite<'_> {
+impl Command for TableWrite<'_> {
     type Effect = Write;
     type Reply = SimpleResult;
     fn path(&self) -> Cow<'_, [u8]> {
-        menu_path(self.resource, self.verb)
+        table_path(self.resource, self.verb)
     }
     fn build(&self, builder: CommandBuilder) -> CommandBuilder {
         self.attributes.iter().fold(builder, |builder, kv| {
@@ -175,8 +175,8 @@ impl Command for MenuWrite<'_> {
     }
 }
 
-/// `print` of the entry of the menu `resource` with `key`, for its `.id`; a static one in a
-/// menu that has dynamic entries, as the script's `[find ... dynamic!=yes]`.
+/// `print` of the entry of the table `resource` with `key`, for its `.id`; a static one in a
+/// table that has dynamic entries, as the script's `[find ... dynamic!=yes]`.
 pub(crate) struct FindByKey<'a> {
     pub resource: &'static [u8],
     pub key: &'a KeyValuePair<'a>,
@@ -186,12 +186,12 @@ impl Command for FindByKey<'_> {
     type Effect = Read;
     type Reply = SimpleResult;
     fn path(&self) -> Cow<'_, [u8]> {
-        menu_path(self.resource, b"print")
+        table_path(self.resource, b"print")
     }
     fn build(&self, builder: CommandBuilder) -> CommandBuilder {
         let builder = builder.query_equal(self.key.key, self.key.value.as_ref());
         // as the script's `[find ... dynamic!=yes]` (`generator::static_only`): an entry of a
-        // menu without the property (`/routing/ospf/area`) counts as static
+        // table without the property (`/routing/ospf/area`) counts as static
         if crate::model::finds_static_only(self.resource) {
             builder
                 .query_equal(b"dynamic", b"false")

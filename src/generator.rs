@@ -110,7 +110,7 @@ impl<'a, W: Write> Generator<'a, W> {
     }
 }
 
-/// What a `[find ...]` adds in a menu read without its dynamic entries
+/// What a `[find ...]` adds in a table read without its dynamic entries
 /// ([`crate::model::finds_static_only`]): an open connection of `/ip/service` has the name
 /// `api` too, and RouterOS refuses a `set` that finds it. `dynamic!=yes`, not `dynamic=no`: an
 /// OSPF area has no `dynamic` at all, `dynamic=no` found none and the `set` did nothing
