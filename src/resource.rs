@@ -8,7 +8,7 @@ use crate::{
 };
 use encoding_rs::mem::decode_latin1;
 use itertools::Itertools;
-use log::{debug, info};
+use log::debug;
 use mikrotik_api::prelude::{ParsedMessage, TrapCategory, TrapResult};
 use mikrotik_api::simple::SimpleResult;
 use std::{
@@ -275,10 +275,12 @@ fn value_or_error<R: DeserializeRosResource>(entry: SentenceResult<R>) -> Result
             if !warnings.is_empty() {
                 debug!("Warnings on fetch {:?}: {warnings:#?}", R::resource_type())
             }
+            // the caller gets the first and decides what it means (a table a reader of the
+            // provisioner hasn't kept fails as if the connection had): no log of its own
             if !errors.is_empty() {
-                info!("Errors from fetch {:?}", R::resource_type());
+                debug!("Errors from fetch {:?}", R::resource_type());
                 for error in errors.iter() {
-                    info!("- {}", error);
+                    debug!("- {}", error);
                 }
             }
             Err(Error::ResourceAccess {
@@ -789,7 +791,7 @@ impl<'a> ResourceMutation<'a> {
                     && !others().any(|other| mutation.waits_for(other));
                 if ready {
                     for dep in &mutation.provides {
-                        info!(
+                        debug!(
                             "{} provides {:?}:{}",
                             decode_latin1(mutation.resource),
                             dep.0,
