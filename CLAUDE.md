@@ -211,6 +211,16 @@ the open API connection, and RouterOS refused the `set` with "this is configured
 without an error (sat-switch 7.23.8, CHR 7.24.5); `!dynamic` is a syntax error in
 `/ipv6/address`, `dynamic!=yes` works in every table tried.
 
+`ResourceMutation::before` is what was there before, for showing a change and writing the way
+back (the provisioner's field view and script back): an update's old values of its `fields`
+from the comparison the other way round (`values_before`: `before.changed_values(target)`, the
+same fields in their order, each as the way back writes it, so a field that was unset is
+`!field`; one that comparison doesn't name is left out), a removal's every field with a value
+(`removed_values`, from `CfgResource::values`, which the generator writes for every cfg struct:
+every `KeyedResource::Value` is one), empty for an add or a move. `Generator::append_remove_where`
+finds an added entry by all its fields (an `add` names no key), `append_comment` says in the
+script what it can't do; `run_script` runs a script's text as `apply_mutations_via_script` does.
+
 `after-add` (only in a table with a key) is a field RouterOS takes in an `add` but doesn't act
 on: a new entry gets it in a `set` right after (`ResourceMutationOperation::AddThenSet`, by
 the key over the API, `set [add ...]` in a script). `/ipv6/nd`'s `advertise-dns=yes` in the

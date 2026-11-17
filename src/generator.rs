@@ -31,10 +31,7 @@ impl<'a, W: Write> Generator<'a, W> {
                 }
             }
         }
-        if Some(mutation.resource) != self.current_path {
-            writeln!(self.target, "/{}", decode_latin1(mutation.resource))?;
-            self.current_path = Some(mutation.resource);
-        }
+        self.enter(mutation.resource)?;
         match &mutation.operation {
             ResourceMutationOperation::Add => {
                 write!(self.target, "add ")?;
@@ -81,6 +78,37 @@ impl<'a, W: Write> Generator<'a, W> {
                     writeln!(self.target)?;
                 }
             }
+        }
+        Ok(())
+    }
+    /// Removes the entries of `resource` with all of `fields`: the way back of an `add`, whose
+    /// entry has no key of its own in the mutation.
+    pub fn append_remove_where(
+        &mut self,
+        resource: &'static [u8],
+        fields: &[KeyValuePair],
+    ) -> std::fmt::Result {
+        if fields.is_empty() {
+            return Ok(());
+        }
+        self.enter(resource)?;
+        self.target.write_str("remove [find ")?;
+        self.append_fields(fields)?;
+        if crate::model::finds_static_only(resource) {
+            self.target.write_str("dynamic!=yes")?;
+        }
+        self.target.write_str("]\n")
+    }
+    /// A comment line in the table of `resource` (what a script can't do, said where it
+    /// would be).
+    pub fn append_comment(&mut self, resource: &'static [u8], text: &str) -> std::fmt::Result {
+        self.enter(resource)?;
+        writeln!(self.target, "# {text}")
+    }
+    fn enter(&mut self, resource: &'static [u8]) -> std::fmt::Result {
+        if Some(resource) != self.current_path {
+            writeln!(self.target, "/{}", decode_latin1(resource))?;
+            self.current_path = Some(resource);
         }
         Ok(())
     }
@@ -206,4 +234,41 @@ fn append_field(target: &mut impl Write, kv: &KeyValuePair) -> std::fmt::Result 
         write_script_string(target, &kv.value)?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use super::Generator;
+    use crate::value::KeyValuePair;
+    use std::borrow::Cow;
+
+    /// The way back of an add finds the entry by all its fields (static only where the table has
+    /// dynamic entries), after one header per table;
+    /// a comment goes in the table it is about.
+    #[test]
+    fn removes_where_all_fields_match() {
+        let mut script = String::new();
+        let mut generator = Generator::new(&mut script);
+        let fields = [
+            KeyValuePair {
+                key: b"interface",
+                value: Cow::Borrowed(b"ether1"),
+            },
+            KeyValuePair {
+                key: b"comment",
+                value: Cow::Borrowed(b"a b"),
+            },
+        ];
+        generator
+            .append_remove_where(b"interface/bridge/port", &fields)
+            .unwrap();
+        generator
+            .append_comment(b"interface/bridge/port", "order not restored")
+            .unwrap();
+        assert_eq!(
+            script,
+            "/interface/bridge/port\nremove [find interface=ether1 comment=\"a b\" dynamic!=yes]\n\
+             # order not restored\n"
+        );
+    }
 }

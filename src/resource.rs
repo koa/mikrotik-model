@@ -296,7 +296,7 @@ fn value_or_error<R: DeserializeRosResource>(entry: SentenceResult<R>) -> Result
 
 pub trait KeyedResource: DeserializeRosResource + RosResource {
     type Key: RosValue;
-    type Value: DeserializeRosResource + RosResource;
+    type Value: DeserializeRosResource + RosResource + CfgResource;
     fn key_name() -> &'static [u8];
     /// What the key names when it refers to another entry (`ipv6/nd`'s `interface`): a
     /// `[find interface=X]` only finds the entry while X is there under that name.
@@ -472,6 +472,44 @@ pub trait CfgResource: DeserializeRosResource {
     #[allow(clippy::needless_lifetimes)]
     fn changed_values<'a, 'b>(&'a self, before: &'b Self)
     -> impl Iterator<Item = KeyValuePair<'a>>;
+    /// Every field it writes, set or not: what a removed entry had ([`ResourceMutation::before`]).
+    fn values(&self) -> impl Iterator<Item = KeyValuePair<'_>> {
+        std::iter::empty()
+    }
+}
+
+/// Every field of a removed entry that has a value ([`ResourceMutation::before`]).
+pub fn removed_values<C: KeyedResource>(entry: &C) -> Box<[KeyValuePair<'_>]>
+where
+    C::Value: CfgResource,
+{
+    entry
+        .value()
+        .values()
+        .filter(|field| !field.value.is_empty())
+        .collect()
+}
+
+/// The values `fields` had before a mutation, from the comparison the other way round
+/// (`before.changed_values(target)`): those of the same fields, in their order, each as the
+/// way back would write it (a field that was unset as `!field`, as a field the mutation
+/// unsets is matched by its name). One the other way doesn't name (it keeps what the device
+/// has) is left out.
+pub fn values_before<'a>(
+    fields: &[KeyValuePair<'_>],
+    reverse: impl Iterator<Item = KeyValuePair<'a>>,
+) -> Box<[KeyValuePair<'a>]> {
+    let bare = |key: &'static [u8]| key.strip_prefix(b"!").unwrap_or(key);
+    let mut reverse = reverse.collect::<Vec<_>>();
+    fields
+        .iter()
+        .filter_map(|field| {
+            let found = reverse
+                .iter()
+                .position(|before| bare(before.key) == bare(field.key))?;
+            Some(reverse.swap_remove(found))
+        })
+        .collect()
 }
 pub trait SetResource<Base: RosResource>: FieldUpdateHandler {
     #[allow(clippy::needless_lifetimes)]
@@ -651,6 +689,10 @@ pub struct ResourceMutation<'a> {
     pub resource: &'static [u8],
     pub operation: ResourceMutationOperation<'a>,
     pub fields: Box<[KeyValuePair<'a>]>,
+    /// What was there before, for showing the change and the way back: an update's old values
+    /// of `fields` (those known, [`values_before`]), a removal's every field of the entry; empty
+    /// for an add or a move.
+    pub before: Box<[KeyValuePair<'a>]>,
     pub depends: Box<[Reference<'a>]>,
     pub provides: Box<[Reference<'a>]>,
     pub ordering: MutationOrdering<'a>,
@@ -718,6 +760,7 @@ impl<'a> ResourceMutation<'a> {
                 value: key.encode_ros(),
             }),
             fields: Box::new([]),
+            before: Box::new([]),
             depends: Box::new([]),
             provides: Box::new([]),
             ordering: MutationOrdering::default(),
@@ -727,6 +770,11 @@ impl<'a> ResourceMutation<'a> {
         let operation = self.operation.into_owned();
         let fields = self
             .fields
+            .into_iter()
+            .map(|kv| KeyValuePair::into_owned(kv))
+            .collect();
+        let before = self
+            .before
             .into_iter()
             .map(|kv| KeyValuePair::into_owned(kv))
             .collect();
@@ -744,6 +792,7 @@ impl<'a> ResourceMutation<'a> {
             resource: self.resource,
             operation,
             fields,
+            before,
             depends,
             provides,
             ordering: self.ordering.into_owned(),
@@ -1018,7 +1067,16 @@ pub async fn apply_mutations_via_script(
             .append_mutation(mutation)
             .expect("writing to a String cannot fail");
     }
+    run_script(device, &source, script_name).await
+}
 
+/// Runs `source` as the script `script_name` (`/system/script`, replacing one of that name)
+/// and answers once it is through.
+pub async fn run_script(
+    device: &impl Writes,
+    source: &str,
+    script_name: &str,
+) -> Result<(), Error> {
     let name = |key| KeyValuePair {
         key,
         value: Cow::Borrowed(script_name.as_bytes()),
@@ -1439,6 +1497,7 @@ where
                     resource: Current::path(),
                     operation: ResourceMutationOperation::RemoveByKey(KeyValuePair { key, value }),
                     fields: Box::new([]),
+                    before: removed_values(entry),
                     depends: Default::default(),
                     provides: Default::default(),
                     ordering: MutationOrdering::remove(entry),
@@ -1467,10 +1526,8 @@ where
     't: 'r,
     Resource: SingleResource + CfgResource + Clone,
 {
-    let fields = target
-        .changed_values(current)
-        //.map(|e| e.into_owned())
-        .collect::<Box<[_]>>();
+    let fields = target.changed_values(current).collect::<Box<[_]>>();
+    let before = values_before(&fields, current.changed_values(target));
     let provides = target
         .provides_reference()
         //.map(|(k, v)| (k, Cow::Owned(v.into_owned())))
@@ -1481,6 +1538,7 @@ where
         resource: Resource::path(),
         operation: ResourceMutationOperation::UpdateSingle,
         fields,
+        before,
         depends,
         provides,
         ordering: MutationOrdering::update_single(target, current, None),
@@ -1641,6 +1699,7 @@ where
                         last,
                     },
                     fields: Box::new([]),
+                    before: Box::new([]),
                     depends: Box::new([]),
                     provides: Box::new([]),
                     ordering: MutationOrdering::default(),
@@ -1750,6 +1809,7 @@ where
                 value: current.key_value().encode_ros(),
             }),
             fields: Box::new([]),
+            before: removed_values(*current),
             depends: Box::new([]),
             provides: Box::new([]),
             ordering: MutationOrdering::remove(*current),
@@ -1941,6 +2001,10 @@ where
                 .changed_values(original)
                 .map(|e| e.into_owned())
                 .collect::<Box<[_]>>();
+            let before = values_before(&fields, original.changed_values(target.as_ref()))
+                .into_iter()
+                .map(KeyValuePair::into_owned)
+                .collect();
             let provides = target
                 .provides_reference()
                 .map(|(k, v)| (k, Cow::Owned(v.into_owned())))
@@ -1954,6 +2018,7 @@ where
                 resource: Resource::path(),
                 operation: ResourceMutationOperation::UpdateSingle,
                 fields,
+                before,
                 depends,
                 provides,
                 ordering: MutationOrdering::update_single(target.as_ref(), original, None)
@@ -1972,6 +2037,7 @@ mod tests {
             resource: b"interface/wifi/datapath",
             operation,
             fields: Box::new([]),
+            before: Box::new([]),
             depends: Box::new([]),
             provides: Box::new([]),
             ordering: MutationOrdering::default(),

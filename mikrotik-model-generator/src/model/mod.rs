@@ -505,13 +505,15 @@ impl Entity {
         parse_quote! {
             impl resource::Updatable<#id_struct_ident> for #id_struct_ident {
                 fn calculate_update<'a>(&'a self, from: &'a Self) -> resource::ResourceMutation<'a> {
+                    let fields = resource::CfgResource::changed_values(self,from).collect::<Box<[_]>>();
                     resource::ResourceMutation {
                         resource: #path,
                         operation: resource::ResourceMutationOperation::UpdateByKey(value::KeyValuePair {
                             key: #field_name,
                             value: value::RosValue::encode_ros(&from.0.#id_field_name),
                         }),
-                        fields: resource::CfgResource::changed_values(self,from).collect(),
+                        before: resource::values_before(&fields, resource::CfgResource::changed_values(from,self)),
+                        fields,
                         depends: resource::written_references(self, from),
                         provides: <#id_struct_ident as resource::RosResource>::provides_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                         ordering: resource::MutationOrdering::update(self, from),
@@ -637,13 +639,15 @@ impl Entity {
         parse_quote! {
             impl resource::Updatable<#id_struct_ident> for #id_struct_ident {
                 fn calculate_update<'a>(&'a self, from: &'a #id_struct_ident) -> resource::ResourceMutation<'a> {
+                    let fields = resource::CfgResource::changed_values(self,from).collect::<Box<[_]>>();
                     resource::ResourceMutation {
                         resource: #path,
                         operation: resource::ResourceMutationOperation::UpdateByKey(value::KeyValuePair {
                             key: #key,
                             value: value::RosValue::encode_ros(&self.#key_name),
                         }),
-                        fields: resource::CfgResource::changed_values(self,from).collect(),
+                        before: resource::values_before(&fields, resource::CfgResource::changed_values(from,self)),
+                        fields,
                         depends: resource::written_references(self, from),
                         provides: <#id_struct_ident as resource::RosResource>::provides_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                         ordering: resource::MutationOrdering::update(self, from),
@@ -661,13 +665,15 @@ impl Entity {
         parse_quote! {
             impl resource::Updatable<#id_struct_ident> for #cfg_ident {
                 fn calculate_update<'a>(&'a self, from: &'a #id_struct_ident) -> resource::ResourceMutation<'a> {
+                    let fields = resource::SetResource::changed_values(self,from).collect::<Box<[_]>>();
                     resource::ResourceMutation {
                         resource: #path,
                         operation: resource::ResourceMutationOperation::UpdateByKey(value::KeyValuePair {
                             key: #key,
                             value: value::RosValue::encode_ros(&from.#key_name),
                         }),
-                        fields: resource::SetResource::changed_values(self,from).collect(),
+                        before: resource::values_before(&fields, resource::CfgResource::changed_values(&from.data,self)),
+                        fields,
                         depends: resource::written_references(self, from),
                         provides: <#cfg_ident as resource::RosResource>::provides_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                         ordering: resource::MutationOrdering::update(self, from),
@@ -930,6 +936,7 @@ impl Entity {
                         resource: <#struct_ident_cfg as resource::RosResource>::path(),
                         operation: resource::ResourceMutationOperation::Add,
                         fields: #create_values_array.into_iter().filter(|value::KeyValuePair{key:_,value}|!value.is_empty()).collect(),
+                        before: Box::new([]),
                         depends: <#struct_ident_cfg as resource::RosResource>::consumes_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                         provides: <#struct_ident_cfg as resource::RosResource>::provides_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                         ordering: resource::MutationOrdering::create(self),
@@ -975,10 +982,12 @@ impl Entity {
         parse_quote! {
             impl resource::Updatable<#struct_ident_cfg> for #struct_ident_cfg {
                 fn calculate_update<'a>(&'a self, from: &'a Self) -> resource::ResourceMutation<'a> {
+                    let fields = resource::CfgResource::changed_values(self,from).collect::<Box<[_]>>();
                     resource::ResourceMutation {
                         resource: <#struct_ident_cfg as resource::RosResource>::path(),
                         operation: resource::ResourceMutationOperation::UpdateSingle,
-                        fields: resource::CfgResource::changed_values(self,from).collect(),
+                        before: resource::values_before(&fields, resource::CfgResource::changed_values(from,self)),
+                        fields,
                         depends: resource::written_references(self, from),
                         provides: <#struct_ident_cfg as resource::RosResource>::provides_reference(self).filter(|(_,value)|!value.is_empty()).collect(),
                         ordering: resource::MutationOrdering::update_single(self, from, None),
@@ -998,6 +1007,8 @@ impl Entity {
     fn create_cfg_resource(&self) -> Item {
         let struct_ident_cfg = self.struct_type_cfg();
         let changed_values_array = self.modifiable_field_updaters(&None);
+        let values_array = self.modifiable_field_creators(false, parse_quote!(self));
+        let after_add_values_array = self.modifiable_field_creators(true, parse_quote!(self));
         parse_quote! {
             impl resource::CfgResource for #struct_ident_cfg {
                 #[allow(clippy::needless_lifetimes)]
@@ -1006,6 +1017,9 @@ impl Entity {
                     before: &'b Self,
                 ) -> impl Iterator<Item = value::KeyValuePair<'a>> {
                     #changed_values_array.into_iter().flatten()
+                }
+                fn values(&self) -> impl Iterator<Item = value::KeyValuePair<'_>> {
+                    #values_array.into_iter().chain(#after_add_values_array)
                 }
             }
         }
