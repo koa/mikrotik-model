@@ -5,19 +5,21 @@
 //! `system/Health.txt`, `partitions.txt`, `ip/Firewall.txt`'s IPv4 address list, `ip/ip.txt`'s
 //! DHCP client, and the fields of `ipv6/Settings.txt` the provisioner only keeps), with what a
 //! device answered over the API: CHR 7.24.5, the OSPF neighbors, interfaces, LSAs, health and
-//! IPv6 settings lab-np2's, the partitions lab-sxt-b's (both 7.24.6). A field the model doesn't
-//! know fails the test.
+//! IPv6 settings lab-np2's, the partitions lab-sxt-b's (both 7.24.6), the bridge's hosts
+//! (`bridge.txt`) lab-np2's (7.24.6, `print terse`). A field the model doesn't know fails the
+//! test.
 
 use crate::model::{
-    DeviceMode, File, FileBuilder, IpDhcpClient, IpDhcpClientBuilder, IpFirewallAddressList,
-    IpFirewallAddressListBuilder, IpRoute, IpRouteBuilder, Ipv6Address, Ipv6AddressBuilder,
-    Ipv6Route, Ipv6RouteBuilder, OspfInterfaceState, OspfInterfaceType, OspfLsaType,
-    RoutingOspfInterfaceState, RoutingOspfInterfaceStateBuilder, RoutingOspfLsaState,
-    RoutingOspfLsaStateBuilder, SystemDeviceModeState, SystemDeviceModeStateBuilder,
-    SystemHealthState, SystemHealthStateBuilder, SystemPackageState, SystemPackageStateBuilder,
-    SystemResourceState, SystemResourceStateBuilder, SystemScheduler, SystemSchedulerBuilder,
-    SystemScript, SystemScriptBuilder, SystemScriptJobState, SystemScriptJobStateBuilder,
-    UserActiveState, UserActiveStateBuilder,
+    DeviceMode, File, FileBuilder, InterfaceBridgeHostState, InterfaceBridgeHostStateBuilder,
+    IpDhcpClient, IpDhcpClientBuilder, IpFirewallAddressList, IpFirewallAddressListBuilder,
+    IpRoute, IpRouteBuilder, Ipv6Address, Ipv6AddressBuilder, Ipv6Route, Ipv6RouteBuilder,
+    OspfInterfaceState, OspfInterfaceType, OspfLsaType, RoutingOspfInterfaceState,
+    RoutingOspfInterfaceStateBuilder, RoutingOspfLsaState, RoutingOspfLsaStateBuilder,
+    SystemDeviceModeState, SystemDeviceModeStateBuilder, SystemHealthState,
+    SystemHealthStateBuilder, SystemPackageState, SystemPackageStateBuilder, SystemResourceState,
+    SystemResourceStateBuilder, SystemScheduler, SystemSchedulerBuilder, SystemScript,
+    SystemScriptBuilder, SystemScriptJobState, SystemScriptJobStateBuilder, UserActiveState,
+    UserActiveStateBuilder,
 };
 use crate::resource::{DeserializeRosBuilder, DeserializeRosResource};
 
@@ -730,5 +732,25 @@ fn decodes_a_certificate_s_subject_alt_names() {
             SubjectAltName::Dns("chr-www".into()),
         ]
         .into()
+    );
+}
+
+#[test]
+fn decodes_the_bridge_hosts() {
+    let host: InterfaceBridgeHostState = build::<InterfaceBridgeHostStateBuilder, _>(&[
+        (b".id", b"*2"),
+        (b"mac-address", b"6A:5B:E3:7D:34:23"),
+        (b"vid", b"104"),
+        (b"interface", b"bridge"),
+        (b"bridge", b"bridge"),
+        (b"on-interface", b"bridge"),
+        (b"dynamic", b"true"),
+        (b"local", b"true"),
+    ]);
+    assert_eq!(host.vid, Some(104));
+    assert_eq!(host.local, Some(true));
+    assert_eq!(
+        host.on_interface.map(|port| port.to_string()),
+        Some("bridge".into())
     );
 }
