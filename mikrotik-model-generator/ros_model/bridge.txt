@@ -117,3 +117,18 @@ tagged: mu;ref=>interface
 untagged: mu;ref=>interface
 vlan-ids: mu;range;u16
 mvrp-forbidden: mu;ref=>interface
+# the MACs the bridge learned, at which port: which device is behind a port
+/interface/bridge/host
+.id: ro; Id; id
+mac-address: ro; MacAddress
+on-interface: o; ro
+bridge: o; ro
+interface: o; ro
+vid: o; ro; u16
+remote-ip: o; ro; IpAddr
+age: o; ro; Duration
+dynamic: o; ro; bool
+local: o; ro; bool
+external: o; ro; bool
+invalid: o; ro; bool
+disabled: o; ro; bool
