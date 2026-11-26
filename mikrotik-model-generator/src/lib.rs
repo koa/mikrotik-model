@@ -65,7 +65,7 @@ pub fn generator() -> syn::File {
         parse_quote!(
             use crate::{
                 resource,
-                value::{self, IpOrInterface, ClockFrequency, Id, LogTime, SubjectAltName},
+                value::{self, IpOrInterface, ClockDate, ClockFrequency, Id, LogTime, SubjectAltName, TimeOfDay},
                 ascii::{self, AsciiString},
             };
         ),

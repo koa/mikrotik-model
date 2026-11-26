@@ -266,8 +266,9 @@ pub struct TimeOfDay {
     pub second: u8,
 }
 
-/// When a log entry was written (`/log`), in the device's local time: RouterOS 7 gives the
-/// whole date (`2026-11-13 04:32:21`, CHR 7.24.5, lab-np2 7.23.8). The shorter forms are
+/// A moment in the device's local time, as `/log` gives an entry's and `/interface` a link's
+/// last change (`last-link-down-time`): RouterOS 7 gives the
+/// whole date (`2026-11-13 04:32:21`, CHR 7.24.5, lab-np2 7.23.8, lab-crs125 7.24.6). The shorter forms are
 /// RouterOS 6's (from its manual, not seen on a device here): month and day (`nov/13
 /// 04:32:21`), the year too for another year (`nov/13/2025 04:32:21`), the time alone today.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
@@ -302,6 +303,61 @@ fn time_of_day(text: &[u8]) -> Option<TimeOfDay> {
     };
     (parts.next().is_none() && time.hour < 24 && time.minute < 60 && time.second < 61)
         .then_some(time)
+}
+
+/// The device's date (`/system/clock`): `2026-11-26` (lab-crs125, 7.24.6), RouterOS 6's
+/// `nov/26/2026` (from its manual, not seen on a device here).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub struct ClockDate {
+    pub year: u16,
+    /// 1 to 12
+    pub month: u8,
+    pub day: u8,
+}
+
+fn clock_date(value: &[u8]) -> Option<ClockDate> {
+    if let [year, month, day] = value.split(|&b| b == b'-').collect::<Vec<_>>()[..] {
+        return Some(ClockDate {
+            year: number(year)?,
+            month: number(month)?,
+            day: number(day)?,
+        });
+    }
+    let [name, day, year] = value.split(|&b| b == b'/').collect::<Vec<_>>()[..] else {
+        return None;
+    };
+    let name = name.to_ascii_lowercase();
+    Some(ClockDate {
+        year: number(year)?,
+        month: MONTHS.iter().position(|month| **month == *name)? as u8 + 1,
+        day: number(day)?,
+    })
+}
+
+impl RosValue for ClockDate {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
+        match clock_date(value) {
+            Some(date) => ParseRosValueResult::Value(date),
+            None => ParseRosValueResult::Invalid,
+        }
+    }
+
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
+        Cow::Owned(format!("{:04}-{:02}-{:02}", self.year, self.month, self.day).into_bytes())
+    }
+}
+
+impl RosValue for TimeOfDay {
+    fn parse_ros(value: &[u8]) -> ParseRosValueResult<Self> {
+        match time_of_day(value) {
+            Some(time) => ParseRosValueResult::Value(time),
+            None => ParseRosValueResult::Invalid,
+        }
+    }
+
+    fn encode_ros(&self) -> Cow<'_, [u8]> {
+        Cow::Owned(self.to_string().into_bytes())
+    }
 }
 
 fn log_time(value: &[u8]) -> Option<LogTime> {

@@ -15,4 +15,7 @@ tx-error: ro; o; u64
 rx-drop: ro; o; u64
 tx-drop: ro; o; u64
 link-downs: ro; o; u64
+# local time; none where the port's link never changed since the boot
+last-link-down-time: ro; o; LogTime
+last-link-up-time: ro; o; LogTime
 

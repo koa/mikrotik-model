@@ -390,6 +390,78 @@ fn decodes_a_renamed_port() {
     );
 }
 
+/// A port's last link changes and the clock, as lab-crs125 (7.24.6) answered.
+#[test]
+fn decodes_a_port_s_link_changes_and_the_clock() {
+    use crate::{
+        model::{InterfaceStateBuilder, SystemClockStateBuilder},
+        value::{ClockDate, LogTime, TimeOfDay},
+    };
+    let port = build::<InterfaceStateBuilder, _>(&[
+        (b".id", b"*1"),
+        (b"name", b"e01-lab-np2"),
+        (b"default-name", b"ether1"),
+        (b"type", b"ether"),
+        (b"running", b"true"),
+        (b"last-link-down-time", b"2026-11-24 20:28:14"),
+        (b"last-link-up-time", b"2026-11-24 20:29:51"),
+    ]);
+    assert_eq!(
+        port.last_link_down_time,
+        Some(LogTime::At {
+            year: 2026,
+            month: 11,
+            day: 24,
+            time: TimeOfDay {
+                hour: 20,
+                minute: 28,
+                second: 14
+            }
+        })
+    );
+    let never = build::<InterfaceStateBuilder, _>(&[
+        (b".id", b"*2"),
+        (b"name", b"e02"),
+        (b"default-name", b"ether2"),
+        (b"type", b"ether"),
+        (b"running", b"false"),
+    ]);
+    assert_eq!(never.last_link_down_time, None);
+    let clock = build::<SystemClockStateBuilder, _>(&[
+        (b"time", b"05:31:47"),
+        (b"date", b"2026-11-26"),
+        (b"time-zone-autodetect", b"true"),
+        (b"time-zone-name", b"Europe/Zurich"),
+        (b"gmt-offset", b"+01:00"),
+        (b"dst-active", b"false"),
+    ]);
+    assert_eq!(
+        clock.date,
+        ClockDate {
+            year: 2026,
+            month: 11,
+            day: 26
+        }
+    );
+    assert_eq!(
+        clock.time,
+        TimeOfDay {
+            hour: 5,
+            minute: 31,
+            second: 47
+        }
+    );
+}
+
+#[test]
+fn reads_the_date_of_routeros_6() {
+    use crate::value::{ClockDate, ParseRosValueResult, RosValue};
+    let ParseRosValueResult::Value(date) = ClockDate::parse_ros(b"nov/26/2026") else {
+        panic!("not read");
+    };
+    assert_eq!(&*date.encode_ros(), b"2026-11-26");
+}
+
 #[test]
 fn decodes_a_log_entry() {
     use crate::{

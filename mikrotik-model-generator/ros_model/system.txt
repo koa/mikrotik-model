@@ -21,6 +21,15 @@ version: ro
 write-sect-total: o;ro;u64
 minimum-version: o;ro
 
+/system/clock:is-single;no-default
+# the device's local date and time (lab-crs125, 7.24.6: `2026-11-26`, `05:31:47`, `+01:00`)
+date: ro; ClockDate
+time: ro; TimeOfDay
+gmt-offset: ro; o
+time-zone-name: ro; o
+time-zone-autodetect: ro; o; bool
+dst-active: ro; o; bool
+
 /system/identity:is-single;no-default
 name
 
